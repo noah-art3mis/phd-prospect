@@ -11,6 +11,7 @@ from typing import Sequence
 from prospect.notion import NotionClient, bootstrap_workspace
 from prospect.notion_schema import database_specs
 from prospect.records import normalize_opportunity
+from prospect.seed import seed_contacts
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -37,7 +38,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(identifiers, indent=2, sort_keys=True))
         return 0
 
+    if args.command == "seed-contacts":
+        contacts = json.loads(Path(args.contacts).read_text())
+        data_source_id = args.data_source_id or _data_source_id(
+            args.data_sources, "contacts"
+        )
+        if not data_source_id:
+            parser.error("pass --data-source-id or a --data-sources file with a contacts id")
+        token = os.environ.get("NOTION_TOKEN")
+        if not token:
+            parser.error("set NOTION_TOKEN before seeding Notion")
+        client = NotionClient(token)
+        created = seed_contacts(data_source_id, contacts, request=client.request)
+        print(f"Seeded {len(created)} contacts into {data_source_id}")
+        return 0
+
     parser.error("a command is required")
+
+
+def _data_source_id(path: str | None, key: str) -> str | None:
+    if not path:
+        return None
+    return json.loads(Path(path).read_text()).get(key)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -52,6 +74,16 @@ def _parser() -> argparse.ArgumentParser:
     )
     notion.add_argument("--parent-page-id")
     notion.add_argument("--dry-run", action="store_true")
+
+    seed = subcommands.add_parser(
+        "seed-contacts", help="create Notion contact pages from a local seed file"
+    )
+    seed.add_argument("contacts", help="path to a JSON array of contact seed records")
+    seed.add_argument(
+        "--data-sources",
+        help="path to the bootstrap output JSON holding the contacts data source id",
+    )
+    seed.add_argument("--data-source-id", help="contacts data source id (overrides --data-sources)")
     return parser
 
 

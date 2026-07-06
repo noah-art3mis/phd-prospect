@@ -126,6 +126,7 @@ def database_specs(parent_page_id: str) -> dict[str, dict[str, Any]]:
                     "Other",
                 ),
                 "Institution or lab": {"rich_text": {}},
+                "Research topics": {"rich_text": {}},
                 "Email": {"email": {}},
                 "Profile URL": {"url": {}},
                 "Last contact": {"date": {}},

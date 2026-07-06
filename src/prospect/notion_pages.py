@@ -31,6 +31,28 @@ def opportunity_page_payload(data_source_id: str, candidate: dict[str, Any]) -> 
     }
 
 
+def contact_page_payload(data_source_id: str, contact: dict[str, Any]) -> dict[str, Any]:
+    """Build a Notion contact page from a seed record."""
+
+    properties: dict[str, Any] = {
+        "Name": _title(str(contact["name"])),
+        "Institution or lab": _rich_text(str(contact.get("institution_or_lab", ""))),
+        "Research topics": _rich_text(str(contact.get("research_topics", ""))),
+        "Notes": _rich_text(str(contact.get("notes", ""))),
+        "Response status": {"select": {"name": "Not contacted"}},
+    }
+    if contact.get("role"):
+        properties["Role"] = {"select": {"name": str(contact["role"])}}
+    if contact.get("email"):
+        properties["Email"] = {"email": str(contact["email"])}
+    if contact.get("profile_url"):
+        properties["Profile URL"] = {"url": str(contact["profile_url"])}
+    return {
+        "parent": {"type": "data_source_id", "data_source_id": data_source_id},
+        "properties": properties,
+    }
+
+
 def _found_value(findings: dict[str, Any], name: str) -> str:
     finding = findings.get(name, {})
     if finding.get("state") != "found":
