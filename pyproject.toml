@@ -1,0 +1,26 @@
+[project]
+name = "phd-prospect"
+version = "0.1.0"
+description = "Research, compare, and track PhD opportunities from Telegram."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+prospect = "prospect.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/prospect"]

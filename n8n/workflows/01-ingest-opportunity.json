@@ -1,0 +1,102 @@
+{
+  "name": "Prospect – Ingest opportunity",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [-760, 0],
+      "id": "0d71a1c3-f231-48e4-9ea7-d6730a4adf11",
+      "name": "Telegram Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allowedUserId = 'REPLACE_WITH_TELEGRAM_USER_ID';\nconst message = $json.message;\nif (!message || String(message.from?.id) !== allowedUserId) {\n  throw new Error('Unauthorized Telegram sender');\n}\nconst text = [message.text, message.caption].filter(Boolean).join(' ');\nconst urls = text.match(/https?:\\/\\/[^\\s<>()]+/g) ?? [];\nif (urls.length !== 1) {\n  throw new Error('Send exactly one http or https opportunity URL');\n}\nconst sourceUrl = new URL(urls[0].replace(/[.,;!?]+$/, ''));\nconst hostname = sourceUrl.hostname.toLowerCase().replace(/\\.$/, '');\nconst privateIpv4 = /^(127\\.|10\\.|169\\.254\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)/;\nif (sourceUrl.username || sourceUrl.password || !['http:', 'https:'].includes(sourceUrl.protocol) || !['', '80', '443'].includes(sourceUrl.port) || hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local') || hostname.endsWith('.internal') || privateIpv4.test(hostname)) {\n  throw new Error('Source URL is not a safe public web target');\n}\nreturn [{ json: {\n  chat_id: message.chat.id,\n  telegram_user_id: message.from.id,\n  telegram_update_id: $json.update_id,\n  source_url: sourceUrl.toString(),\n  received_at: new Date().toISOString(),\n  status: 'pending'\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-520, 0],
+      "id": "bc33a947-d707-47af-b751-8a52f9570a64",
+      "name": "Authorize and normalize request"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "=Prospect captured this opportunity as pending:\n{{ $json.source_url }}\n\nI will fetch it, extract the record, and ask you to confirm critical facts before saving.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [-280, 0],
+      "id": "bc17d6c6-3fba-4ad5-bf16-15d86fa3e3e3",
+      "name": "Acknowledge pending item"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Authorize and normalize request').item.json.source_url }}",
+        "options": {
+          "allowUnauthorizedCerts": false,
+          "redirect": {"redirect": {"followRedirects": true, "maxRedirects": 5}},
+          "response": {"response": {"responseFormat": "text"}},
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-40, 0],
+      "id": "172c44bc-536f-428e-bf82-ef632630fb57",
+      "name": "Fetch submitted source"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Authorize and normalize request').item.json;\nconst raw = typeof $json === 'string' ? $json : ($json.data ?? $json.body ?? JSON.stringify($json));\nreturn [{ json: {\n  ...request,\n  external_content: String(raw).slice(0, 120000),\n  external_content_truncated: String(raw).length > 120000,\n  security_boundary: 'EXTERNAL_UNTRUSTED_CONTENT',\n  missing_fields: []\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0],
+      "id": "c41fa64c-0d70-4812-a9c6-d3db04b82979",
+      "name": "Build extraction envelope"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [440, 0],
+      "id": "a1c0cb87-a51c-4d16-9652-b891fa201880",
+      "name": "BIND EXTRACT VALIDATE APPROVE PERSIST"
+    },
+    {
+      "parameters": {
+        "content": "## Credential-backed completion point\n\nThrough the authenticated n8n MCP server, replace the No Operation node with:\n\n1. Information extraction using `schemas/opportunity-candidate.schema.json`.\n2. Missing-field detection.\n3. Read-only research agent with search + fetch only.\n4. Deterministic validation.\n5. Telegram approval callbacks.\n6. Notion persistence after confirmation.\n\nNever connect Notion mutation or Telegram send tools directly to the research agent.",
+        "height": 420,
+        "width": 420
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [360, -480],
+      "id": "b469f388-2fa2-45d6-8373-255501fc8e90",
+      "name": "Completion instructions"
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {"main": [[{"node": "Authorize and normalize request", "type": "main", "index": 0}]]},
+    "Authorize and normalize request": {"main": [[{"node": "Acknowledge pending item", "type": "main", "index": 0}]]},
+    "Acknowledge pending item": {"main": [[{"node": "Fetch submitted source", "type": "main", "index": 0}]]},
+    "Fetch submitted source": {"main": [[{"node": "Build extraction envelope", "type": "main", "index": 0}]]},
+    "Build extraction envelope": {"main": [[{"node": "BIND EXTRACT VALIDATE APPROVE PERSIST", "type": "main", "index": 0}]]}
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Mexico_City"
+  },
+  "versionId": "45dfb6b5-f74f-44b6-98d2-d1635656db94",
+  "meta": {"templateCredsSetupCompleted": false},
+  "tags": []
+}
