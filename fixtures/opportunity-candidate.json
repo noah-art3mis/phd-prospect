@@ -1,0 +1,62 @@
+{
+  "title": "PhD in Trustworthy Artificial Intelligence",
+  "source_url": "https://university.example/research/phd/trustworthy-ai",
+  "findings": {
+    "institution": {
+      "state": "found",
+      "value": "Example University",
+      "evidence": [
+        {
+          "url": "https://university.example/research/phd/trustworthy-ai",
+          "retrieved_at": "2026-07-06T10:00:00+00:00",
+          "excerpt": "Example University invites applications for a PhD in Trustworthy AI."
+        }
+      ]
+    },
+    "funding": {
+      "state": "found",
+      "value": {
+        "status": "fully_funded",
+        "stipend": 25000,
+        "currency": "EUR",
+        "frequency": "annual",
+        "tuition_coverage": "full"
+      },
+      "evidence": [
+        {
+          "url": "https://university.example/research/phd/trustworthy-ai#funding",
+          "retrieved_at": "2026-07-06T10:00:00+00:00",
+          "excerpt": "The studentship covers tuition and provides an annual EUR 25,000 stipend."
+        }
+      ]
+    },
+    "deadlines": {
+      "state": "found",
+      "value": [
+        {
+          "type": "programme_application",
+          "due_at": "2026-12-01T23:59:00+01:00",
+          "timezone": "Europe/Berlin",
+          "rolling": false
+        }
+      ],
+      "evidence": [
+        {
+          "url": "https://university.example/research/phd/trustworthy-ai#apply",
+          "retrieved_at": "2026-07-06T10:00:00+00:00",
+          "excerpt": "Applications close at 23:59 CET on 1 December 2026."
+        }
+      ]
+    },
+    "eligibility": {
+      "state": "needs_confirmation",
+      "value": null,
+      "evidence": []
+    },
+    "required_documents": {
+      "state": "not_stated",
+      "value": null,
+      "evidence": []
+    }
+  }
+}

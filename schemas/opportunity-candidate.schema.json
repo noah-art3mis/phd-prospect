@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/noah-art3mis/phd-prospect/schemas/opportunity-candidate.schema.json",
+  "title": "Prospect opportunity candidate",
+  "type": "object",
+  "required": ["title", "source_url", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "title": {"type": "string", "minLength": 1},
+    "source_url": {"type": "string", "format": "uri"},
+    "findings": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/finding"}
+    }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["url", "retrieved_at", "excerpt"],
+      "additionalProperties": false,
+      "properties": {
+        "url": {"type": "string", "format": "uri"},
+        "retrieved_at": {"type": "string", "format": "date-time"},
+        "excerpt": {"type": "string", "minLength": 1}
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": ["state", "value", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "found",
+            "not_stated",
+            "not_applicable",
+            "conflicting_sources",
+            "needs_confirmation"
+          ]
+        },
+        "value": {},
+        "evidence": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/evidence"}
+        }
+      }
+    }
+  }
+}
