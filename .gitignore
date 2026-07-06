@@ -6,3 +6,6 @@ __pycache__/
 .DS_Store
 n8n_data/
 notion-data-sources.json
+
+# Personal seed data extracted from private notes
+seeds/*.json

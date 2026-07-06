@@ -21,6 +21,13 @@ def test_notion_bootstrap_defines_the_five_linked_domain_collections() -> None:
         assert title_properties == [{"title": {}}]
 
 
+def test_contacts_capture_supervisor_research_topics() -> None:
+    contacts = database_specs("parent-page-id")["contacts"]
+    properties = contacts["initial_data_source"]["properties"]
+
+    assert properties["Research topics"] == {"rich_text": {}}
+
+
 def test_child_collections_link_back_to_opportunities_bidirectionally() -> None:
     updates = relation_updates(
         {
