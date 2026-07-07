@@ -20,7 +20,7 @@ Prospect borrows useful patterns from job trackers such as Huntr, Teal, Simplify
 - **Evidence before completeness**: Unknown information remains unknown. A complete-looking hallucination is worse than an explicit gap.
 - **Human confirmation for consequential facts**: Deadlines, funding, eligibility, and required documents must be sourced and reviewed.
 - **One source of truth**: The initial experiment uses Notion. Obsidian becomes a migration target, not a second editable database.
-- **Local portability**: Workflows, schemas, prompts, and setup live in this repository. n8n Cloud can be replaced by self-hosted Community Edition.
+- **Local portability**: Workflows, schemas, prompts, and setup live in this repository, which is the source of truth; the n8n Cloud instance is a deploy target.
 - **Least authority**: External pages are untrusted input. The research agent has read-only tools and cannot write to Notion, Telegram, or the filesystem.
 
 ## System overview
@@ -216,22 +216,24 @@ Reminder keys combine opportunity ID, deadline ID, reminder offset, and deadline
 
 ## n8n licensing and deployment
 
-n8n Cloud is a paid hosted service with a time-limited trial. The self-hosted Community Edition can be used without a subscription for this personal workflow. n8n is source-available under its Sustainable Use License rather than OSI open source; restrictions are relevant when reselling, white-labeling, or exposing n8n as a hosted product.
+n8n Cloud is a paid hosted service with a time-limited trial. n8n is source-available under its Sustainable Use License rather than OSI open source; restrictions are relevant when reselling, white-labeling, or exposing n8n as a hosted product.
 
-Cloud is the easiest initial environment because Telegram webhooks receive a public HTTPS endpoint automatically. The same workflows can later run in the self-hosted container defined by `compose.yaml`. A local instance needs a public HTTPS endpoint or tunnel for Telegram webhooks.
+The project is committed to n8n Cloud for now: Telegram webhooks receive a public HTTPS endpoint automatically, and the repository remains the source of truth for the workflows regardless of where they run. The hosting question is tracked separately.
 
 ## Repository layout
 
 ```text
 .
 ├── CONTEXT.md                  Domain language and invariants
-├── compose.yaml                Self-hosted n8n Community Edition
 ├── docs/adr/                   Architecture decisions
 ├── docs/setup.md               Credential and deployment setup
-├── n8n/workflows/              Importable workflow definitions
-├── scripts/bootstrap_notion.py One-time Notion data-source creation
+├── n8n/workflows/              Tracked workflow templates (sentinels + placeholders)
+├── n8n/code/                   Code-node JS payloads
+├── n8n/prompts/                Anthropic system prompts
+├── n8n/import/                 Git-ignored deployable workflows (built)
+├── scripts/                    Notion bootstrap and live-workflow comparison
 ├── schemas/                    Structured extraction contract
-├── src/prospect/               Deterministic validation and scheduling logic
+├── src/prospect/               Deterministic validation, scheduling, and build logic
 └── tests/                      Behavioral tests
 ```
 
@@ -243,7 +245,7 @@ Most setup is code-driven. Three credential handoffs remain manual:
 2. Create a Notion integration, copy its token, and share a parent page with it.
 3. Add model and search-provider credentials to n8n.
 
-Never commit credentials. Copy `.env.example` to `.env` for self-hosting, or configure credentials in n8n Cloud.
+Never commit credentials. Copy `.env.example` to `.env` for the values the build step reads locally; API credentials live in n8n Cloud.
 
 ## Development
 
@@ -255,19 +257,19 @@ uv run pytest
 uv run prospect --help
 ```
 
-Start self-hosted n8n:
-
-```bash
-docker compose up -d
-```
-
 Create the Notion data sources beneath the shared parent page:
 
 ```bash
 uv run prospect bootstrap-notion
 ```
 
-Import the workflow JSON files from `n8n/workflows/` into n8n and bind the Telegram, Notion, model, and search credentials in the UI.
+Build the deployable workflows from the tracked templates and payload files:
+
+```bash
+uv run prospect build-workflows
+```
+
+Push the resulting `n8n/import/*.json` to n8n Cloud through the MCP server (see `n8n/README.md`) and bind the Telegram, Notion, model, and search credentials in the UI.
 
 ## Experiment plan
 
