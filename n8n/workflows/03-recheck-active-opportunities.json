@@ -1,11 +1,93 @@
 {
   "connections": {
+    "Build recheck request": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Re-extract status",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Diff and alert": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Has alert",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Update last checked",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Fetch source": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build recheck request",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Has alert": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Send alert",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Prepare opportunities": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Fetch source",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Query active opportunities": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Prepare opportunities",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Re-extract status": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Diff and alert",
+            "type": "main"
+          }
+        ]
+      ]
+    },
     "Weekly Monday at 10:00": {
       "main": [
         [
           {
             "index": 0,
-            "node": "BIND QUERY FETCH DIFF ALERT",
+            "node": "Query active opportunities",
             "type": "main"
           }
         ]
@@ -37,28 +119,219 @@
       "typeVersion": 1.2
     },
     {
-      "name": "BIND QUERY FETCH DIFF ALERT",
-      "parameters": {},
+      "name": "Query active opportunities",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2026-03-11"
+            }
+          ]
+        },
+        "jsonBody": "{\"filter\":{\"and\":[{\"property\":\"Confirmed\",\"checkbox\":{\"equals\":true}},{\"property\":\"Opportunity status\",\"select\":{\"does_not_equal\":\"Closed\"}}]},\"page_size\":100}",
+        "method": "POST",
+        "nodeCredentialType": "notionApi",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "https://api.notion.com/v1/data_sources/REPLACE_WITH_DATA_SOURCE_OPPORTUNITIES/query"
+      },
       "position": [
         80,
         384
       ],
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
     },
     {
-      "name": "Completion instructions",
+      "name": "Prepare opportunities",
       "parameters": {
-        "content": "## Credential-backed completion point\n\nReplace the No Operation node with:\n\n1. Query active confirmed opportunities from Notion.\n2. Fetch each canonical source with rate limiting.\n3. Re-extract critical findings.\n4. Compare with confirmed values.\n5. Alert on changes, conflicts, closure, or page disappearance.\n6. Update `Last checked` but never overwrite confirmed critical values without approval.",
-        "height": 340,
-        "width": 420
+        "jsCode": "{{FILE:n8n/code/prepare-opportunities.js}}",
+        "mode": "runOnceForAllItems"
       },
       "position": [
-        0,
-        0
+        320,
+        384
       ],
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Fetch source",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "options": {
+          "allowUnauthorizedCerts": false,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false,
+              "maxRedirects": 5
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 30000
+        },
+        "url": "={{ $json.canonical_url }}"
+      },
+      "position": [
+        560,
+        384
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "name": "Build recheck request",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/build-recheck-request.js}}",
+        "mode": "runOnceForEachItem"
+      },
+      "position": [
+        800,
+        384
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Re-extract status",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify($json.recheck_request) }}",
+        "method": "POST",
+        "nodeCredentialType": "anthropicApi",
+        "options": {
+          "timeout": 120000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "https://api.anthropic.com/v1/messages"
+      },
+      "position": [
+        1040,
+        384
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "name": "Diff and alert",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/diff-and-alert.js}}",
+        "mode": "runOnceForEachItem"
+      },
+      "position": [
+        1280,
+        384
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Has alert",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c-alert",
+              "leftValue": "={{ $json.alert }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        1520,
+        260
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "name": "Send alert",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        },
+        "chatId": "={{ $json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "={{ $json.alert_text }}"
+      },
+      "position": [
+        1760,
+        260
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Update last checked",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2026-03-11"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify($json.last_checked_body) }}",
+        "method": "PATCH",
+        "nodeCredentialType": "notionApi",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "=https://api.notion.com/v1/pages/{{ $json.page_id }}"
+      },
+      "position": [
+        1520,
+        500
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
     }
   ],
   "settings": {

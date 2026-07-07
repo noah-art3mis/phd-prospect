@@ -1,11 +1,55 @@
 {
   "connections": {
+    "Compute due reminders": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Filter unsent",
+            "type": "main"
+          }
+        ]
+      ]
+    },
     "Daily at 09:00": {
       "main": [
         [
           {
             "index": 0,
-            "node": "BIND QUERY CALCULATE SEND RECORD",
+            "node": "Query verified deadlines",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Filter unsent": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Send reminder",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Query verified deadlines": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Compute due reminders",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Send reminder": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Record sent",
             "type": "main"
           }
         ]
@@ -33,28 +77,157 @@
       "typeVersion": 1.2
     },
     {
-      "name": "BIND QUERY CALCULATE SEND RECORD",
-      "parameters": {},
+      "name": "Query verified deadlines",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2026-03-11"
+            }
+          ]
+        },
+        "jsonBody": "{\"filter\":{\"and\":[{\"property\":\"Verified\",\"checkbox\":{\"equals\":true}},{\"property\":\"Rolling\",\"checkbox\":{\"equals\":false}}]},\"page_size\":100}",
+        "method": "POST",
+        "nodeCredentialType": "notionApi",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "https://api.notion.com/v1/data_sources/REPLACE_WITH_DATA_SOURCE_DEADLINES/query"
+      },
       "position": [
         80,
         400
       ],
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
     },
     {
-      "name": "Completion instructions",
+      "name": "Compute due reminders",
       "parameters": {
-        "content": "## Credential-backed completion point\n\nReplace the No Operation node with:\n\n1. Query verified, incomplete deadlines from Notion.\n2. Calculate offsets using the workflow timezone.\n3. Exclude keys already present in `Reminder keys sent`.\n4. Send Telegram reminder.\n5. Append the key only after Telegram succeeds.\n\nKey format: `opportunity_id:deadline_id:version:offset`. Rolling or unverified deadlines never generate date reminders.",
-        "height": 360,
-        "width": 420
+        "jsCode": "{{FILE:n8n/code/compute-due-reminders.js}}",
+        "mode": "runOnceForAllItems"
       },
       "position": [
-        0,
-        0
+        320,
+        400
       ],
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Send reminder",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        },
+        "chatId": "={{ $json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "={{ $json.reminder_text }}"
+      },
+      "position": [
+        560,
+        400
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Filter unsent",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "132FXPAohVWMXdHq"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "eq",
+              "keyName": "key",
+              "keyValue": "={{ $json.key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "rowNotExists",
+        "resource": "row"
+      },
+      "position": [
+        500,
+        400
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "name": "Record sent",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "key",
+              "id": "key",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "opportunity_id",
+              "id": "opportunity_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "deadline_id",
+              "id": "deadline_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "sent_at",
+              "id": "sent_at",
+              "required": false,
+              "type": "date"
+            }
+          ],
+          "value": {
+            "deadline_id": "={{ $('Compute due reminders').item.json.deadline_id }}",
+            "key": "={{ $('Compute due reminders').item.json.key }}",
+            "opportunity_id": "={{ $('Compute due reminders').item.json.opportunity_id }}",
+            "sent_at": "={{ $('Compute due reminders').item.json.sent_at }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "132FXPAohVWMXdHq"
+        },
+        "operation": "insert",
+        "resource": "row"
+      },
+      "position": [
+        800,
+        400
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
     }
   ],
   "settings": {
