@@ -14,7 +14,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const allowedUserId = 'REPLACE_WITH_TELEGRAM_USER_ID';\nconst message = $json.message;\nif (!message || String(message.from?.id) !== allowedUserId) {\n  throw new Error('Unauthorized Telegram sender');\n}\nconst text = [message.text, message.caption].filter(Boolean).join(' ');\nconst urls = text.match(/https?:\\/\\/[^\\s<>()]+/g) ?? [];\nif (urls.length !== 1) {\n  throw new Error('Send exactly one http or https opportunity URL');\n}\nconst sourceUrl = new URL(urls[0].replace(/[.,;!?]+$/, ''));\nconst hostname = sourceUrl.hostname.toLowerCase().replace(/\\.$/, '');\nconst privateIpv4 = /^(127\\.|10\\.|169\\.254\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)/;\nif (sourceUrl.username || sourceUrl.password || !['http:', 'https:'].includes(sourceUrl.protocol) || !['', '80', '443'].includes(sourceUrl.port) || hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local') || hostname.endsWith('.internal') || privateIpv4.test(hostname)) {\n  throw new Error('Source URL is not a safe public web target');\n}\nreturn [{ json: {\n  chat_id: message.chat.id,\n  telegram_user_id: message.from.id,\n  telegram_update_id: $json.update_id,\n  source_url: sourceUrl.toString(),\n  received_at: new Date().toISOString(),\n  status: 'pending'\n} }];"
+        "jsCode": "const allowedUserId = 'REPLACE_WITH_TELEGRAM_USER_ID';\nconst message = $json.message;\nif (!message || String(message.from?.id) !== allowedUserId) {\n  throw new Error('Unauthorized Telegram sender');\n}\nconst text = [message.text, message.caption].filter(Boolean).join(' ');\nconst rawUrls = text.match(/https?:\\/\\/[^\\s<>()]+/g) ?? [];\nif (rawUrls.length === 0) {\n  throw new Error('Send at least one http or https opportunity URL');\n}\nconst privateIpv4 = /^(127\\.|10\\.|169\\.254\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)/;\nconst seen = new Set();\nconst items = [];\nfor (const rawUrl of rawUrls) {\n  const cleaned = rawUrl.replace(/[.,;!?]+$/, '');\n  const parts = cleaned.match(/^(https?):\\/\\/(?:([^@/?#]*)@)?([^:/?#]+)(?::(\\d+))?([/?#]|$)/i);\n  if (!parts) {\n    throw new Error('Could not parse URL: ' + cleaned);\n  }\n  const protocol = parts[1].toLowerCase();\n  const userinfo = parts[2];\n  const hostname = parts[3].toLowerCase().replace(/\\.$/, '');\n  const port = parts[4] || '';\n  if (userinfo || !['http', 'https'].includes(protocol) || !['', '80', '443'].includes(port) || hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local') || hostname.endsWith('.internal') || privateIpv4.test(hostname)) {\n    throw new Error('Source URL is not a safe public web target: ' + cleaned);\n  }\n  if (seen.has(cleaned)) continue;\n  seen.add(cleaned);\n  items.push({ json: {\n    chat_id: message.chat.id,\n    telegram_user_id: message.from.id,\n    telegram_update_id: $json.update_id,\n    source_url: cleaned,\n    received_at: new Date().toISOString(),\n    status: 'pending'\n  } });\n}\nitems.forEach((it, i) => { it.json.batch_index = i; it.json.batch_size = items.length; });\nreturn items;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -24,8 +24,10 @@
     },
     {
       "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
         "chatId": "={{ $json.chat_id }}",
-        "text": "=Prospect captured this opportunity as pending:\n{{ $json.source_url }}\n\nI will fetch it, extract the record, and ask you to confirm critical facts before saving.",
+        "text": "=Prospect captured this opportunity as pending{{ $json.batch_size > 1 ? ' (' + ($json.batch_index + 1) + ' of ' + $json.batch_size + ')' : '' }}:\n{{ $json.source_url }}\n\nI will fetch it, extract the record, and ask you to confirm critical facts before saving.",
         "additionalFields": {
           "appendAttribution": false
         }
