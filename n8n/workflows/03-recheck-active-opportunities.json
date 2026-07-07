@@ -1,49 +1,69 @@
 {
+  "connections": {
+    "Weekly Monday at 10:00": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "BIND QUERY FETCH DIFF ALERT",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
   "name": "Prospect – Recheck active opportunities",
   "nodes": [
     {
+      "name": "Weekly Monday at 10:00",
       "parameters": {
         "rule": {
-          "interval": [{"field": "weeks", "weeksInterval": 1, "triggerAtDay": [1], "triggerAtHour": 10}]
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 10
+            }
+          ]
         }
       },
+      "position": [
+        -208,
+        384
+      ],
       "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [-360, 0],
-      "id": "6883e7be-8990-4ccf-b98f-e5dfa9f9366a",
-      "name": "Weekly Monday at 10:00"
+      "typeVersion": 1.2
     },
     {
+      "name": "BIND QUERY FETCH DIFF ALERT",
       "parameters": {},
+      "position": [
+        80,
+        384
+      ],
       "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [-80, 0],
-      "id": "4400f719-2da9-4972-b4ac-98f4da01c7e0",
-      "name": "BIND QUERY FETCH DIFF ALERT"
+      "typeVersion": 1
     },
     {
+      "name": "Completion instructions",
       "parameters": {
         "content": "## Credential-backed completion point\n\nReplace the No Operation node with:\n\n1. Query active confirmed opportunities from Notion.\n2. Fetch each canonical source with rate limiting.\n3. Re-extract critical findings.\n4. Compare with confirmed values.\n5. Alert on changes, conflicts, closure, or page disappearance.\n6. Update `Last checked` but never overwrite confirmed critical values without approval.",
         "height": 340,
         "width": 420
       },
+      "position": [
+        0,
+        0
+      ],
       "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [-160, -380],
-      "id": "26aa0edb-9bed-49bc-8b90-8532af8abbf0",
-      "name": "Completion instructions"
+      "typeVersion": 1
     }
   ],
-  "connections": {
-    "Weekly Monday at 10:00": {"main": [[{"node": "BIND QUERY FETCH DIFF ALERT", "type": "main", "index": 0}]]}
-  },
-  "pinData": {},
-  "active": false,
   "settings": {
-    "executionOrder": "v1",
-    "timezone": "America/Mexico_City"
-  },
-  "versionId": "5b12f31b-3053-44da-8178-ec29caf8ee98",
-  "meta": {"templateCredsSetupCompleted": false},
-  "tags": []
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  }
 }

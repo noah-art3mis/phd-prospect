@@ -1,0 +1,57 @@
+// n8n Cloud Code-node sandbox: no `URL`, no `require` (Date and Set are fine).
+// Code node: "Build research request" — runOnceForEachItem
+// Builds a read-only research call bounded to the missing fields only.
+const env = $json;
+const missing = Array.isArray(env.missing_fields) ? env.missing_fields : [];
+
+const findingSchema = {
+  type: "object",
+  required: ["state", "value", "evidence"],
+  additionalProperties: false,
+  properties: {
+    state: { enum: ["found", "not_stated", "not_applicable", "conflicting_sources", "needs_confirmation"] },
+    value: { type: ["string", "number", "integer", "boolean", "object", "array", "null"] },
+    evidence: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["url", "retrieved_at", "excerpt"],
+        additionalProperties: false,
+        properties: { url: { type: "string" }, retrieved_at: { type: "string" }, excerpt: { type: "string" } }
+      }
+    }
+  }
+};
+
+const properties = {};
+for (const f of missing) properties[f] = findingSchema;
+const schema = {
+  type: "object",
+  required: ["findings"],
+  additionalProperties: false,
+  properties: { findings: { type: "object", additionalProperties: false, required: missing, properties: properties } }
+};
+
+const system = [
+{{PROMPT_LINES:n8n/prompts/research.md}}
+].join("\n");
+
+const userText = [
+  "Opportunity title: " + (env.candidate && env.candidate.title || "(unknown)"),
+  "Known source URL: " + env.source_url,
+  "Research ONLY these fields and return nothing else: " + (missing.join(", ") || "(none)")
+].join("\n");
+
+const anthropic_request = {
+  model: "claude-sonnet-5",
+  max_tokens: 8000,
+  system: system,
+  messages: [{ role: "user", content: userText }],
+  tools: [
+    { type: "web_search_20260209", name: "web_search", max_uses: 3 },
+    { type: "web_fetch_20260209", name: "web_fetch", max_uses: 8 }
+  ],
+  output_config: { format: { type: "json_schema", schema: schema } }
+};
+
+return { json: { ...env, research_request: anthropic_request } };

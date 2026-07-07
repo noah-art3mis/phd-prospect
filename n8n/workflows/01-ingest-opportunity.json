@@ -1,104 +1,1376 @@
 {
+  "connections": {
+    "Acknowledge pending item": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Fetch submitted source",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Answer callback": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load pending",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Authorize and normalize request": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Acknowledge pending item",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Authorize callback": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Answer callback",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build deadline payloads": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Create deadline rows",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build extract request": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Extract and classify",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build extraction envelope": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build extract request",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build listing reply": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Send listing reply",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build opportunity payload": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Create opportunity page",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build research request": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Research",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Classify page kind": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build listing reply",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Needs research",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Create opportunity page": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build deadline payloads",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Delete pending",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Notify saved",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Discard (duplicate)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Notify duplicate",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Discard (reject)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Notify rejected",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract and classify": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Parse extraction",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Fetch submitted source": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build extraction envelope",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Load pending": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Route action",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Merge research": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Validate record",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Needs research": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build research request",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Validate record",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parse extraction": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Classify page kind",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Research": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Merge research",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route action": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build opportunity payload",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Build opportunity payload",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Discard (reject)",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Discard (duplicate)",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Notify research-again",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Notify edit-deadline",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route update type": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Authorize callback",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Authorize and normalize request",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Store pending approval": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Send approval request",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Route update type",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Validate record": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Store pending approval",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
   "name": "Prospect – Ingest opportunity",
   "nodes": [
     {
+      "name": "Telegram Trigger",
       "parameters": {
-        "updates": ["message"],
-        "additionalFields": {}
+        "additionalFields": {},
+        "updates": [
+          "message",
+          "callback_query"
+        ]
       },
+      "position": [
+        -1120,
+        480
+      ],
       "type": "n8n-nodes-base.telegramTrigger",
-      "typeVersion": 1.2,
-      "position": [-760, 0],
-      "id": "0d71a1c3-f231-48e4-9ea7-d6730a4adf11",
-      "name": "Telegram Trigger"
+      "typeVersion": 1.2
     },
     {
+      "name": "Authorize and normalize request",
       "parameters": {
-        "jsCode": "const allowedUserId = 'REPLACE_WITH_TELEGRAM_USER_ID';\nconst message = $json.message;\nif (!message || String(message.from?.id) !== allowedUserId) {\n  throw new Error('Unauthorized Telegram sender');\n}\nconst text = [message.text, message.caption].filter(Boolean).join(' ');\nconst rawUrls = text.match(/https?:\\/\\/[^\\s<>()]+/g) ?? [];\nif (rawUrls.length === 0) {\n  throw new Error('Send at least one http or https opportunity URL');\n}\nconst privateIpv4 = /^(127\\.|10\\.|169\\.254\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)/;\nconst seen = new Set();\nconst items = [];\nfor (const rawUrl of rawUrls) {\n  const cleaned = rawUrl.replace(/[.,;!?]+$/, '');\n  const parts = cleaned.match(/^(https?):\\/\\/(?:([^@/?#]*)@)?([^:/?#]+)(?::(\\d+))?([/?#]|$)/i);\n  if (!parts) {\n    throw new Error('Could not parse URL: ' + cleaned);\n  }\n  const protocol = parts[1].toLowerCase();\n  const userinfo = parts[2];\n  const hostname = parts[3].toLowerCase().replace(/\\.$/, '');\n  const port = parts[4] || '';\n  if (userinfo || !['http', 'https'].includes(protocol) || !['', '80', '443'].includes(port) || hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local') || hostname.endsWith('.internal') || privateIpv4.test(hostname)) {\n    throw new Error('Source URL is not a safe public web target: ' + cleaned);\n  }\n  if (seen.has(cleaned)) continue;\n  seen.add(cleaned);\n  items.push({ json: {\n    chat_id: message.chat.id,\n    telegram_user_id: message.from.id,\n    telegram_update_id: $json.update_id,\n    source_url: cleaned,\n    received_at: new Date().toISOString(),\n    status: 'pending'\n  } });\n}\nitems.forEach((it, i) => { it.json.batch_index = i; it.json.batch_size = items.length; });\nreturn items;"
+        "jsCode": "{{FILE:n8n/code/authorize-and-normalize-request.js}}"
       },
+      "position": [
+        -880,
+        480
+      ],
       "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [-520, 0],
-      "id": "bc33a947-d707-47af-b751-8a52f9570a64",
-      "name": "Authorize and normalize request"
+      "typeVersion": 2
     },
     {
+      "name": "Acknowledge pending item",
       "parameters": {
-        "resource": "message",
-        "operation": "sendMessage",
-        "chatId": "={{ $json.chat_id }}",
-        "text": "=Prospect captured this opportunity as pending{{ $json.batch_size > 1 ? ' (' + ($json.batch_index + 1) + ' of ' + $json.batch_size + ')' : '' }}:\n{{ $json.source_url }}\n\nI will fetch it, extract the record, and ask you to confirm critical facts before saving.",
         "additionalFields": {
           "appendAttribution": false
-        }
+        },
+        "chatId": "={{ $json.chat_id }}",
+        "text": "=Prospect captured this opportunity as pending{{ $json.batch_size > 1 ? ' (' + ($json.batch_index + 1) + ' of ' + $json.batch_size + ')' : '' }}:\n{{ $json.source_url }}\n\nI will fetch it, extract the record, and ask you to confirm critical facts before saving."
       },
+      "position": [
+        -640,
+        480
+      ],
       "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [-280, 0],
-      "id": "bc17d6c6-3fba-4ad5-bf16-15d86fa3e3e3",
-      "name": "Acknowledge pending item"
+      "typeVersion": 1.2
     },
     {
+      "name": "Fetch submitted source",
       "parameters": {
-        "url": "={{ $('Authorize and normalize request').item.json.source_url }}",
         "options": {
           "allowUnauthorizedCerts": false,
-          "redirect": {"redirect": {"followRedirects": true, "maxRedirects": 5}},
-          "response": {"response": {"responseFormat": "text"}},
+          "redirect": {
+            "redirect": {
+              "maxRedirects": 5
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
           "timeout": 30000
-        }
+        },
+        "url": "={{ $('Authorize and normalize request').item.json.source_url }}"
       },
+      "position": [
+        -400,
+        480
+      ],
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [-40, 0],
-      "id": "172c44bc-536f-428e-bf82-ef632630fb57",
-      "name": "Fetch submitted source"
+      "typeVersion": 4.2
     },
     {
+      "name": "Build extraction envelope",
       "parameters": {
-        "jsCode": "const request = $('Authorize and normalize request').item.json;\nconst raw = typeof $json === 'string' ? $json : ($json.data ?? $json.body ?? JSON.stringify($json));\nreturn [{ json: {\n  ...request,\n  external_content: String(raw).slice(0, 120000),\n  external_content_truncated: String(raw).length > 120000,\n  security_boundary: 'EXTERNAL_UNTRUSTED_CONTENT',\n  missing_fields: []\n} }];"
+        "jsCode": "{{FILE:n8n/code/build-extraction-envelope.js}}"
       },
+      "position": [
+        -160,
+        480
+      ],
       "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [200, 0],
-      "id": "c41fa64c-0d70-4812-a9c6-d3db04b82979",
-      "name": "Build extraction envelope"
+      "typeVersion": 2
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [440, 0],
-      "id": "a1c0cb87-a51c-4d16-9652-b891fa201880",
-      "name": "BIND EXTRACT VALIDATE APPROVE PERSIST"
-    },
-    {
+      "name": "Completion instructions",
       "parameters": {
         "content": "## Credential-backed completion point\n\nThrough the authenticated n8n MCP server, replace the No Operation node with:\n\n1. Information extraction using `schemas/opportunity-candidate.schema.json`.\n2. Missing-field detection.\n3. Read-only research agent with search + fetch only.\n4. Deterministic validation.\n5. Telegram approval callbacks.\n6. Notion persistence after confirmation.\n\nNever connect Notion mutation or Telegram send tools directly to the research agent.",
         "height": 420,
         "width": 420
       },
+      "position": [
+        -32,
+        -32
+      ],
       "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [360, -480],
-      "id": "b469f388-2fa2-45d6-8373-255501fc8e90",
-      "name": "Completion instructions"
+      "typeVersion": 1
+    },
+    {
+      "name": "Build extract request",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/build-extract-request.js}}",
+        "mode": "runOnceForEachItem"
+      },
+      "position": [
+        80,
+        480
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Extract and classify",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify($json.anthropic_request) }}",
+        "method": "POST",
+        "nodeCredentialType": "anthropicApi",
+        "options": {
+          "timeout": 120000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "https://api.anthropic.com/v1/messages"
+      },
+      "position": [
+        300,
+        480
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "name": "Parse extraction",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/parse-extraction.js}}",
+        "mode": "runOnceForEachItem"
+      },
+      "position": [
+        520,
+        480
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Classify page kind",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c-listing",
+              "leftValue": "={{ $json.page_kind }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "listing"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        740,
+        480
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "name": "Build listing reply",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/build-listing-reply.js}}",
+        "mode": "runOnceForEachItem"
+      },
+      "position": [
+        960,
+        300
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Send listing reply",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        },
+        "chatId": "={{ $json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "={{ $json.listing_text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
+      },
+      "position": [
+        1180,
+        300
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Needs research",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c-gaps",
+              "leftValue": "={{ $json.missing_fields }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "array"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        960,
+        600
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "name": "Build research request",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/build-research-request.js}}",
+        "mode": "runOnceForEachItem"
+      },
+      "position": [
+        1180,
+        640
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Research",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify($json.research_request) }}",
+        "method": "POST",
+        "nodeCredentialType": "anthropicApi",
+        "options": {
+          "timeout": 300000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "https://api.anthropic.com/v1/messages"
+      },
+      "position": [
+        1400,
+        640
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "name": "Merge research",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/merge-research.js}}",
+        "mode": "runOnceForEachItem"
+      },
+      "position": [
+        1620,
+        640
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Validate record",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/validate-record.js}}",
+        "mode": "runOnceForEachItem"
+      },
+      "position": [
+        1840,
+        560
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Store pending approval",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "token",
+              "id": "token",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "chat_id",
+              "id": "chat_id",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "source_url",
+              "id": "source_url",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "canonical_url",
+              "id": "canonical_url",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "fingerprint",
+              "id": "fingerprint",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "candidate_json",
+              "id": "candidate_json",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "validation_json",
+              "id": "validation_json",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "status",
+              "id": "status",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "created_at",
+              "id": "created_at",
+              "required": false,
+              "type": "date"
+            }
+          ],
+          "value": {
+            "candidate_json": "={{ $json.candidate_json }}",
+            "canonical_url": "={{ $json.canonical_url }}",
+            "chat_id": "={{ $json.chat_id }}",
+            "created_at": "={{ $json.created_at }}",
+            "fingerprint": "={{ $json.fingerprint }}",
+            "source_url": "={{ $json.source_url }}",
+            "status": "pending",
+            "token": "={{ $json.token }}",
+            "validation_json": "={{ $json.validation_json }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "XNcSfdGRkMAqWQKq"
+        },
+        "operation": "insert",
+        "resource": "row"
+      },
+      "position": [
+        2060,
+        560
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "name": "Send approval request",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        },
+        "chatId": "={{ $('Validate record').item.json.chat_id }}",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "additionalFields": {
+                      "callback_data": "=p:confirm:{{ $('Validate record').item.json.token }}"
+                    },
+                    "text": "✅ Confirm"
+                  },
+                  {
+                    "additionalFields": {
+                      "callback_data": "=p:save_incomplete:{{ $('Validate record').item.json.token }}"
+                    },
+                    "text": "💾 Save incomplete"
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "additionalFields": {
+                      "callback_data": "=p:edit_deadline:{{ $('Validate record').item.json.token }}"
+                    },
+                    "text": "📅 Edit deadline"
+                  },
+                  {
+                    "additionalFields": {
+                      "callback_data": "=p:research_again:{{ $('Validate record').item.json.token }}"
+                    },
+                    "text": "🔎 Research again"
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "additionalFields": {
+                      "callback_data": "=p:duplicate:{{ $('Validate record').item.json.token }}"
+                    },
+                    "text": "👥 Duplicate"
+                  },
+                  {
+                    "additionalFields": {
+                      "callback_data": "=p:reject:{{ $('Validate record').item.json.token }}"
+                    },
+                    "text": "❌ Reject"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "operation": "sendMessage",
+        "replyMarkup": "inlineKeyboard",
+        "resource": "message",
+        "text": "={{ $('Validate record').item.json.approval_text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
+      },
+      "position": [
+        2280,
+        560
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Route update type",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c-cb",
+              "leftValue": "={{ !!$json.callback_query }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        -1000,
+        480
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "name": "Authorize callback",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/authorize-callback.js}}",
+        "mode": "runOnceForAllItems"
+      },
+      "position": [
+        -760,
+        1000
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Answer callback",
+      "parameters": {
+        "additionalFields": {
+          "text": "Working on it..."
+        },
+        "operation": "answerQuery",
+        "queryId": "={{ $json.query_id }}",
+        "resource": "callback"
+      },
+      "position": [
+        -540,
+        1000
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Load pending",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "XNcSfdGRkMAqWQKq"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "eq",
+              "keyName": "token",
+              "keyValue": "={{ $('Authorize callback').item.json.token }}"
+            }
+          ]
+        },
+        "limit": 1,
+        "matchType": "allConditions",
+        "operation": "get",
+        "resource": "row",
+        "returnAll": false
+      },
+      "position": [
+        -320,
+        1000
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "name": "Route action",
+      "parameters": {
+        "mode": "rules",
+        "options": {},
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Authorize callback').item.json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "confirm"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                }
+              },
+              "outputKey": "confirm"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Authorize callback').item.json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "save_incomplete"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                }
+              },
+              "outputKey": "save_incomplete"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Authorize callback').item.json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "reject"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                }
+              },
+              "outputKey": "reject"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Authorize callback').item.json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "duplicate"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                }
+              },
+              "outputKey": "duplicate"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Authorize callback').item.json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "research_again"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                }
+              },
+              "outputKey": "research_again"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Authorize callback').item.json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "edit_deadline"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                }
+              },
+              "outputKey": "edit_deadline"
+            }
+          ]
+        }
+      },
+      "position": [
+        -80,
+        1000
+      ],
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4
+    },
+    {
+      "name": "Discard (reject)",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "XNcSfdGRkMAqWQKq"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "eq",
+              "keyName": "token",
+              "keyValue": "={{ $('Authorize callback').item.json.token }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "deleteRows",
+        "resource": "row"
+      },
+      "position": [
+        180,
+        1120
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "name": "Notify rejected",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false
+        },
+        "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "🗑️ Rejected. Nothing was saved to Notion."
+      },
+      "position": [
+        400,
+        1120
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Discard (duplicate)",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "XNcSfdGRkMAqWQKq"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "eq",
+              "keyName": "token",
+              "keyValue": "={{ $('Authorize callback').item.json.token }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "deleteRows",
+        "resource": "row"
+      },
+      "position": [
+        180,
+        1240
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "name": "Notify duplicate",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false
+        },
+        "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "👥 Marked as duplicate and discarded. Nothing was saved."
+      },
+      "position": [
+        400,
+        1240
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Notify research-again",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false
+        },
+        "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "🔎 To re-research, send the source URL again — it will re-enter ingestion with a fresh search pass."
+      },
+      "position": [
+        180,
+        1360
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Notify edit-deadline",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false
+        },
+        "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "📅 Deadline editing is done in Notion after saving. Confirm to save, then adjust the Deadline row."
+      },
+      "position": [
+        180,
+        1480
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Build opportunity payload",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/build-opportunity-payload.js}}",
+        "mode": "runOnceForAllItems"
+      },
+      "position": [
+        180,
+        900
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Create opportunity page",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2026-03-11"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify($json.notion_page) }}",
+        "method": "POST",
+        "nodeCredentialType": "notionApi",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "https://api.notion.com/v1/pages"
+      },
+      "position": [
+        400,
+        900
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "name": "Build deadline payloads",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/build-deadline-payloads.js}}",
+        "mode": "runOnceForAllItems"
+      },
+      "position": [
+        620,
+        820
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Create deadline rows",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2026-03-11"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify($json.notion_page) }}",
+        "method": "POST",
+        "nodeCredentialType": "notionApi",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "https://api.notion.com/v1/pages"
+      },
+      "position": [
+        840,
+        820
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "name": "Delete pending",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "XNcSfdGRkMAqWQKq"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "eq",
+              "keyName": "token",
+              "keyValue": "={{ $('Authorize callback').item.json.token }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "deleteRows",
+        "resource": "row"
+      },
+      "position": [
+        620,
+        1000
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "name": "Notify saved",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        },
+        "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "=✅ Saved to Notion{{ $('Authorize callback').item.json.action === 'save_incomplete' ? ' (marked incomplete)' : '' }}: {{ $('Build opportunity payload').item.json.title }}"
+      },
+      "position": [
+        840,
+        1000
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
     }
   ],
-  "connections": {
-    "Telegram Trigger": {"main": [[{"node": "Authorize and normalize request", "type": "main", "index": 0}]]},
-    "Authorize and normalize request": {"main": [[{"node": "Acknowledge pending item", "type": "main", "index": 0}]]},
-    "Acknowledge pending item": {"main": [[{"node": "Fetch submitted source", "type": "main", "index": 0}]]},
-    "Fetch submitted source": {"main": [[{"node": "Build extraction envelope", "type": "main", "index": 0}]]},
-    "Build extraction envelope": {"main": [[{"node": "BIND EXTRACT VALIDATE APPROVE PERSIST", "type": "main", "index": 0}]]}
-  },
-  "pinData": {},
-  "active": false,
   "settings": {
-    "executionOrder": "v1",
-    "timezone": "America/Mexico_City"
-  },
-  "versionId": "45dfb6b5-f74f-44b6-98d2-d1635656db94",
-  "meta": {"templateCredsSetupCompleted": false},
-  "tags": []
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  }
 }
