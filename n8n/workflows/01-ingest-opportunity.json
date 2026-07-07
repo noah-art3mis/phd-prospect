@@ -11,17 +11,6 @@
         ]
       ]
     },
-    "Answer callback": {
-      "main": [
-        [
-          {
-            "index": 0,
-            "node": "Load pending",
-            "type": "main"
-          }
-        ]
-      ]
-    },
     "Authorize and normalize request": {
       "main": [
         [
@@ -38,7 +27,7 @@
         [
           {
             "index": 0,
-            "node": "Answer callback",
+            "node": "Load pending",
             "type": "main"
           }
         ]
@@ -198,7 +187,7 @@
         [
           {
             "index": 0,
-            "node": "Route action",
+            "node": "Pending found?",
             "type": "main"
           }
         ]
@@ -239,6 +228,40 @@
           {
             "index": 0,
             "node": "Classify page kind",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Pending found?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Answer callback",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Route action",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Answer stale callback",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Rebuild pending request": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build research request",
             "type": "main"
           }
         ]
@@ -288,14 +311,7 @@
         [
           {
             "index": 0,
-            "node": "Notify research-again",
-            "type": "main"
-          }
-        ],
-        [
-          {
-            "index": 0,
-            "node": "Notify edit-deadline",
+            "node": "Rebuild pending request",
             "type": "main"
           }
         ]
@@ -772,7 +788,17 @@
           "mode": "id",
           "value": "XNcSfdGRkMAqWQKq"
         },
-        "operation": "insert",
+        "filters": {
+          "conditions": [
+            {
+              "condition": "eq",
+              "keyName": "token",
+              "keyValue": "={{ $json.token }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "upsert",
         "resource": "row"
       },
       "position": [
@@ -814,12 +840,6 @@
             {
               "row": {
                 "buttons": [
-                  {
-                    "additionalFields": {
-                      "callback_data": "=p:edit_deadline:{{ $('Validate record').item.json.token }}"
-                    },
-                    "text": "📅 Edit deadline"
-                  },
                   {
                     "additionalFields": {
                       "callback_data": "=p:research_again:{{ $('Validate record').item.json.token }}"
@@ -913,7 +933,7 @@
           "text": "Working on it..."
         },
         "operation": "answerQuery",
-        "queryId": "={{ $json.query_id }}",
+        "queryId": "={{ $('Authorize callback').first().json.query_id }}",
         "resource": "callback"
       },
       "position": [
@@ -924,6 +944,7 @@
       "typeVersion": 1.2
     },
     {
+      "alwaysOutputData": true,
       "name": "Load pending",
       "parameters": {
         "dataTableId": {
@@ -1069,28 +1090,6 @@
                 }
               },
               "outputKey": "research_again"
-            },
-            {
-              "conditions": {
-                "combinator": "and",
-                "conditions": [
-                  {
-                    "leftValue": "={{ $('Authorize callback').item.json.action }}",
-                    "operator": {
-                      "operation": "equals",
-                      "type": "string"
-                    },
-                    "rightValue": "edit_deadline"
-                  }
-                ],
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "loose",
-                  "version": 2
-                }
-              },
-              "outputKey": "edit_deadline"
             }
           ]
         }
@@ -1190,42 +1189,6 @@
       "position": [
         400,
         1240
-      ],
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2
-    },
-    {
-      "name": "Notify research-again",
-      "parameters": {
-        "additionalFields": {
-          "appendAttribution": false
-        },
-        "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
-        "operation": "sendMessage",
-        "resource": "message",
-        "text": "🔎 To re-research, send the source URL again — it will re-enter ingestion with a fresh search pass."
-      },
-      "position": [
-        180,
-        1360
-      ],
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2
-    },
-    {
-      "name": "Notify edit-deadline",
-      "parameters": {
-        "additionalFields": {
-          "appendAttribution": false
-        },
-        "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
-        "operation": "sendMessage",
-        "resource": "message",
-        "text": "📅 Deadline editing is done in Notion after saving. Confirm to save, then adjust the Deadline row."
-      },
-      "position": [
-        180,
-        1480
       ],
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2
@@ -1366,11 +1329,74 @@
       ],
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2
+    },
+    {
+      "name": "Pending found?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c-pending",
+              "leftValue": "={{ $json.token }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -100,
+        1000
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "name": "Answer stale callback",
+      "parameters": {
+        "additionalFields": {
+          "text": "Already handled or expired."
+        },
+        "operation": "answerQuery",
+        "queryId": "={{ $('Authorize callback').first().json.query_id }}",
+        "resource": "callback"
+      },
+      "position": [
+        120,
+        1180
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Rebuild pending request",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/rebuild-pending-request.js}}"
+      },
+      "position": [
+        180,
+        1360
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
     }
   ],
   "settings": {
     "availableInMCP": true,
     "binaryMode": "separate",
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "Europe/London"
   }
 }

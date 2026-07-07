@@ -60,6 +60,7 @@
   "settings": {
     "availableInMCP": true,
     "binaryMode": "separate",
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "Europe/London"
   }
 }

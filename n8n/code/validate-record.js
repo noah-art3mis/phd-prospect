@@ -115,7 +115,9 @@ function fingerprintArgs(rec) {
 
 var canonical_url = canonicalizeUrl(candidate.source_url || env.source_url);
 var fingerprint = opportunityFingerprint(fingerprintArgs(candidate));
-var token = (Date.now().toString(36) + Math.floor(Math.random() * 1e9).toString(36)).slice(0, 20);
+// Research-again re-entries carry the pending row's token so the row is
+// updated in place (upsert) instead of inserting a duplicate.
+var token = env.token || (Date.now().toString(36) + Math.floor(Math.random() * 1e9).toString(36)).slice(0, 20);
 
 var f = candidate.findings || {};
 function renderFunding(v) {
