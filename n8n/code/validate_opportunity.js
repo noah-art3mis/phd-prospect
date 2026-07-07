@@ -77,11 +77,19 @@ function validatePublicUrl(url) {
   if (scheme !== 'http' && scheme !== 'https') throw new Error('source URL must use http or https');
   if (userinfo) throw new Error('source URL cannot contain credentials');
   if (port !== '' && port !== '80' && port !== '443') throw new Error('source URL cannot use a non-standard port');
+  // Only ASCII LDH hosts, so a WHATWG URL parser cannot resolve a different host than validated.
+  if (!host || !/^[a-z0-9.-]+$/.test(host)) throw new Error('source URL host is not a public hostname');
+  if (host.charAt(0) === '.' || host.indexOf('..') !== -1) throw new Error('source URL host is malformed');
   if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) {
     throw new Error('source URL cannot target a local hostname');
   }
-  var nonGlobal = isNonGlobalIpv4(host);
-  if (nonGlobal === true) throw new Error('source URL cannot target a non-public address');
+  // Any host whose final label is numeric or hex is an IP literal in some notation; allow only a
+  // canonical global dotted quad, reject every other numeric form an HTTP client would expand.
+  var lastLabel = host.split('.').pop();
+  if (/^(0x[0-9a-f]+|[0-9]+)$/.test(lastLabel)) {
+    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) throw new Error('source URL cannot target an obfuscated IP address');
+    if (isNonGlobalIpv4(host) !== false) throw new Error('source URL cannot target a non-public address');
+  }
 }
 
 // Strict ISO-8601 parse mirroring datetime.fromisoformat + a utcoffset()-is-None check.
