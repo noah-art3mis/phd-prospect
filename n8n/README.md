@@ -39,8 +39,8 @@ Known MCP validator noise: `validate_workflow` falsely warns "Missing discrimina
 ## Workflow boundaries
 
 - `01-ingest-opportunity.json`: Telegram admission, URL capture, retrieval, extraction, bounded read-only research, deterministic validation, Telegram approval callbacks, and Notion persistence of confirmed opportunities and their deadlines.
-- `02-deadline-reminders.json`: daily scheduling scaffold; the reminder calculation and idempotent send pipeline land in phase 3.
-- `03-recheck-active-opportunities.json`: weekly scheduling scaffold; the re-fetch/diff/alert pipeline lands in phase 3.
+- `02-deadline-reminders.json`: daily 09:00 run — queries verified, non-rolling deadlines from Notion, computes due reminders (`compute-due-reminders.js`, the contract-tested port of `src/prospect/reminders.py`), filters already-sent keys against the `Prospect sent reminders` Data Table (`rowNotExists`), sends the Telegram reminder, then inserts the sent key.
+- `03-recheck-active-opportunities.json`: weekly Monday 10:00 run — queries active confirmed opportunities, re-fetches each canonical source, asks Anthropic only whether it is still open, and `diff-and-alert.js` raises a Telegram alert on closure/withdrawal/status drift/no-longer-accepting/fetch failure while stamping `Last checked`. It never rewrites confirmed values.
 
 Do not put persistence tools directly on the research agent. Research is read-only (bounded web search and fetch); its output routes through validation and Telegram approval before any Notion mutation.
 

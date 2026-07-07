@@ -40,12 +40,14 @@ Authoring rule from here on: iterate live via `update_workflow` + pinned `test_w
 6. **Timezone:** set explicitly on all workflows; add the timezone interpretation rule to CONTEXT.md.
 7. Review → merge.
 
-## Phase 3 — Scheduler workflows (02 and 03)
+## Phase 3 — Scheduler workflows (02 and 03) — built live by a concurrent session; folded back here
 
-1. **Data Table `sent_reminders`** keyed `opportunity_id:deadline_id:version:offset`.
-2. **02 deadline reminders (daily):** Notion query for confirmed deadlines on active opportunities → JS reminder calculation (port from `src/prospect/reminders.py`, same fixture-contract test pattern as validate.js) → filter against `sent_reminders` → Telegram send → insert sent keys. Also runs the pending-approval TTL sweep from phase 2. Idempotency test: run twice pinned, assert zero sends on the second run.
-3. **03 recheck active opportunities (weekly):** query active opportunities with source URLs → re-fetch (same SSRF guard, reuse `n8n/code` module) → re-extract → deterministic diff against stored findings → on change to a critical finding, Telegram alert with old/new/evidence — never write to Notion. Silence when nothing changed.
-4. Both built live-then-folded, through the build pipeline, review → merge.
+The live builds of 02 (`Prospect – Deadline reminders`, `8PJDDDrPkVHX284l`) and 03 (`Prospect – Recheck active opportunities`, `SD9qiTXrdkCHa9Sj`) were done by a concurrent session directly on the instance. This branch folded them back verbatim into the build pipeline (payloads in `n8n/code/`, sentinel templates in `n8n/workflows/`, round-trip `EQUIVALENT` against fresh exports) and pinned the ported logic with contract tests. Divergences from the plan below were recorded (deferred list), not fixed.
+
+1. ~~**Data Table `sent_reminders`**~~ Done as Data Table `Prospect sent reminders` (`132FXPAohVWMXdHq`), keyed `opportunity_id:deadline_id:version:offset`; the workflow filters with `rowNotExists` and inserts after the Telegram send.
+2. ~~**02 deadline reminders (daily):**~~ Built: Notion deadlines query (Verified, non-rolling) → `compute-due-reminders.js` (port of `src/prospect/reminders.py`, pinned by `tests/test_contract_reminders.py`, Python == JS == golden) → Data Table filter → Telegram send → insert sent key. The pending-approval TTL sweep is NOT wired in yet (deferred). The pinned twice-run idempotency test is still to do live (phase 4 smoke).
+3. ~~**03 recheck active opportunities (weekly):**~~ Built: active-opportunity query → per-page fetch → status-only re-extract (Anthropic) → `diff-and-alert.js` (closure/withdrawal/drift/no-longer-accepting/fetch-failure alerts, golden-pinned by `tests/test_contract_recheck.py`) → Telegram alert + `Last checked` stamp. It diffs status only, not the full critical-finding set the plan sketched; it never writes confirmed values.
+4. Fold-back through the build pipeline done; review → merge pending.
 
 ## Phase 4 — Step 6: end-to-end test and publish
 
@@ -59,3 +61,12 @@ Authoring rule from here on: iterate live via `update_workflow` + pinned `test_w
 - Replace n8n-side fetch with Anthropic `web_fetch` in the extract call (removes the SSRF surface; costs raw-content control).
 - Move baked-in config (Telegram user ID, data-source IDs) to n8n Variables to shrink the build step's substitution work.
 - Edit-deadline flow via Telegram reply capture, if editing in Notion proves annoying in practice.
+
+### Phase-4 fixes carried out of phase 3 (live logic folded verbatim; fix live-then-fold, then update the pins)
+
+- **Timezone in `compute-due-reminders.js`:** the live node hardcodes `TZ = 'America/Mexico_City'` for "today"; the project decision (CONTEXT.md) is `Europe/London`. Left verbatim to preserve round-trip equivalence; fix live, re-fold, and update `tests/golden/reminder_cases.json`'s `frozen_now_utc`/`as_of` pairing.
+- **Pending-approval TTL sweep** (phase 2 item 3) is not wired into workflow 02's daily run yet.
+- **Silent model-call failure in recheck:** when the `Re-extract status` Anthropic call errors (it continues on error), `diff-and-alert.js` extracts `{}`, fires no alert, and still stamps `Last checked` — an outage is indistinguishable from "no change" and postpones the next look. Pinned as current behavior in `tests/golden/recheck_cases.json` (`model_call_failure_is_silent_and_still_stamps_last_checked`).
+- **Lenient JS vs strict Python reminder validation** (pinned as divergence cases in `tests/golden/reminder_cases.json`): the live port defaults a missing `Version` to 1, accepts negative reminder offsets (would remind after the deadline passed), and accepts date-only due values, where `prospect.deadlines.normalize_deadline` raises `InvalidDeadline`. Decide one contract and align.
+- **`sent_at` is computed at calculation time,** not after the Telegram send, so the recorded timestamp slightly predates the actual send (cosmetic).
+- **Manual UI step from phase 2:** set `errorWorkflow` (→ `Prospect – Error alerts`) and the `Europe/London` timezone in workflow Settings for all existing workflows — `update_workflow` cannot reach the settings block.
