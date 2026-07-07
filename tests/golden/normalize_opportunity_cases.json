@@ -1,0 +1,549 @@
+{
+  "_comment": "Shared cross-language contract for normalize_opportunity. Consumed by BOTH tests/test_contract_normalize.py (Python spec, src/prospect/records.py) and tests/js/run_contract.cjs (the JS port in n8n/code/validate_opportunity.js that the n8n Code node embeds). Each case's `expect` is either the string \"ok\" (candidate is persistence-safe) or {\"invalid\": \"<exact InvalidRecord message>\"}. If the two implementations ever disagree with each other or with these expectations, CI goes red. Add a case here for every new validation rule.",
+  "cases": [
+    {
+      "name": "happy_path",
+      "expect": "ok",
+      "input": {
+        "title": "PhD in Trustworthy Artificial Intelligence",
+        "source_url": "https://university.example/research/phd/trustworthy-ai",
+        "findings": {
+          "institution": {
+            "state": "found",
+            "value": "Example University",
+            "evidence": [
+              {
+                "url": "https://university.example/research/phd/trustworthy-ai",
+                "retrieved_at": "2026-07-06T10:00:00+00:00",
+                "excerpt": "Example University invites applications for a PhD in Trustworthy AI."
+              }
+            ]
+          },
+          "deadlines": {
+            "state": "found",
+            "value": [
+              {
+                "type": "programme_application",
+                "due_at": "2026-12-01T23:59:00+01:00"
+              }
+            ],
+            "evidence": [
+              {
+                "url": "https://university.example/research/phd/trustworthy-ai#apply",
+                "retrieved_at": "2026-07-06T10:00:00+00:00",
+                "excerpt": "Applications close at 23:59 CET on 1 December 2026."
+              }
+            ]
+          },
+          "eligibility": {
+            "state": "needs_confirmation",
+            "value": null,
+            "evidence": []
+          },
+          "required_documents": {
+            "state": "not_stated",
+            "value": null,
+            "evidence": []
+          }
+        }
+      }
+    },
+    {
+      "name": "unknown_stays_unknown",
+      "expect": "ok",
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "deadlines": {
+            "state": "not_stated",
+            "value": null,
+            "evidence": []
+          },
+          "funding": {
+            "state": "needs_confirmation",
+            "value": null,
+            "evidence": []
+          },
+          "eligibility": {
+            "state": "not_applicable",
+            "value": null,
+            "evidence": []
+          }
+        }
+      }
+    },
+    {
+      "name": "noncritical_found_needs_no_evidence",
+      "expect": "ok",
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "institution": {
+            "state": "found",
+            "value": "Example University",
+            "evidence": []
+          }
+        }
+      }
+    },
+    {
+      "name": "conflicting_two_sources_ok",
+      "expect": "ok",
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "funding": {
+            "state": "conflicting_sources",
+            "value": null,
+            "evidence": [
+              {
+                "url": "https://uni.example/a",
+                "retrieved_at": "2026-07-06T10:00:00+00:00",
+                "excerpt": "fully funded"
+              },
+              {
+                "url": "https://uni.example/b",
+                "retrieved_at": "2026-07-06T11:00:00+00:00",
+                "excerpt": "self funded"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "evidence_z_offset_ok",
+      "expect": "ok",
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "deadlines": {
+            "state": "found",
+            "value": [
+              {
+                "type": "programme_application"
+              }
+            ],
+            "evidence": [
+              {
+                "url": "https://uni.example/apply",
+                "retrieved_at": "2026-07-06T10:00:00Z",
+                "excerpt": "closes soon"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "missing_title",
+      "expect": {
+        "invalid": "opportunity requires a title"
+      },
+      "input": {
+        "title": "",
+        "source_url": "https://uni.example/phd",
+        "findings": {}
+      }
+    },
+    {
+      "name": "whitespace_title",
+      "expect": {
+        "invalid": "opportunity requires a title"
+      },
+      "input": {
+        "title": "   ",
+        "source_url": "https://uni.example/phd",
+        "findings": {}
+      }
+    },
+    {
+      "name": "non_http_source_url",
+      "expect": {
+        "invalid": "opportunity requires an http or https source_url"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "ftp://uni.example/phd",
+        "findings": {}
+      }
+    },
+    {
+      "name": "source_url_with_credentials",
+      "expect": {
+        "invalid": "opportunity requires an http or https source_url"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://user:pass@uni.example/phd",
+        "findings": {}
+      }
+    },
+    {
+      "name": "source_url_localhost",
+      "expect": {
+        "invalid": "opportunity requires an http or https source_url"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "http://localhost/phd",
+        "findings": {}
+      }
+    },
+    {
+      "name": "source_url_private_ip",
+      "expect": {
+        "invalid": "opportunity requires an http or https source_url"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "http://10.0.0.1/phd",
+        "findings": {}
+      }
+    },
+    {
+      "name": "source_url_link_local_ip",
+      "expect": {
+        "invalid": "opportunity requires an http or https source_url"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "http://169.254.169.254/latest/meta-data",
+        "findings": {}
+      }
+    },
+    {
+      "name": "source_url_nonstandard_port",
+      "expect": {
+        "invalid": "opportunity requires an http or https source_url"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "http://uni.example:8080/phd",
+        "findings": {}
+      }
+    },
+    {
+      "name": "findings_not_object",
+      "expect": {
+        "invalid": "opportunity findings must be an object"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": []
+      }
+    },
+    {
+      "name": "finding_not_object",
+      "expect": {
+        "invalid": "finding 'deadlines' must be an object"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "deadlines": "nope"
+        }
+      }
+    },
+    {
+      "name": "unknown_state",
+      "expect": {
+        "invalid": "finding 'eligibility' has unknown state 'maybe'"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "eligibility": {
+            "state": "maybe",
+            "value": null,
+            "evidence": []
+          }
+        }
+      }
+    },
+    {
+      "name": "evidence_not_list",
+      "expect": {
+        "invalid": "finding 'institution' evidence must be a list"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "institution": {
+            "state": "not_stated",
+            "value": null,
+            "evidence": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "found_without_value",
+      "expect": {
+        "invalid": "finding 'institution' marked found without a value"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "institution": {
+            "state": "found",
+            "value": null,
+            "evidence": []
+          }
+        }
+      }
+    },
+    {
+      "name": "critical_found_without_evidence",
+      "expect": {
+        "invalid": "critical finding 'deadlines' requires evidence"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "deadlines": {
+            "state": "found",
+            "value": [
+              {
+                "type": "programme_application"
+              }
+            ],
+            "evidence": []
+          }
+        }
+      }
+    },
+    {
+      "name": "conflicting_one_source",
+      "expect": {
+        "invalid": "finding 'funding' marked conflicting with fewer than two sources"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "funding": {
+            "state": "conflicting_sources",
+            "value": null,
+            "evidence": [
+              {
+                "url": "https://uni.example/a",
+                "retrieved_at": "2026-07-06T10:00:00+00:00",
+                "excerpt": "fully funded"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "evidence_malformed",
+      "expect": {
+        "invalid": "finding 'institution' has malformed evidence"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "institution": {
+            "state": "found",
+            "value": "X",
+            "evidence": [
+              "just a string"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "evidence_invalid_url",
+      "expect": {
+        "invalid": "finding 'institution' has evidence with an invalid url"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "institution": {
+            "state": "found",
+            "value": "X",
+            "evidence": [
+              {
+                "url": "ftp://uni.example/a",
+                "retrieved_at": "2026-07-06T10:00:00+00:00",
+                "excerpt": "text"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "evidence_bad_retrieved_at",
+      "expect": {
+        "invalid": "finding 'institution' has evidence with an invalid retrieved_at"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "institution": {
+            "state": "found",
+            "value": "X",
+            "evidence": [
+              {
+                "url": "https://uni.example/a",
+                "retrieved_at": "not-a-date",
+                "excerpt": "text"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "evidence_out_of_range_retrieved_at",
+      "expect": {
+        "invalid": "finding 'institution' has evidence with an invalid retrieved_at"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "institution": {
+            "state": "found",
+            "value": "X",
+            "evidence": [
+              {
+                "url": "https://uni.example/a",
+                "retrieved_at": "2026-13-01T10:00:00+00:00",
+                "excerpt": "text"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "evidence_naive_retrieved_at",
+      "expect": {
+        "invalid": "finding 'institution' retrieved_at must include a UTC offset"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "institution": {
+            "state": "found",
+            "value": "X",
+            "evidence": [
+              {
+                "url": "https://uni.example/a",
+                "retrieved_at": "2026-07-06T10:00:00",
+                "excerpt": "text"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "evidence_no_excerpt",
+      "expect": {
+        "invalid": "finding 'institution' has evidence without an excerpt"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "institution": {
+            "state": "found",
+            "value": "X",
+            "evidence": [
+              {
+                "url": "https://uni.example/a",
+                "retrieved_at": "2026-07-06T10:00:00+00:00",
+                "excerpt": "   "
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "source_url_hex_ip",
+      "input": {
+        "title": "PhD position",
+        "source_url": "http://0x7f000001/phd",
+        "findings": {}
+      },
+      "expect": {
+        "invalid": "opportunity requires an http or https source_url"
+      }
+    },
+    {
+      "name": "source_url_decimal_ip",
+      "input": {
+        "title": "PhD position",
+        "source_url": "http://2130706433/phd",
+        "findings": {}
+      },
+      "expect": {
+        "invalid": "opportunity requires an http or https source_url"
+      }
+    },
+    {
+      "name": "source_url_shorthand_ip",
+      "input": {
+        "title": "PhD position",
+        "source_url": "http://127.1/phd",
+        "findings": {}
+      },
+      "expect": {
+        "invalid": "opportunity requires an http or https source_url"
+      }
+    },
+    {
+      "name": "evidence_obfuscated_ip",
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "institution": {
+            "state": "found",
+            "value": "U",
+            "evidence": [
+              {
+                "url": "http://0x7f000001/",
+                "retrieved_at": "2026-07-06T10:00:00+00:00",
+                "excerpt": "e"
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "invalid": "finding 'institution' has evidence with an invalid url"
+      }
+    },
+    {
+      "name": "source_url_global_ip_ok",
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://8.8.8.8/phd",
+        "findings": {}
+      },
+      "expect": "ok"
+    }
+  ]
+}

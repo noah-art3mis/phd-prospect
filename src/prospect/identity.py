@@ -32,14 +32,26 @@ def validate_public_url(url: str) -> None:
         raise UnsafeSourceUrl("source URL cannot use a non-standard port")
 
     hostname = parsed.hostname.lower().rstrip(".")
+    # Only ASCII letter/digit/hyphen/dot hosts, so an HTTP client's WHATWG parser cannot
+    # resolve a different host than we validated (no fullwidth/IDNA/backslash confusion).
+    if not hostname or not re.fullmatch(r"[a-z0-9.-]+", hostname):
+        raise UnsafeSourceUrl("source URL host is not a public hostname")
+    if hostname.startswith(".") or ".." in hostname:
+        raise UnsafeSourceUrl("source URL host is malformed")
     if hostname == "localhost" or hostname.endswith((".localhost", ".local", ".internal")):
         raise UnsafeSourceUrl("source URL cannot target a local hostname")
-    try:
-        address = ip_address(hostname)
-    except ValueError:
-        return
-    if not address.is_global:
-        raise UnsafeSourceUrl("source URL cannot target a non-public address")
+    # A host whose final label is numeric or hex is an IP literal in some notation
+    # (dotted-quad, 1-3 part shorthand, bare-decimal, hex, octal). Allow only a canonical
+    # global dotted quad; reject every other numeric form an HTTP client would expand.
+    if re.fullmatch(r"0x[0-9a-f]+|[0-9]+", hostname.rsplit(".", 1)[-1]):
+        if not re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", hostname):
+            raise UnsafeSourceUrl("source URL cannot target an obfuscated IP address")
+        try:
+            address = ip_address(hostname)
+        except ValueError as error:
+            raise UnsafeSourceUrl("source URL cannot target a non-public address") from error
+        if not address.is_global:
+            raise UnsafeSourceUrl("source URL cannot target a non-public address")
 
 
 def canonicalize_url(url: str) -> str:
