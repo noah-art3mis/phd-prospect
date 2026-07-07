@@ -5,8 +5,8 @@
 const opp = $('Prepare opportunities').item.json;
 const fetched = $json;
 const rawContent = typeof fetched === 'string' ? fetched : (fetched && (fetched.data || fetched.body) || '');
-// Neutralize any literal external_content tag so a hostile page can't close the data boundary.
-const content = String(rawContent).replace(/<\/?\s*external_content[^>]*>/gi, '[redacted-tag]');
+// Rename any occurrence of the delimiter token so no injected variant can reproduce the boundary.
+const content = String(rawContent).replace(/external_content/gi, 'ext_content');
 const fetchError = fetched && fetched.error ? String(fetched.error) : '';
 
 const system = [
