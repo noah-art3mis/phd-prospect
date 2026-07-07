@@ -454,20 +454,6 @@
       "typeVersion": 2
     },
     {
-      "name": "Completion instructions",
-      "parameters": {
-        "content": "## Credential-backed completion point\n\nThrough the authenticated n8n MCP server, replace the No Operation node with:\n\n1. Information extraction using `schemas/opportunity-candidate.schema.json`.\n2. Missing-field detection.\n3. Read-only research agent with search + fetch only.\n4. Deterministic validation.\n5. Telegram approval callbacks.\n6. Notion persistence after confirmation.\n\nNever connect Notion mutation or Telegram send tools directly to the research agent.",
-        "height": 420,
-        "width": 420
-      },
-      "position": [
-        -32,
-        -32
-      ],
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1
-    },
-    {
       "name": "Build extract request",
       "parameters": {
         "jsCode": "{{FILE:n8n/code/build-extract-request.js}}",

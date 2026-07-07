@@ -1,10 +1,21 @@
 // n8n Cloud Code-node sandbox: no `URL`, no `require` (Date and Set are fine).
+// Code node: "Merge research" — runOnceForEachItem
 // Merges researched findings into the candidate, constrained to the requested (missing) fields.
 // Research is read-only enrichment: any field it returns outside the requested set is dropped.
 const env = $('Build research request').item.json;
 const resp = $json;
 const requested = new Set(Array.isArray(env.missing_fields) ? env.missing_fields : []);
 
+function parseJsonLoose(text) {
+  const s = String(text).trim();
+  try { return JSON.parse(s); } catch (e) { /* fall through */ }
+  const stripped = s.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  try { return JSON.parse(stripped); } catch (e) { /* fall through */ }
+  const first = s.indexOf('{');
+  const last = s.lastIndexOf('}');
+  if (first !== -1 && last > first) return JSON.parse(s.slice(first, last + 1));
+  throw new Error('Could not parse JSON from research response');
+}
 function extractStructured(r) {
   if (r && typeof r === 'object' && r.findings && !r.content) return r;
   if (r && r.output && r.output.findings) return r.output;
@@ -12,10 +23,10 @@ function extractStructured(r) {
   if (blocks) {
     for (const b of blocks) { if (b && b.type === 'json' && b.json) return b.json; }
     const texts = blocks.filter((b) => b && b.type === 'text' && typeof b.text === 'string').map((b) => b.text).join('');
-    if (texts.trim()) return JSON.parse(texts);
+    if (texts.trim()) return parseJsonLoose(texts);
   }
   const raw = typeof r === 'string' ? r : (r && (r.data || r.body));
-  if (typeof raw === 'string' && raw.trim()) return JSON.parse(raw);
+  if (typeof raw === 'string' && raw.trim()) return parseJsonLoose(raw);
   return { findings: {} };
 }
 
@@ -31,3 +42,4 @@ for (const f of Object.keys(researched)) {
 }
 
 return { json: { ...env, candidate: candidate, research_dropped_fields: dropped } };
+

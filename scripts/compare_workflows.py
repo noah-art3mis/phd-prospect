@@ -24,6 +24,22 @@ from pathlib import Path
 _NODE_KEYS = ("name", "type", "typeVersion", "parameters")
 
 
+def _trim_connections(connections: dict) -> dict:
+    """Drop trailing empty output groups: removing a Switch rule live leaves an
+    empty ``[]`` at the tail of the outputs, which routes nothing. Leading and
+    middle empty groups keep output indices aligned, so they stay."""
+    trimmed: dict = {}
+    for source, kinds in connections.items():
+        trimmed[source] = {}
+        for kind, groups in kinds.items():
+            if isinstance(groups, list):
+                groups = list(groups)
+                while groups and groups[-1] == []:
+                    groups.pop()
+            trimmed[source][kind] = groups
+    return trimmed
+
+
 def normalize(document: dict) -> dict:
     workflow = document.get("workflow", document)
     nodes = []
@@ -39,7 +55,7 @@ def normalize(document: dict) -> dict:
     return {
         "name": workflow.get("name"),
         "nodes": nodes,
-        "connections": workflow.get("connections", {}),
+        "connections": _trim_connections(workflow.get("connections", {})),
     }
 
 
