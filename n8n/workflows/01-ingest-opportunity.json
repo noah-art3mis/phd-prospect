@@ -283,14 +283,14 @@
         [
           {
             "index": 0,
-            "node": "Build opportunity payload",
+            "node": "Validation passed?",
             "type": "main"
           }
         ],
         [
           {
             "index": 0,
-            "node": "Build opportunity payload",
+            "node": "Validation passed?",
             "type": "main"
           }
         ],
@@ -314,7 +314,8 @@
             "node": "Rebuild pending request",
             "type": "main"
           }
-        ]
+        ],
+        []
       ]
     },
     "Route update type": {
@@ -363,6 +364,24 @@
           {
             "index": 0,
             "node": "Store pending approval",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Validation passed?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build opportunity payload",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Notify validation failed",
             "type": "main"
           }
         ]
@@ -422,6 +441,7 @@
           "allowUnauthorizedCerts": false,
           "redirect": {
             "redirect": {
+              "followRedirects": false,
               "maxRedirects": 5
             }
           },
@@ -1377,6 +1397,57 @@
       ],
       "type": "n8n-nodes-base.code",
       "typeVersion": 2
+    },
+    {
+      "name": "Validation passed?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c-valid",
+              "leftValue": "={{ JSON.parse($json.validation_json).ok }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        40,
+        900
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "name": "Notify validation failed",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        },
+        "chatId": "={{ $json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "=⚠️ Not saved — this record failed deterministic validation and cannot be persisted:\n{{ JSON.parse($json.validation_json).errors.join('; ') }}\n\nFix the source or resubmit."
+      },
+      "position": [
+        40,
+        740
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
     }
   ],
   "settings": {

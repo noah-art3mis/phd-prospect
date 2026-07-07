@@ -178,16 +178,20 @@ def test_parse_env_file_reads_simple_assignments(tmp_path: Path) -> None:
     }
 
 
-@pytest.mark.parametrize("prompt_file", ["extract.md", "research.md"])
-def test_prompts_carry_the_schema_knowledge_states(prompt_file: str) -> None:
+@pytest.mark.parametrize(
+    "prompt_source",
+    ["code/build-extract-request.js", "prompts/research.md"],
+)
+def test_prompts_carry_the_schema_knowledge_states(prompt_source: str) -> None:
     """Drift tripwire successor to the removed findingSchema literal: the JSON
-    contract now lives in the prompts, so each prompt's output contract must
-    spell out exactly the knowledge states the tracked schema defines."""
+    contract lives in the prompt text (extract's prompt is embedded in its
+    request-builder payload), so each output contract must spell out exactly
+    the knowledge states the tracked schema defines."""
     schema = json.loads(
         (REPO_ROOT / "schemas" / "opportunity-candidate.schema.json").read_text()
     )
     states = schema["$defs"]["finding"]["properties"]["state"]["enum"]
-    prompt = (REPO_ROOT / "n8n" / "prompts" / prompt_file).read_text()
+    prompt = (REPO_ROOT / "n8n" / prompt_source).read_text()
     assert "|".join(states) in prompt
 
 
