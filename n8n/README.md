@@ -21,7 +21,7 @@ Templates and payload files are wired together with three sentinels, resolved by
 
 Every `n8n/code/*.js` file starts with a one-line sandbox note (`// n8n Cloud Code-node sandbox: ...`); the build strips it, so it annotates the file without changing the deployed payload. n8n Cloud Code nodes have no `URL` constructor and no `require` – parse URLs with regexes (Date and Set are fine).
 
-Two placeholder families keep personal identifiers out of git and survive into the tracked templates: `REPLACE_WITH_TELEGRAM_USER_ID` (from `.env`'s `TELEGRAM_ALLOWED_USER_ID`) and `REPLACE_WITH_DATA_SOURCE_<NAME>` (from `notion-data-sources.json`, the output of `prospect bootstrap-notion`). The Anthropic `output_config` finding schema is not stored twice: the build refuses to emit if the `findingSchema` literal in the request-builder JS drifts from what `schemas/opportunity-candidate.schema.json` derives to.
+Two placeholder families keep personal identifiers out of git and survive into the tracked templates: `REPLACE_WITH_TELEGRAM_USER_ID` (from `.env`'s `TELEGRAM_ALLOWED_USER_ID`) and `REPLACE_WITH_DATA_SOURCE_<NAME>` (from `notion-data-sources.json`, the output of `prospect bootstrap-notion`). The extract and research calls no longer use Anthropic strict structured output (it cannot express the polymorphic finding `value`); the JSON contract lives in the prompts, the responses are parsed leniently, and the deterministic Validate node remains the guardrail. A pytest tripwire asserts the prompts spell out exactly the knowledge states `schemas/opportunity-candidate.schema.json` defines.
 
 ## Build and deploy flow
 

@@ -1,12 +1,10 @@
 """Tests for the workflow build step: sentinel inlining, placeholder substitution,
-and the schema-drift tripwire between the JS request builders and the tracked
+and the knowledge-state tripwire between the prompts and the tracked
 opportunity-candidate schema."""
 
 from __future__ import annotations
 
 import json
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -14,8 +12,6 @@ import pytest
 from prospect.workflows import (
     SANDBOX_NOTE,
     build_workflow,
-    derive_finding_schema,
-    finding_schema_from_js,
     inline_payloads,
     parse_env_file,
     render_prompt_lines,
@@ -26,7 +22,6 @@ from prospect.workflows import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-NODE = shutil.which("node")
 
 
 def test_render_prompt_lines_quotes_each_line_as_a_js_string() -> None:
@@ -183,41 +178,17 @@ def test_parse_env_file_reads_simple_assignments(tmp_path: Path) -> None:
     }
 
 
-def test_derive_finding_schema_from_candidate_schema() -> None:
+@pytest.mark.parametrize("prompt_file", ["extract.md", "research.md"])
+def test_prompts_carry_the_schema_knowledge_states(prompt_file: str) -> None:
+    """Drift tripwire successor to the removed findingSchema literal: the JSON
+    contract now lives in the prompts, so each prompt's output contract must
+    spell out exactly the knowledge states the tracked schema defines."""
     schema = json.loads(
         (REPO_ROOT / "schemas" / "opportunity-candidate.schema.json").read_text()
     )
-    finding = derive_finding_schema(schema)
-    assert finding["required"] == ["state", "value", "evidence"]
-    assert finding["additionalProperties"] is False
-    assert finding["properties"]["state"] == {
-        "enum": [
-            "found",
-            "not_stated",
-            "not_applicable",
-            "conflicting_sources",
-            "needs_confirmation",
-        ]
-    }
-    evidence_items = finding["properties"]["evidence"]["items"]
-    assert evidence_items["required"] == ["url", "retrieved_at", "excerpt"]
-    # Anthropic strict output drops format/minLength refinements.
-    assert evidence_items["properties"]["url"] == {"type": "string"}
-
-
-@pytest.mark.skipif(NODE is None, reason="node is required for the JS schema tripwire")
-@pytest.mark.parametrize(
-    "code_file",
-    ["build-extract-request.js", "build-research-request.js"],
-)
-def test_request_builders_embed_the_derived_finding_schema(code_file: str) -> None:
-    """Drift tripwire: the findingSchema literal inside the request-builder JS must
-    equal the schema derived from schemas/opportunity-candidate.schema.json."""
-    js = inline_payloads((REPO_ROOT / "n8n" / "code" / code_file).read_text(), REPO_ROOT)
-    schema = json.loads(
-        (REPO_ROOT / "schemas" / "opportunity-candidate.schema.json").read_text()
-    )
-    assert finding_schema_from_js(js) == derive_finding_schema(schema)
+    states = schema["$defs"]["finding"]["properties"]["state"]["enum"]
+    prompt = (REPO_ROOT / "n8n" / "prompts" / prompt_file).read_text()
+    assert "|".join(states) in prompt
 
 
 def test_cli_build_workflows_emits_template_and_import(tmp_path: Path) -> None:

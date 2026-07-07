@@ -19,8 +19,6 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
-import subprocess
 from pathlib import Path
 from typing import Mapping
 
@@ -132,62 +130,9 @@ def parse_env_file(path: Path) -> dict[str, str]:
     return values
 
 
-def derive_finding_schema(candidate_schema: Mapping[str, object]) -> dict:
-    """Derive the Anthropic strict-output finding schema from the tracked candidate schema.
-
-    Strict structured output forbids open-ended values and ignores refinements, so the
-    ``value: {}`` wildcard becomes an explicit type union and ``format``/``minLength``
-    are dropped from evidence. Everything else (state enum, required keys, closed
-    objects) comes straight from ``schemas/opportunity-candidate.schema.json``.
-    """
-    defs = candidate_schema["$defs"]
-    finding = defs["finding"]
-    evidence = defs["evidence"]
-
-    def strict(prop: Mapping[str, object]) -> dict:
-        return {"type": prop["type"]}
-
-    evidence_schema = {
-        "type": "object",
-        "required": list(evidence["required"]),
-        "additionalProperties": False,
-        "properties": {name: strict(prop) for name, prop in evidence["properties"].items()},
-    }
-    return {
-        "type": "object",
-        "required": list(finding["required"]),
-        "additionalProperties": False,
-        "properties": {
-            "state": {"enum": list(finding["properties"]["state"]["enum"])},
-            "value": {"type": ["string", "number", "integer", "boolean", "object", "array", "null"]},
-            "evidence": {"type": "array", "items": evidence_schema},
-        },
-    }
-
-
-def finding_schema_from_js(js_code: str) -> dict:
-    """Evaluate the ``const findingSchema = {...};`` literal in a request builder via node."""
-    node_binary = shutil.which("node")
-    if node_binary is None:
-        raise RuntimeError("node is required to evaluate the findingSchema literal")
-    marker = "const findingSchema = "
-    start = js_code.index(marker) + len(marker)
-    end = js_code.index("\n};", start) + len("\n}")
-    literal = js_code[start:end]
-    result = subprocess.run(
-        [node_binary, "-e", f"process.stdout.write(JSON.stringify({literal}))"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return json.loads(result.stdout)
-
-
 def build_all(root: Path) -> list[Path]:
     """Canonicalize every template and emit the deployable copies under n8n/import/.
 
-    Refuses to emit when a request builder's findingSchema drifts from the schema
-    derived from ``schemas/opportunity-candidate.schema.json``.
     """
     env = dict(parse_env_file(root / ".env")) if (root / ".env").exists() else {}
     data_sources_path = root / "notion-data-sources.json"
@@ -195,13 +140,6 @@ def build_all(root: Path) -> list[Path]:
         json.loads(data_sources_path.read_text()) if data_sources_path.exists() else {}
     )
     substitutions = substitutions_from(env, data_sources)
-
-    schema_path = root / "schemas" / "opportunity-candidate.schema.json"
-    expected_finding = (
-        derive_finding_schema(json.loads(schema_path.read_text()))
-        if schema_path.exists()
-        else None
-    )
 
     import_dir = root / "n8n" / "import"
     import_dir.mkdir(parents=True, exist_ok=True)
@@ -211,25 +149,11 @@ def build_all(root: Path) -> list[Path]:
         template_path.write_text(_dump(template))
 
         built = build_workflow(template, root)
-        if expected_finding is not None:
-            _check_schema_drift(built, expected_finding, template_path.name)
         deployable = substitute_placeholders(built, substitutions)
         import_path = import_dir / template_path.name
         import_path.write_text(_dump(deployable))
         written.append(import_path)
     return written
-
-
-def _check_schema_drift(workflow: Mapping[str, object], expected: Mapping[str, object], name: str) -> None:
-    for node in workflow.get("nodes", []):
-        js_code = node.get("parameters", {}).get("jsCode", "")
-        if isinstance(js_code, str) and "const findingSchema = " in js_code:
-            actual = finding_schema_from_js(js_code)
-            if actual != expected:
-                raise ValueError(
-                    f"{name}: node {node['name']!r} findingSchema drifted from "
-                    "schemas/opportunity-candidate.schema.json"
-                )
 
 
 def _dump(workflow: Mapping[str, object]) -> str:
