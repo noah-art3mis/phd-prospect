@@ -1,5 +1,7 @@
 // n8n Cloud Code-node sandbox: no `URL`, no `require` (Date and Set are fine).
 // Pulls the structured object out of the Anthropic response and computes research gaps.
+{{INLINE_JS:n8n/code/missing_fields.js}}
+
 const env = $('Build extract request').item.json;
 const resp = $json;
 
@@ -24,8 +26,6 @@ const candidate = parsed.candidate || { title: '', source_url: env.source_url, f
 if (!candidate.source_url) candidate.source_url = env.source_url;
 if (!candidate.findings || typeof candidate.findings !== 'object') candidate.findings = {};
 
-const REQUIRED = ['institution', 'department_or_lab', 'opportunity_type', 'country', 'summary', 'research_topics', 'supervisors', 'funding', 'eligibility', 'required_documents', 'deadlines', 'application_url', 'start_date'];
-const complete = new Set(['found', 'not_applicable']);
-const missing_fields = REQUIRED.filter((f) => !complete.has((candidate.findings[f] || {}).state));
+const missing_fields = computeMissingFields(candidate);
 
 return { json: { ...env, candidate: candidate, page_kind: page_kind, listings: listings, missing_fields: missing_fields } };
