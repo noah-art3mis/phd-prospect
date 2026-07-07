@@ -1,52 +1,57 @@
 # n8n implementation
 
-The workflow files are versioned orchestration assets for n8n 2.25.7. They are inactive on import and intentionally contain no credential identifiers.
+The repository is the source of truth for the n8n workflows. The live n8n Cloud instance (`https://noah-art3mis.app.n8n.cloud`) is a deploy target and a schema oracle for credential-backed node types — never the record. Changes are authored here, built with the CLI, and pushed to the instance via the n8n MCP server.
 
-## Cloud setup
+## Source layout
 
-1. Import each JSON file under `workflows/` (or the pre-filled copies under the git-ignored `import/`, regenerated from `workflows/` with real IDs substituted).
-2. Create the Telegram and Notion credentials plus an **Anthropic** credential (`anthropicApi`) in n8n. Claude's server-side `web_search` / `web_fetch` tools cover research, so no separate search provider is needed.
-3. Create two Data Tables:
-   - **pending approvals** (columns: `token`, `chat_id`, `source_url`, `canonical_url`, `fingerprint`, `candidate_json`, `validation_json`, `status`, `created_at`). The ingest workflow parks each validated candidate here between the approval message and the button callback — no Notion write happens before confirmation.
-   - **sent reminders** (columns: `key`, `opportunity_id`, `deadline_id`, `sent_at`). Workflow 02 uses it as the reminder idempotency ledger, keyed `opportunity_id:deadline_id:version:offset`.
-4. Replace every `REPLACE_...` marker:
-   - `REPLACE_WITH_TELEGRAM_USER_ID` — your numeric Telegram user ID (auth gate, in code nodes).
-   - `REPLACE_WITH_OPPORTUNITIES_DATA_SOURCE_ID` / `REPLACE_WITH_DEADLINES_DATA_SOURCE_ID` — the Notion data-source IDs from `prospect bootstrap-notion` (in the persist / query / recheck nodes).
-   - `REPLACE_WITH_PENDING_APPROVALS_DATA_TABLE_ID` / `REPLACE_WITH_SENT_REMINDERS_DATA_TABLE_ID` — the two Data Table IDs from step 3.
-5. Bind the `telegramApi`, `notionApi`, and `anthropicApi` credentials to every node showing a warning (the Anthropic and Notion calls are raw HTTP Request nodes using `predefinedCredentialType`).
-6. Set the workflow timezone explicitly (reminder day-boundary maths uses it).
-7. Test with fixtures before publishing.
+- `workflows/*.json` – tracked workflow templates: full topology (nodes, connections, settings) with sentinel markers instead of embedded payloads, and placeholders instead of personal identifiers.
+- `code/*.js` – one file per Code node (plus `validate_opportunity.js`, the golden-tested port of `normalize_opportunity` + identity that the Validate node embeds).
+- `prompts/*.md` – Anthropic system prompts for the extract and research calls.
+- `import/*.json` – git-ignored deployable copies with real identifiers substituted. Never committed.
 
-The Codex user-level MCP configuration points at `https://noah-art3mis.app.n8n.cloud/mcp-server/http`. Restart Codex and complete OAuth before asking an agent to create or update cloud workflows through MCP.
+## Template format
 
-## Self-hosted setup
+Templates and payload files are wired together with three sentinels, resolved by `uv run prospect build-workflows` (implementation: `src/prospect/workflows.py`):
 
-Copy `.env.example` to `.env`, choose a long encryption key, and run `docker compose up -d`. Telegram needs a public HTTPS `N8N_WEBHOOK_URL`; a local-only URL cannot receive Telegram webhooks.
+| Sentinel                  | Where it appears             | Expansion                                                                                                    |
+| ------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `{{FILE:<path>}}`         | a Code node's `jsCode`       | the referenced `n8n/code/*.js` file, inlined (minus its trailing newline)                                      |
+| `{{INLINE_JS:<path>}}`    | inside a `n8n/code/*.js` file | the referenced JS file pasted verbatim, minus its sandbox-note header and its trailing Node `module.exports` guard |
+| `{{PROMPT_LINES:<path>}}` | inside a `n8n/code/*.js` file | the referenced `n8n/prompts/*.md` rendered as the JSON-quoted lines of a JS array literal                      |
+
+Every `n8n/code/*.js` file starts with a one-line sandbox note (`// n8n Cloud Code-node sandbox: ...`); the build strips it, so it annotates the file without changing the deployed payload. n8n Cloud Code nodes have no `URL` constructor and no `require` – parse URLs with regexes (Date and Set are fine).
+
+Two placeholder families keep personal identifiers out of git and survive into the tracked templates: `REPLACE_WITH_TELEGRAM_USER_ID` (from `.env`'s `TELEGRAM_ALLOWED_USER_ID`) and `REPLACE_WITH_DATA_SOURCE_<NAME>` (from `notion-data-sources.json`, the output of `prospect bootstrap-notion`). The extract and research calls no longer use Anthropic strict structured output (it cannot express the polymorphic finding `value`); the JSON contract lives in the prompts, the responses are parsed leniently, and the deterministic Validate node remains the guardrail. A pytest tripwire asserts the prompts spell out exactly the knowledge states `schemas/opportunity-candidate.schema.json` defines.
+
+## Build and deploy flow
+
+1. Edit the payload files or templates in the repo.
+2. `uv run prospect build-workflows` – canonicalizes the tracked templates in place and writes deployable copies to `n8n/import/` using `.env` and `notion-data-sources.json`.
+3. Push the `n8n/import/*.json` content to the instance through the authenticated n8n MCP server (`update_workflow`).
+4. Verify the round trip: fetch the live workflow with `get_workflow_details`, save the JSON, and run `uv run python scripts/compare_workflows.py n8n/import/<name>.json <live-export>.json`. It must print `EQUIVALENT`.
+
+Never leave the live instance ahead of the repo at the end of a work session: fold live experiments back into `n8n/code/`, `n8n/prompts/`, and `n8n/workflows/`, rebuild, and re-verify.
+
+Workflow-level settings are a known MCP gap: `update_workflow` has no operation for the settings block, so `timezone` (Europe/London, carried in the tracked templates and applied when a workflow is created) and the `errorWorkflow` binding to `Prospect – Error alerts` must be set once per existing workflow in the n8n UI (workflow menu → Settings). The error workflow itself does not need to be activated — n8n invokes it by reference when a production execution of a workflow that names it fails; nothing fires until the referencing workflows are published (phase 4).
+
+Known MCP validator noise: `validate_workflow` falsely warns "Missing discriminator parameters.resource" on Telegram sendMessage nodes; ignore that specific warning.
 
 ## Workflow boundaries
 
-- `01-ingest-opportunity.json`: Telegram admission, URL capture, retrieval, and an explicit handoff to extraction/research.
-- `02-deadline-reminders.json`: daily scheduling and an explicit handoff to Notion query/reminder calculation.
-- `03-recheck-active-opportunities.json`: weekly scheduling and an explicit handoff to source comparison.
+- `01-ingest-opportunity.json`: Telegram admission, URL capture, retrieval, extraction, bounded read-only research, deterministic validation, Telegram approval callbacks, and Notion persistence of confirmed opportunities and their deadlines.
+- `02-deadline-reminders.json`: daily 09:00 run — queries verified, non-rolling deadlines from Notion, computes due reminders (`compute-due-reminders.js`, the contract-tested port of `src/prospect/reminders.py`), filters already-sent keys against the `Prospect sent reminders` Data Table (`rowNotExists`), sends the Telegram reminder, then inserts the sent key.
+- `03-recheck-active-opportunities.json`: weekly Monday 10:00 run — queries active confirmed opportunities, re-fetches each canonical source, asks Anthropic only whether it is still open, and `diff-and-alert.js` raises a Telegram alert on closure/withdrawal/status drift/no-longer-accepting/fetch failure while stamping `Last checked`. It never rewrites confirmed values.
 
-The workflow scaffolds establish triggers, authorization, bounded inputs, and operator instructions. Model and Notion nodes should be completed through the authenticated n8n MCP server because credential-backed node schemas are instance-specific. Do not put persistence tools directly on the research agent. The final graph must keep research read-only and route its output through validation and Telegram approval before any Notion mutation.
+Do not put persistence tools directly on the research agent. Research is read-only (bounded web search and fetch); its output routes through validation and Telegram approval before any Notion mutation.
 
-The ingestion scaffold rejects literal private-network, local-hostname, credentialed, and non-standard-port URLs before fetching. This does not prevent DNS rebinding. Keep n8n's SSRF protection enabled where available; for self-hosted Community Edition, prefer a dedicated fetch service or egress proxy that resolves and blocks non-public destinations after every redirect.
+The ingestion flow rejects literal private-network, local-hostname, credentialed, and non-standard-port URLs before fetching. This does not prevent DNS rebinding; n8n Cloud's SSRF protection remains the backstop. The recorded future simplification is replacing the n8n-side fetch with Anthropic `web_fetch`.
 
-## Completed pipeline
+## Invariants the graph must keep
 
-The three workflows now implement the full flow (they stay inactive until the pre-publish test in `docs/setup.md` step 6):
-
-1. **Ingest** (`01`): Telegram admission → per-URL fan-out → fetch → extract + classify (Anthropic) → listing enumerate *or* research the gaps (read-only `web_search` / `web_fetch`) → merge (research can only fill requested fields) → deterministic validation → park in the Data Table → Telegram approval keyboard (confirm / save incomplete / edit deadline / research again / duplicate / reject) → on the button callback, Notion create of the opportunity page plus first-class deadline rows. No Notion mutation happens before confirmation.
-2. **Deadline reminders** (`02`): daily query of verified, non-rolling deadlines → offset maths in the workflow timezone → filter out keys already in the `sent reminders` Data Table (`rowNotExists`) → Telegram send → insert the key only after the send succeeds. Idempotency key: `opportunity_id:deadline_id:version:offset`.
-3. **Recheck** (`03`): weekly query of confirmed, non-closed opportunities → re-fetch the source → re-read status via Anthropic → alert on change / closure / page disappearance and stamp `Last checked`. It never rewrites confirmed critical values.
-
-### Notes on the AI calls
-
-- Extraction and research call the Anthropic Messages API through raw **HTTP Request** nodes (the n8n Anthropic Chat Model node does not expose the server-side `web_search` / `web_fetch` tools). Add the `anthropic-version: 2023-06-01` header; the `anthropicApi` credential injects `x-api-key`.
-- The calls request a single JSON object via the prompt rather than strict structured output: Anthropic's `output_config.format` json_schema cannot express a finding's free-form `value` (an object for funding, an array for deadlines). The deterministic Validate node (`n8n/code/validate_opportunity.js`, golden-tested against the Python spec) is the enforcement boundary — the prompt shape is convenience only.
-- The Validate node embeds `n8n/code/validate_opportunity.js` verbatim so the cross-language contract test (`tests/test_contract_normalize.py`, `tests/test_contract_identity.py`) guards exactly what runs in production.
-
-### SSRF scope
-
-The host gate (ingest `Authorize and normalize request`, the shared `validate_public_url`, and the recheck `Prepare opportunities` re-gate) rejects **IP-literal** SSRF in every notation: private/reserved dotted quads, 1–3 part shorthand (`127.1`, `169.254.43518`), bare-decimal/hex/octal, and — because it accepts only ASCII letter/digit/hyphen/dot hosts — backslash parser-confusion and fullwidth/IDNA hosts that an HTTP client would fold to a private address. Redirect-following is disabled on both fetch nodes. What a string gate structurally **cannot** stop is a plain domain name whose DNS record resolves to a private IP (wildcard-DNS services, DNS rebinding). Closing that requires network-layer egress filtering — block RFC1918 / loopback / link-local / `169.254.169.254` at the container or a validating forward proxy for the n8n fetch path. Enforce this before publishing (Step 6); until then it remains a known, accepted limitation.
+1. Extraction conforms to `schemas/opportunity-candidate.schema.json`.
+2. The researcher is limited to search and HTTP fetch, at most three searches and eight fetched pages per opportunity.
+3. Deterministic field/evidence validation before anything is stored.
+4. Telegram approval callbacks for confirm, research again, save incomplete, duplicate, and reject.
+5. Notion create/update operations use the data-source IDs produced by `prospect bootstrap-notion`.
+6. Reminder idempotency keyed as `opportunity_id:deadline_id:version:offset`.
+7. Recheck diffs alert instead of silently overwriting confirmed critical findings.

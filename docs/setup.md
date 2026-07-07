@@ -31,15 +31,19 @@ The command targets Notion API version `2026-03-11`. It is a one-time, non-idemp
 
 ## 3. Create the Telegram bot
 
-Use BotFather in Telegram to create a bot and copy its token. Send the bot a message, then obtain your numeric Telegram user ID from the trigger test output. In the imported ingestion workflow, replace `REPLACE_WITH_TELEGRAM_USER_ID` before publishing. Bind the same Telegram credential to the trigger and send nodes.
+Use BotFather in Telegram to create a bot and copy its token. Send the bot a message, then obtain your numeric Telegram user ID from the trigger test output and store it as `TELEGRAM_ALLOWED_USER_ID` in `.env`. The build step substitutes it for `REPLACE_WITH_TELEGRAM_USER_ID`; the tracked templates never carry the real ID. Bind the same Telegram credential to the trigger and send nodes.
 
 Do not accept group messages or additional users during the initial experiment.
 
 ## 4. Configure n8n
 
-Import the JSON files under `n8n/workflows/`. They are deliberately inactive. In n8n Cloud, bind credentials in the UI; custom environment variables are not available on Cloud Starter. Complete the credential-backed sections through the authenticated n8n MCP server, following `n8n/README.md` and the sticky notes in each workflow.
+Build the deployable workflows and push them to n8n Cloud through the authenticated n8n MCP server, following `n8n/README.md`:
 
-For self-hosting, set `N8N_WEBHOOK_URL` to a public HTTPS origin before publishing Telegram workflows. The local Docker Compose file cannot receive Telegram events through `localhost` alone.
+```bash
+uv run prospect build-workflows
+```
+
+This writes `n8n/import/*.json` (git-ignored) with real identifiers taken from `.env` and `notion-data-sources.json`. Deployed workflows stay inactive until step 6 passes. In n8n Cloud, bind credentials in the UI; custom environment variables are not available on Cloud Starter. The project runs on n8n Cloud; the hosting question is tracked separately.
 
 ## 5. Configure AI and search
 

@@ -1,0 +1,377 @@
+{
+  "_comment": "Three-way contract for the due-reminder calculation: prospect.reminders.due_reminders (Python spec) vs n8n/code/compute-due-reminders.js (live JS port, Notion-shaped input) vs recorded expectation. `python: match` cases must agree three ways; `python: invalid` cases pin a KNOWN DIVERGENCE — the strict Python validator raises InvalidDeadline while the lenient live JS port silently proceeds (reported in docs/PLAN-consolidation.md, phase-4 deferred list). `frozen_now_utc` is the instant injected into the JS sandbox; `as_of` is that instant's calendar date in the node's hardcoded America/Mexico_City timezone (UTC-6, no DST) and the date handed to Python.",
+  "cases": [
+    {
+      "name": "due_in_seven_days_matches_offset",
+      "as_of": "2026-07-06",
+      "frozen_now_utc": "2026-07-06T18:00:00.000Z",
+      "python": "match",
+      "notion_pages": [
+        {
+          "id": "dl-funding-1",
+          "properties": {
+            "Name": {"title": [{"plain_text": "Funding application"}]},
+            "Verified": {"checkbox": true},
+            "Rolling": {"checkbox": false},
+            "Due": {"date": {"start": "2026-07-13T17:00:00+00:00"}},
+            "Version": {"number": 2},
+            "Reminder offsets": {"multi_select": [{"name": "30"}, {"name": "7"}, {"name": "1"}]},
+            "Opportunity": {"relation": [{"id": "opp-1"}]}
+          }
+        }
+      ],
+      "deadlines": [
+        {
+          "opportunity_id": "opp-1",
+          "deadline_id": "dl-funding-1",
+          "version": 2,
+          "type": "funding_application",
+          "due_at": "2026-07-13T17:00:00+00:00",
+          "timezone": "UTC",
+          "rolling": false,
+          "reminder_offsets": [30, 7, 1],
+          "verified": true
+        }
+      ],
+      "expect": [
+        {
+          "key": "opp-1:dl-funding-1:2:7",
+          "opportunity_id": "opp-1",
+          "deadline_id": "dl-funding-1",
+          "days_remaining": 7,
+          "due_at": "2026-07-13T17:00:00+00:00"
+        }
+      ]
+    },
+    {
+      "name": "offset_not_matching_days_remaining",
+      "as_of": "2026-07-06",
+      "frozen_now_utc": "2026-07-06T18:00:00.000Z",
+      "python": "match",
+      "notion_pages": [
+        {
+          "id": "dl-prog-1",
+          "properties": {
+            "Name": {"title": [{"plain_text": "Programme application"}]},
+            "Verified": {"checkbox": true},
+            "Rolling": {"checkbox": false},
+            "Due": {"date": {"start": "2026-07-11T12:00:00+00:00"}},
+            "Version": {"number": 1},
+            "Reminder offsets": {"multi_select": [{"name": "7"}, {"name": "1"}]},
+            "Opportunity": {"relation": [{"id": "opp-1"}]}
+          }
+        }
+      ],
+      "deadlines": [
+        {
+          "opportunity_id": "opp-1",
+          "deadline_id": "dl-prog-1",
+          "version": 1,
+          "type": "programme_application",
+          "due_at": "2026-07-11T12:00:00+00:00",
+          "timezone": "UTC",
+          "rolling": false,
+          "reminder_offsets": [7, 1],
+          "verified": true
+        }
+      ],
+      "expect": []
+    },
+    {
+      "name": "unverified_deadline_generates_nothing",
+      "as_of": "2026-07-06",
+      "frozen_now_utc": "2026-07-06T18:00:00.000Z",
+      "python": "match",
+      "notion_pages": [
+        {
+          "id": "dl-prog-2",
+          "properties": {
+            "Name": {"title": [{"plain_text": "Unverified programme deadline"}]},
+            "Verified": {"checkbox": false},
+            "Rolling": {"checkbox": false},
+            "Due": {"date": {"start": "2026-07-07T12:00:00+00:00"}},
+            "Version": {"number": 1},
+            "Reminder offsets": {"multi_select": [{"name": "1"}]},
+            "Opportunity": {"relation": [{"id": "opp-1"}]}
+          }
+        }
+      ],
+      "deadlines": [
+        {
+          "opportunity_id": "opp-1",
+          "deadline_id": "dl-prog-2",
+          "version": 1,
+          "type": "programme_application",
+          "due_at": "2026-07-07T12:00:00+00:00",
+          "timezone": "UTC",
+          "rolling": false,
+          "reminder_offsets": [1],
+          "verified": false
+        }
+      ],
+      "expect": []
+    },
+    {
+      "name": "rolling_deadline_generates_nothing",
+      "as_of": "2026-07-06",
+      "frozen_now_utc": "2026-07-06T18:00:00.000Z",
+      "python": "match",
+      "notion_pages": [
+        {
+          "id": "dl-rolling-1",
+          "properties": {
+            "Name": {"title": [{"plain_text": "Rolling admissions"}]},
+            "Verified": {"checkbox": true},
+            "Rolling": {"checkbox": true},
+            "Version": {"number": 1},
+            "Reminder offsets": {"multi_select": [{"name": "30"}, {"name": "7"}]},
+            "Opportunity": {"relation": [{"id": "opp-2"}]}
+          }
+        }
+      ],
+      "deadlines": [
+        {
+          "opportunity_id": "opp-2",
+          "deadline_id": "dl-rolling-1",
+          "version": 1,
+          "type": "programme_application",
+          "rolling": true,
+          "reminder_offsets": [30, 7],
+          "verified": true
+        }
+      ],
+      "expect": []
+    },
+    {
+      "name": "due_today_matches_offset_zero",
+      "as_of": "2026-07-06",
+      "frozen_now_utc": "2026-07-06T18:00:00.000Z",
+      "python": "match",
+      "notion_pages": [
+        {
+          "id": "dl-interview-1",
+          "properties": {
+            "Name": {"title": [{"plain_text": "Interview"}]},
+            "Verified": {"checkbox": true},
+            "Rolling": {"checkbox": false},
+            "Due": {"date": {"start": "2026-07-06T09:30:00+01:00"}},
+            "Version": {"number": 1},
+            "Reminder offsets": {"multi_select": [{"name": "0"}]},
+            "Opportunity": {"relation": [{"id": "opp-3"}]}
+          }
+        }
+      ],
+      "deadlines": [
+        {
+          "opportunity_id": "opp-3",
+          "deadline_id": "dl-interview-1",
+          "version": 1,
+          "type": "interview",
+          "due_at": "2026-07-06T09:30:00+01:00",
+          "timezone": "Europe/London",
+          "rolling": false,
+          "reminder_offsets": [0],
+          "verified": true
+        }
+      ],
+      "expect": [
+        {
+          "key": "opp-3:dl-interview-1:1:0",
+          "opportunity_id": "opp-3",
+          "deadline_id": "dl-interview-1",
+          "days_remaining": 0,
+          "due_at": "2026-07-06T09:30:00+01:00"
+        }
+      ]
+    },
+    {
+      "name": "mixed_batch_emits_only_the_due_one",
+      "as_of": "2026-07-06",
+      "frozen_now_utc": "2026-07-06T18:00:00.000Z",
+      "python": "match",
+      "notion_pages": [
+        {
+          "id": "dl-a",
+          "properties": {
+            "Name": {"title": [{"plain_text": "Due but wrong offset"}]},
+            "Verified": {"checkbox": true},
+            "Rolling": {"checkbox": false},
+            "Due": {"date": {"start": "2026-07-09T12:00:00+00:00"}},
+            "Version": {"number": 1},
+            "Reminder offsets": {"multi_select": [{"name": "7"}]},
+            "Opportunity": {"relation": [{"id": "opp-4"}]}
+          }
+        },
+        {
+          "id": "dl-b",
+          "properties": {
+            "Name": {"title": [{"plain_text": "Reference request"}]},
+            "Verified": {"checkbox": true},
+            "Rolling": {"checkbox": false},
+            "Due": {"date": {"start": "2026-08-05T12:00:00+00:00"}},
+            "Version": {"number": 3},
+            "Reminder offsets": {"multi_select": [{"name": "30"}, {"name": "7"}]},
+            "Opportunity": {"relation": [{"id": "opp-4"}]}
+          }
+        }
+      ],
+      "deadlines": [
+        {
+          "opportunity_id": "opp-4",
+          "deadline_id": "dl-a",
+          "version": 1,
+          "type": "programme_application",
+          "due_at": "2026-07-09T12:00:00+00:00",
+          "timezone": "UTC",
+          "rolling": false,
+          "reminder_offsets": [7],
+          "verified": true
+        },
+        {
+          "opportunity_id": "opp-4",
+          "deadline_id": "dl-b",
+          "version": 3,
+          "type": "reference_request",
+          "due_at": "2026-08-05T12:00:00+00:00",
+          "timezone": "UTC",
+          "rolling": false,
+          "reminder_offsets": [30, 7],
+          "verified": true
+        }
+      ],
+      "expect": [
+        {
+          "key": "opp-4:dl-b:3:30",
+          "opportunity_id": "opp-4",
+          "deadline_id": "dl-b",
+          "days_remaining": 30,
+          "due_at": "2026-08-05T12:00:00+00:00"
+        }
+      ]
+    },
+    {
+      "name": "divergence_missing_version_js_defaults_to_1_python_rejects",
+      "as_of": "2026-07-06",
+      "frozen_now_utc": "2026-07-06T18:00:00.000Z",
+      "python": "invalid",
+      "notion_pages": [
+        {
+          "id": "dl-nover-1",
+          "properties": {
+            "Name": {"title": [{"plain_text": "No version property"}]},
+            "Verified": {"checkbox": true},
+            "Rolling": {"checkbox": false},
+            "Due": {"date": {"start": "2026-07-13T12:00:00+00:00"}},
+            "Reminder offsets": {"multi_select": [{"name": "7"}]},
+            "Opportunity": {"relation": [{"id": "opp-5"}]}
+          }
+        }
+      ],
+      "deadlines": [
+        {
+          "opportunity_id": "opp-5",
+          "deadline_id": "dl-nover-1",
+          "type": "programme_application",
+          "due_at": "2026-07-13T12:00:00+00:00",
+          "timezone": "UTC",
+          "rolling": false,
+          "reminder_offsets": [7],
+          "verified": true
+        }
+      ],
+      "expect": [
+        {
+          "key": "opp-5:dl-nover-1:1:7",
+          "opportunity_id": "opp-5",
+          "deadline_id": "dl-nover-1",
+          "days_remaining": 7,
+          "due_at": "2026-07-13T12:00:00+00:00"
+        }
+      ]
+    },
+    {
+      "name": "divergence_negative_offset_js_reminds_after_due_python_rejects",
+      "as_of": "2026-07-06",
+      "frozen_now_utc": "2026-07-06T18:00:00.000Z",
+      "python": "invalid",
+      "notion_pages": [
+        {
+          "id": "dl-neg-1",
+          "properties": {
+            "Name": {"title": [{"plain_text": "Passed yesterday"}]},
+            "Verified": {"checkbox": true},
+            "Rolling": {"checkbox": false},
+            "Due": {"date": {"start": "2026-07-05T12:00:00+00:00"}},
+            "Version": {"number": 1},
+            "Reminder offsets": {"multi_select": [{"name": "-1"}]},
+            "Opportunity": {"relation": [{"id": "opp-6"}]}
+          }
+        }
+      ],
+      "deadlines": [
+        {
+          "opportunity_id": "opp-6",
+          "deadline_id": "dl-neg-1",
+          "version": 1,
+          "type": "programme_application",
+          "due_at": "2026-07-05T12:00:00+00:00",
+          "timezone": "UTC",
+          "rolling": false,
+          "reminder_offsets": [-1],
+          "verified": true
+        }
+      ],
+      "expect": [
+        {
+          "key": "opp-6:dl-neg-1:1:-1",
+          "opportunity_id": "opp-6",
+          "deadline_id": "dl-neg-1",
+          "days_remaining": -1,
+          "due_at": "2026-07-05T12:00:00+00:00"
+        }
+      ]
+    },
+    {
+      "name": "divergence_date_only_due_js_accepts_python_rejects",
+      "as_of": "2026-07-06",
+      "frozen_now_utc": "2026-07-06T18:00:00.000Z",
+      "python": "invalid",
+      "notion_pages": [
+        {
+          "id": "dl-dateonly-1",
+          "properties": {
+            "Name": {"title": [{"plain_text": "Date-only Notion deadline"}]},
+            "Verified": {"checkbox": true},
+            "Rolling": {"checkbox": false},
+            "Due": {"date": {"start": "2026-07-13"}},
+            "Version": {"number": 1},
+            "Reminder offsets": {"multi_select": [{"name": "7"}]},
+            "Opportunity": {"relation": [{"id": "opp-7"}]}
+          }
+        }
+      ],
+      "deadlines": [
+        {
+          "opportunity_id": "opp-7",
+          "deadline_id": "dl-dateonly-1",
+          "version": 1,
+          "type": "programme_application",
+          "due_at": "2026-07-13",
+          "timezone": "UTC",
+          "rolling": false,
+          "reminder_offsets": [7],
+          "verified": true
+        }
+      ],
+      "expect": [
+        {
+          "key": "opp-7:dl-dateonly-1:1:7",
+          "opportunity_id": "opp-7",
+          "deadline_id": "dl-dateonly-1",
+          "days_remaining": 7,
+          "due_at": "2026-07-13"
+        }
+      ]
+    }
+  ]
+}

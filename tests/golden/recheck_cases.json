@@ -1,0 +1,315 @@
+{
+  "_comment": "Golden pins for the branchy Code nodes of workflow 03 (Prospect – Recheck active opportunities), run verbatim under node:vm by tests/js/run_recheck_contract.cjs and asserted by tests/test_contract_recheck.py. diff_and_alert cases: ctx is the 'Build recheck request' item, resp is the raw 'Re-extract status' HTTP output (Anthropic Messages shape, or an error object when that node continued on error). prepare_opportunities cases: pages is the Notion query response. These pin CURRENT live behavior — including the model_call_failed case, where a failed Anthropic call yields no alert yet still stamps Last checked (recorded as a phase-4 finding, not fixed here).",
+  "diff_and_alert": [
+    {
+      "name": "closed_at_source_alerts",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-1",
+        "title": "PhD in Trustworthy AI",
+        "canonical_url": "https://university.example/phd/trustworthy-ai",
+        "stored_status": "Open",
+        "fetch_error": "",
+        "content_len": 5000
+      },
+      "resp": {
+        "content": [
+          {"type": "text", "text": "{\"opportunity_status\": \"closed\", \"still_accepting_applications\": false, \"notes\": \"Applications closed on 1 July.\"}"}
+        ]
+      },
+      "expect": {
+        "alert": true,
+        "new_status": "closed",
+        "alert_lines": ["the opportunity now appears closed at the source"]
+      }
+    },
+    {
+      "name": "withdrawn_at_source_alerts",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-2",
+        "title": "PhD in NLP",
+        "canonical_url": "https://university.example/phd/nlp",
+        "stored_status": "Open",
+        "fetch_error": "",
+        "content_len": 5000
+      },
+      "resp": {
+        "content": [
+          {"type": "text", "text": "{\"opportunity_status\": \"withdrawn\", \"still_accepting_applications\": null, \"notes\": \"Posting withdrawn.\"}"}
+        ]
+      },
+      "expect": {
+        "alert": true,
+        "new_status": "withdrawn",
+        "alert_lines": ["the opportunity now appears withdrawn at the source"]
+      }
+    },
+    {
+      "name": "status_drift_alerts",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-3",
+        "title": "PhD in Robotics",
+        "canonical_url": "https://university.example/phd/robotics",
+        "stored_status": "Open",
+        "fetch_error": "",
+        "content_len": 5000
+      },
+      "resp": {
+        "content": [
+          {"type": "text", "text": "{\"opportunity_status\": \"unknown\", \"still_accepting_applications\": null, \"notes\": \"Page no longer states a status.\"}"}
+        ]
+      },
+      "expect": {
+        "alert": true,
+        "new_status": "unknown",
+        "alert_lines": ["status may have changed: Notion has \"Open\", the source reads \"unknown\""]
+      }
+    },
+    {
+      "name": "no_longer_accepting_alerts_without_status_change",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-4",
+        "title": "PhD in HCI",
+        "canonical_url": "https://university.example/phd/hci",
+        "stored_status": "Open",
+        "fetch_error": "",
+        "content_len": 5000
+      },
+      "resp": {
+        "content": [
+          {"type": "text", "text": "{\"opportunity_status\": \"open\", \"still_accepting_applications\": false, \"notes\": \"Listed as open but the apply form is disabled.\"}"}
+        ]
+      },
+      "expect": {
+        "alert": true,
+        "new_status": "open",
+        "alert_lines": ["the source indicates it is no longer accepting applications"]
+      }
+    },
+    {
+      "name": "fetch_failed_alerts_and_skips_model_output",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-5",
+        "title": "PhD in Vision",
+        "canonical_url": "https://university.example/phd/vision",
+        "stored_status": "Open",
+        "fetch_error": "getaddrinfo ENOTFOUND university.example",
+        "content_len": 0
+      },
+      "resp": {
+        "content": [
+          {"type": "text", "text": "{\"opportunity_status\": \"closed\", \"still_accepting_applications\": false, \"notes\": \"ignored\"}"}
+        ]
+      },
+      "expect": {
+        "alert": true,
+        "new_status": "",
+        "alert_lines": ["the source could not be fetched (getaddrinfo ENOTFOUND university.example) — the page may have moved or been removed"]
+      }
+    },
+    {
+      "name": "empty_fetch_counts_as_fetch_failure",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-6",
+        "title": "PhD in Ethics",
+        "canonical_url": "https://university.example/phd/ethics",
+        "stored_status": "Open",
+        "fetch_error": "",
+        "content_len": 0
+      },
+      "resp": {
+        "content": [
+          {"type": "text", "text": "{\"opportunity_status\": \"open\", \"still_accepting_applications\": true, \"notes\": \"\"}"}
+        ]
+      },
+      "expect": {
+        "alert": true,
+        "new_status": "",
+        "alert_lines": ["the source could not be fetched (empty response) — the page may have moved or been removed"]
+      }
+    },
+    {
+      "name": "unparseable_model_output_produces_no_false_alert",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-7",
+        "title": "PhD in Data Science",
+        "canonical_url": "https://university.example/phd/data-science",
+        "stored_status": "Open",
+        "fetch_error": "",
+        "content_len": 5000
+      },
+      "resp": {
+        "content": [
+          {"type": "text", "text": "I could not determine the status from this page."}
+        ]
+      },
+      "expect": {
+        "alert": false,
+        "new_status": "",
+        "alert_lines": []
+      }
+    },
+    {
+      "name": "json_wrapped_in_prose_is_parsed_loosely",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-8",
+        "title": "PhD in Systems",
+        "canonical_url": "https://university.example/phd/systems",
+        "stored_status": "Open",
+        "fetch_error": "",
+        "content_len": 5000
+      },
+      "resp": {
+        "content": [
+          {"type": "text", "text": "Here is my assessment:\n```json\n{\"opportunity_status\": \"closed\", \"still_accepting_applications\": false, \"notes\": \"\"}\n```"}
+        ]
+      },
+      "expect": {
+        "alert": true,
+        "new_status": "closed",
+        "alert_lines": ["the opportunity now appears closed at the source"]
+      }
+    },
+    {
+      "name": "no_change_stays_silent",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-9",
+        "title": "PhD in Theory",
+        "canonical_url": "https://university.example/phd/theory",
+        "stored_status": "Open",
+        "fetch_error": "",
+        "content_len": 5000
+      },
+      "resp": {
+        "content": [
+          {"type": "text", "text": "{\"opportunity_status\": \"open\", \"still_accepting_applications\": true, \"notes\": \"Unchanged.\"}"}
+        ]
+      },
+      "expect": {
+        "alert": false,
+        "new_status": "open",
+        "alert_lines": []
+      }
+    },
+    {
+      "name": "stored_unknown_suppresses_drift_alert",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-10",
+        "title": "PhD in Security",
+        "canonical_url": "https://university.example/phd/security",
+        "stored_status": "Unknown",
+        "fetch_error": "",
+        "content_len": 5000
+      },
+      "resp": {
+        "content": [
+          {"type": "text", "text": "{\"opportunity_status\": \"open\", \"still_accepting_applications\": true, \"notes\": \"\"}"}
+        ]
+      },
+      "expect": {
+        "alert": false,
+        "new_status": "open",
+        "alert_lines": []
+      }
+    },
+    {
+      "name": "model_call_failure_is_silent_and_still_stamps_last_checked",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "ctx": {
+        "page_id": "page-11",
+        "title": "PhD in Bioinformatics",
+        "canonical_url": "https://university.example/phd/bioinformatics",
+        "stored_status": "Open",
+        "fetch_error": "",
+        "content_len": 5000
+      },
+      "resp": {
+        "error": "The service was not able to process your request",
+        "message": "429 - rate limited"
+      },
+      "expect": {
+        "alert": false,
+        "new_status": "",
+        "alert_lines": []
+      }
+    }
+  ],
+  "prepare_opportunities": [
+    {
+      "name": "canonical_url_preferred_over_source_url",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "pages": [
+        {
+          "id": "opp-page-1",
+          "properties": {
+            "Name": {"title": [{"plain_text": "PhD in Trustworthy AI"}]},
+            "Canonical URL": {"url": "https://university.example/phd/trustworthy-ai"},
+            "Source URL": {"url": "https://aggregator.example/listing/123"},
+            "Opportunity status": {"select": {"name": "Open"}}
+          }
+        }
+      ],
+      "expect": [
+        {
+          "page_id": "opp-page-1",
+          "canonical_url": "https://university.example/phd/trustworthy-ai",
+          "title": "PhD in Trustworthy AI",
+          "stored_status": "Open"
+        }
+      ]
+    },
+    {
+      "name": "falls_back_to_source_url_and_defaults",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "pages": [
+        {
+          "id": "opp-page-2",
+          "properties": {
+            "Name": {"title": []},
+            "Canonical URL": {"url": null},
+            "Source URL": {"url": "https://aggregator.example/listing/456"},
+            "Opportunity status": {"select": null}
+          }
+        }
+      ],
+      "expect": [
+        {
+          "page_id": "opp-page-2",
+          "canonical_url": "https://aggregator.example/listing/456",
+          "title": "(untitled)",
+          "stored_status": "Unknown"
+        }
+      ]
+    },
+    {
+      "name": "no_urls_yields_empty_canonical_url",
+      "frozen_now_utc": "2026-07-06T12:00:00.000Z",
+      "pages": [
+        {
+          "id": "opp-page-3",
+          "properties": {
+            "Name": {"title": [{"plain_text": "URL-less record"}]},
+            "Opportunity status": {"select": {"name": "Open"}}
+          }
+        }
+      ],
+      "expect": [
+        {
+          "page_id": "opp-page-3",
+          "canonical_url": "",
+          "title": "URL-less record",
+          "stored_status": "Open"
+        }
+      ]
+    }
+  ]
+}

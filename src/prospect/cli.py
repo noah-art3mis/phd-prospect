@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Sequence
 
 from prospect.notion import NotionClient, bootstrap_workspace
+from prospect.workflows import build_all
 from prospect.notion_schema import database_specs
 from prospect.records import normalize_opportunity
 from prospect.seed import seed_contacts
@@ -53,6 +54,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Seeded {len(created)} contacts into {data_source_id}")
         return 0
 
+    if args.command == "build-workflows":
+        written = build_all(Path(args.root))
+        for path in written:
+            print(f"Wrote {path}")
+        return 0
+
     parser.error("a command is required")
 
 
@@ -84,6 +91,13 @@ def _parser() -> argparse.ArgumentParser:
         help="path to the bootstrap output JSON holding the contacts data source id",
     )
     seed.add_argument("--data-source-id", help="contacts data source id (overrides --data-sources)")
+
+    build = subcommands.add_parser(
+        "build-workflows",
+        help="inline n8n/code and n8n/prompts payloads into the workflow templates "
+        "and emit deployable copies under n8n/import/",
+    )
+    build.add_argument("--root", default=".", help="repository root (default: cwd)")
     return parser
 
 
