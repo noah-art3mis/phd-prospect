@@ -1,0 +1,61 @@
+{
+  "canonicalize": [
+    {
+      "name": "tracking_and_case",
+      "input": "HTTPS://University.Example:443//phd/project/?utm_source=telegram&ref=board&project=trustworthy-ai#apply",
+      "expect": "https://university.example/phd/project?project=trustworthy-ai&ref=board"
+    },
+    {
+      "name": "http_default_port",
+      "input": "http://Example.com:80/a//b/",
+      "expect": "http://example.com/a/b"
+    },
+    {
+      "name": "nonstandard_port_kept",
+      "input": "https://example.com:8443/x/",
+      "expect": "https://example.com:8443/x"
+    },
+    {
+      "name": "blank_value_kept",
+      "input": "https://example.com/p?a=&b=2&fbclid=zz",
+      "expect": "https://example.com/p?a=&b=2"
+    },
+    {
+      "name": "root_path",
+      "input": "https://example.com",
+      "expect": "https://example.com/"
+    }
+  ],
+  "fingerprint": [
+    {
+      "name": "syndicated_a",
+      "input": {
+        "institution": "Example University",
+        "title": "PhD in Trustworthy AI",
+        "supervisor": "Dr. Ada Example",
+        "deadline": "2026-12-01"
+      },
+      "expect": "b14a7304e881fb9e4550582ba56ed39db4113a8587edc989eb3f23763bddab2f"
+    },
+    {
+      "name": "syndicated_b",
+      "input": {
+        "institution": "  EXAMPLE   UNIVERSITY ",
+        "title": "Ph.D. in trustworthy AI",
+        "supervisor": "ada example",
+        "deadline": "2026-12-01T23:59:00+01:00"
+      },
+      "expect": "b14a7304e881fb9e4550582ba56ed39db4113a8587edc989eb3f23763bddab2f"
+    },
+    {
+      "name": "umlaut",
+      "input": {
+        "institution": "Technische Universität München",
+        "title": "PhD position",
+        "supervisor": "",
+        "deadline": ""
+      },
+      "expect": "6413f9260e09959e03b801c1841d893997751a0b71471d46ea4cdb84bc327900"
+    }
+  ]
+}

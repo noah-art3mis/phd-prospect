@@ -155,6 +155,139 @@ function normalizeOpportunity(candidate) {
   return normalized;
 }
 
+// ---------------------------------------------------------------------------
+// Stable opportunity identity — the JS port of src/prospect/identity.py's
+// canonicalize_url and opportunity_fingerprint. Pinned to the Python spec by
+// tests/test_contract_identity.py over tests/golden/identity_cases.json.
+// ---------------------------------------------------------------------------
+
+var TRACKING_PARAMETERS = ['fbclid', 'gclid', 'mc_cid', 'mc_eid'];
+
+// Split a URL into the parts canonicalize_url needs. Mirrors urlsplit closely
+// enough for http(s) inputs; the fragment is dropped, credentials are ignored.
+function splitUrlParts(url) {
+  var m = String(url).trim().match(/^([a-zA-Z][a-zA-Z0-9+.-]*):\/\/(?:[^@/?#]*@)?([^:/?#]*)(?::(\d+))?([^?#]*)(?:\?([^#]*))?(?:#.*)?$/);
+  if (!m) return null;
+  return { scheme: m[1].toLowerCase(), host: (m[2] || '').toLowerCase(), port: m[3] || '', path: m[4] || '', query: m[5] || '' };
+}
+
+// urllib quote_plus: percent-encode, space -> '+'. encodeURIComponent leaves
+// !'()* unencoded where quote_plus encodes them, so patch those to match Python.
+function quotePlus(value) {
+  return encodeURIComponent(String(value))
+    .replace(/[!'()*]/g, function (c) { return '%' + c.charCodeAt(0).toString(16).toUpperCase(); })
+    .replace(/%20/g, '+');
+}
+
+function decodePlus(value) {
+  try {
+    return decodeURIComponent(String(value).replace(/\+/g, ' '));
+  } catch (e) {
+    return String(value);
+  }
+}
+
+// Port of identity.canonicalize_url: drop transport + marketing noise, keep identity.
+function canonicalizeUrl(url) {
+  var p = splitUrlParts(url);
+  if (!p) return String(url).trim();
+  var host = p.host;
+  if (p.port && !((p.scheme === 'https' && p.port === '443') || (p.scheme === 'http' && p.port === '80'))) {
+    host = host + ':' + p.port;
+  }
+  var path = p.path.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/';
+  var pairs = [];
+  if (p.query) {
+    var segs = p.query.split('&');
+    for (var i = 0; i < segs.length; i++) {
+      if (segs[i] === '') continue;
+      var eq = segs[i].indexOf('=');
+      var key = decodePlus(eq === -1 ? segs[i] : segs[i].slice(0, eq));
+      var val = decodePlus(eq === -1 ? '' : segs[i].slice(eq + 1));
+      var lower = key.toLowerCase();
+      if (lower.indexOf('utm_') === 0 || TRACKING_PARAMETERS.indexOf(lower) !== -1) continue;
+      pairs.push([key, val]);
+    }
+  }
+  pairs.sort(function (a, b) {
+    return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
+  });
+  var query = pairs.map(function (kv) { return quotePlus(kv[0]) + '=' + quotePlus(kv[1]); }).join('&');
+  return p.scheme + '://' + host + path + (query ? '?' + query : '');
+}
+
+// Port of identity._words: NFKD-fold, drop non-ASCII, lowercase, collapse to tokens.
+// Because the input is folded to ASCII before hashing, sha256Hex (which hashes char
+// codes) produces the same digest as Python's UTF-8 hashlib.sha256 on this input.
+function foldWords(value) {
+  var v = String(value == null ? '' : value)
+    .normalize('NFKD')
+    .replace(/[^\x00-\x7F]/g, '')
+    .toLowerCase()
+    .replace(/ph\.d\./g, 'phd');
+  var parts = v.replace(/[^a-z0-9]+/g, ' ').split(' ');
+  var out = [];
+  for (var i = 0; i < parts.length; i++) {
+    if (parts[i]) out.push(parts[i]);
+  }
+  return out.join(' ');
+}
+
+// Pure-JS SHA-256 (n8n Cloud CE has no `require`, so `crypto` is unavailable). Hashes
+// char codes; safe here because foldWords() reduces every input to ASCII first.
+function sha256Hex(ascii) {
+  function rotr(n, x) { return (x >>> n) | (x << (32 - n)); }
+  var K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+  var h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a, h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+  var bytes = [];
+  for (var i = 0; i < ascii.length; i++) bytes.push(ascii.charCodeAt(i) & 0xff);
+  var l = bytes.length;
+  bytes.push(0x80);
+  while (bytes.length % 64 !== 56) bytes.push(0);
+  var hi = Math.floor((l * 8) / 0x100000000), lo = (l * 8) >>> 0;
+  bytes.push((hi >>> 24) & 0xff, (hi >>> 16) & 0xff, (hi >>> 8) & 0xff, hi & 0xff, (lo >>> 24) & 0xff, (lo >>> 16) & 0xff, (lo >>> 8) & 0xff, lo & 0xff);
+  var w = new Array(64);
+  for (var off = 0; off < bytes.length; off += 64) {
+    for (var t = 0; t < 16; t++) w[t] = (bytes[off + t * 4] << 24) | (bytes[off + t * 4 + 1] << 16) | (bytes[off + t * 4 + 2] << 8) | (bytes[off + t * 4 + 3]);
+    for (var t2 = 16; t2 < 64; t2++) {
+      var s0 = rotr(7, w[t2 - 15]) ^ rotr(18, w[t2 - 15]) ^ (w[t2 - 15] >>> 3);
+      var s1 = rotr(17, w[t2 - 2]) ^ rotr(19, w[t2 - 2]) ^ (w[t2 - 2] >>> 10);
+      w[t2] = (w[t2 - 16] + s0 + w[t2 - 7] + s1) | 0;
+    }
+    var a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
+    for (var r = 0; r < 64; r++) {
+      var S1 = rotr(6, e) ^ rotr(11, e) ^ rotr(25, e);
+      var ch = (e & f) ^ (~e & g);
+      var t1 = (h + S1 + ch + K[r] + w[r]) | 0;
+      var S0 = rotr(2, a) ^ rotr(13, a) ^ rotr(22, a);
+      var maj = (a & b) ^ (a & c) ^ (b & c);
+      var t22 = (S0 + maj) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t22) | 0;
+    }
+    h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0; h5 = (h5 + f) | 0; h6 = (h6 + g) | 0; h7 = (h7 + h) | 0;
+  }
+  function hex(n) { return ('00000000' + (n >>> 0).toString(16)).slice(-8); }
+  return hex(h0) + hex(h1) + hex(h2) + hex(h3) + hex(h4) + hex(h5) + hex(h6) + hex(h7);
+}
+
+// Port of identity.opportunity_fingerprint: a stable cross-source identity hint.
+function opportunityFingerprint(args) {
+  var supervisor = foldWords(args.supervisor);
+  if (supervisor.indexOf('dr ') === 0) supervisor = supervisor.slice(3);
+  var parts = [
+    foldWords(args.institution),
+    foldWords(args.title),
+    supervisor,
+    String(args.deadline == null ? '' : args.deadline).slice(0, 10)
+  ];
+  return sha256Hex(parts.join('\x1F'));
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { normalizeOpportunity: normalizeOpportunity, validatePublicUrl: validatePublicUrl };
+  module.exports = {
+    normalizeOpportunity: normalizeOpportunity,
+    validatePublicUrl: validatePublicUrl,
+    canonicalizeUrl: canonicalizeUrl,
+    opportunityFingerprint: opportunityFingerprint
+  };
 }
