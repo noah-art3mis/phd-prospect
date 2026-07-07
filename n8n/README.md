@@ -32,6 +32,8 @@ Two placeholder families keep personal identifiers out of git and survive into t
 
 Never leave the live instance ahead of the repo at the end of a work session: fold live experiments back into `n8n/code/`, `n8n/prompts/`, and `n8n/workflows/`, rebuild, and re-verify.
 
+Workflow-level settings are a known MCP gap: `update_workflow` has no operation for the settings block, so `timezone` (Europe/London, carried in the tracked templates and applied when a workflow is created) and the `errorWorkflow` binding to `Prospect – Error alerts` must be set once per existing workflow in the n8n UI (workflow menu → Settings). The error workflow itself does not need to be activated — n8n invokes it by reference when a production execution of a workflow that names it fails; nothing fires until the referencing workflows are published (phase 4).
+
 Known MCP validator noise: `validate_workflow` falsely warns "Missing discriminator parameters.resource" on Telegram sendMessage nodes; ignore that specific warning.
 
 ## Workflow boundaries
