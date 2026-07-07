@@ -1,0 +1,74 @@
+{
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Format error alert",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format error alert": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Send error alert",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "name": "Prospect – Error alerts",
+  "nodes": [
+    {
+      "name": "Error Trigger",
+      "parameters": {},
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1
+    },
+    {
+      "name": "Format error alert",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/format-error-alert.js}}"
+      },
+      "position": [
+        220,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Send error alert",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false
+        },
+        "chatId": "REPLACE_WITH_TELEGRAM_USER_ID",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "={{ $json.alert_text }}"
+      },
+      "position": [
+        440,
+        0
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    }
+  ],
+  "settings": {
+    "availableInMCP": true,
+    "executionOrder": "v1",
+    "timezone": "Europe/London"
+  }
+}
