@@ -102,7 +102,8 @@ def test_build_workflow_inlines_code_files(tmp_path: Path) -> None:
         "connections": {},
     }
     built = build_workflow(template, tmp_path)
-    assert built["nodes"][0]["parameters"]["jsCode"] == "return $json;\n"
+    # The payload file's trailing newline is a file convention, not payload content.
+    assert built["nodes"][0]["parameters"]["jsCode"] == "return $json;"
     assert built["nodes"][1] == template["nodes"][1]
     # The input template is not mutated.
     assert template["nodes"][0]["parameters"]["jsCode"] == "{{FILE:n8n/code/a.js}}"
@@ -247,7 +248,7 @@ def test_cli_build_workflows_emits_template_and_import(tmp_path: Path) -> None:
     assert main(["build-workflows", "--root", str(root)]) == 0
 
     imported = json.loads((root / "n8n" / "import" / "10-test.json").read_text())
-    assert imported["nodes"][0]["parameters"]["jsCode"] == "const id = '42';\n"
+    assert imported["nodes"][0]["parameters"]["jsCode"] == "const id = '42';"
     # The tracked template is canonicalized in place and keeps its placeholders.
     tracked = json.loads((root / "n8n" / "workflows" / "10-test.json").read_text())
     assert tracked["nodes"][0]["parameters"]["jsCode"] == "{{FILE:n8n/code/a.js}}"

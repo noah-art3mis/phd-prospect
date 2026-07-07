@@ -88,7 +88,8 @@ def build_workflow(template: Mapping[str, object], root: Path) -> dict:
         if not match:
             continue
         source = (root / match.group(1)).read_text()
-        node["parameters"]["jsCode"] = inline_payloads(source, root)
+        # A payload file's final newline is a file convention, not node content.
+        node["parameters"]["jsCode"] = inline_payloads(source, root).removesuffix("\n")
     return built
 
 
