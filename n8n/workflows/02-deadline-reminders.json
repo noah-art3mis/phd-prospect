@@ -1,5 +1,16 @@
 {
   "connections": {
+    "Compute TTL cutoff": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Sweep expired pending",
+            "type": "main"
+          }
+        ]
+      ]
+    },
     "Compute due reminders": {
       "main": [
         [
@@ -17,6 +28,11 @@
           {
             "index": 0,
             "node": "Query verified deadlines",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Compute TTL cutoff",
             "type": "main"
           }
         ]
@@ -50,6 +66,17 @@
           {
             "index": 0,
             "node": "Record sent",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Sweep expired pending": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Notify expired pending",
             "type": "main"
           }
         ]
@@ -107,6 +134,66 @@
       ],
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2
+    },
+    {
+      "name": "Compute TTL cutoff",
+      "parameters": {
+        "jsCode": "{{FILE:n8n/code/compute-ttl-cutoff.js}}",
+        "mode": "runOnceForAllItems"
+      },
+      "position": [
+        80,
+        560
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Sweep expired pending",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "XNcSfdGRkMAqWQKq"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "lt",
+              "keyName": "created_at",
+              "keyValue": "={{ $json.cutoff }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "deleteRows",
+        "resource": "row"
+      },
+      "position": [
+        320,
+        560
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "name": "Notify expired pending",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        },
+        "chatId": "REPLACE_WITH_TELEGRAM_USER_ID",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "=⌛ Pending approval expired after {{ $('Compute TTL cutoff').item.json.ttl_days }} days without a decision and was discarded:\n{{ $json.source_url }}\nRe-send the URL to ingest it again."
+      },
+      "position": [
+        560,
+        560
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
     },
     {
       "name": "Compute due reminders",

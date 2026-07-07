@@ -5,7 +5,7 @@
 // downstream by the "Prospect sent reminders" Data Table (rowNotExists filter, then insert),
 // so this node no longer reads/writes sent keys itself.
 // Key format: opportunity_id:deadline_id:version:offset (offset = days remaining).
-const TZ = 'America/Mexico_City';
+const TZ = 'Europe/London';
 const ALLOWED_CHAT_ID = REPLACE_WITH_TELEGRAM_USER_ID;
 
 // "Today" in the workflow timezone as YYYY-MM-DD (Code node has no $today/luxon).
