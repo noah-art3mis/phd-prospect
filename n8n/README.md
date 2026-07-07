@@ -55,3 +55,10 @@ The ingestion flow rejects literal private-network, local-hostname, credentialed
 5. Notion create/update operations use the data-source IDs produced by `prospect bootstrap-notion`.
 6. Reminder idempotency keyed as `opportunity_id:deadline_id:version:offset`.
 7. Recheck diffs alert instead of silently overwriting confirmed critical findings.
+
+## Publishing and versions
+
+Pushing changes via MCP only updates the workflow's *draft*; nothing runs in production until the workflow is **published** in n8n (publish = activate a specific version). After any deploy, remember to publish the affected workflows — an unpublished change is live-looking in the editor but inert.
+
+This is also a feature: n8n keeps every published version (`versionId` / `activeVersionId`), so the publish history doubles as version control on the live side. Git remains the source of truth for *what should be deployed*; n8n's version list records *what actually ran when*, and lets you roll the live side back to a prior published version independently of a git revert.
+
