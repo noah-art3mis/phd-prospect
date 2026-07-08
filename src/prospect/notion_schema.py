@@ -70,6 +70,8 @@ def database_specs(parent_page_id: str) -> dict[str, dict[str, Any]]:
                 "Eligibility state": _select(
                     "Eligible", "Likely eligible", "Needs confirmation", "Ineligible", "Unknown"
                 ),
+                "Supervisors": {"rich_text": {}},
+                "Research topics": {"rich_text": {}},
                 "Research fit": {"number": {"format": "number"}},
                 "Funding fit": {"number": {"format": "number"}},
                 "Location fit": {"number": {"format": "number"}},

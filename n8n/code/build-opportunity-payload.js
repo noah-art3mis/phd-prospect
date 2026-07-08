@@ -29,6 +29,8 @@ const properties = {
   'Programme': richText(foundVal('degree_or_programme')),
   'Duration': richText(foundVal('duration')),
   'Advert ID': richText(foundVal('advert_id')),
+  'Supervisors': richText(foundVal('supervisors')),
+  'Research topics': richText(foundVal('research_topics')),
   'Summary': richText(foundVal('summary')),
   'Fingerprint': richText(row.fingerprint),
   'Last checked': { date: { start: new Date().toISOString() } },
