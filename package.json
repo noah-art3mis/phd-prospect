@@ -1,0 +1,18 @@
+{
+  "name": "phd-prospect",
+  "version": "0.1.0",
+  "description": "Research, compare, and track PhD opportunities from Telegram.",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "build-workflows": "node tools/build-workflows.cjs",
+    "compare-workflows": "node tools/compare-workflows.cjs",
+    "bootstrap-notion": "node tools/bootstrap-notion.cjs",
+    "seed-contacts": "node tools/seed-notion.cjs",
+    "validate": "node tools/validate.cjs"
+  }
+}
