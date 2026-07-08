@@ -1,8 +1,5 @@
 .env
-.venv/
-__pycache__/
-.pytest_cache/
-*.pyc
+node_modules/
 .DS_Store
 n8n_data/
 notion-data-sources.json
