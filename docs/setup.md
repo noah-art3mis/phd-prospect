@@ -18,13 +18,13 @@ Create an internal Notion integration with read, insert, and update content capa
 Preview the exact API payload without making changes:
 
 ```bash
-set -a; . ./.env; set +a; uv run prospect bootstrap-notion --dry-run
+set -a; . ./.env; set +a; npm run bootstrap-notion -- --dry-run
 ```
 
 Create the five databases and their relations:
 
 ```bash
-set -a; . ./.env; set +a; uv run prospect bootstrap-notion > notion-data-sources.json
+set -a; . ./.env; set +a; npm run bootstrap-notion > notion-data-sources.json
 ```
 
 The command targets Notion API version `2026-03-11`. It is a one-time, non-idempotent bootstrap: do not run it twice against the same parent page. Keep the generated IDs for n8n configuration. If a request fails partway through, inspect the parent page and remove partial databases before retrying.
@@ -40,7 +40,7 @@ Do not accept group messages or additional users during the initial experiment.
 Build the deployable workflows and push them to n8n Cloud through the authenticated n8n MCP server, following `n8n/README.md`:
 
 ```bash
-uv run prospect build-workflows
+npm run build-workflows
 ```
 
 This writes `n8n/import/*.json` (git-ignored) with real identifiers taken from `.env` and `notion-data-sources.json`. Deployed workflows stay inactive until step 6 passes. In n8n Cloud, bind credentials in the UI; custom environment variables are not available on Cloud Starter. The project runs on n8n Cloud; the hosting question is tracked separately.
@@ -54,8 +54,8 @@ Choose one current structured-output-capable chat model and one search provider.
 Use `fixtures/opportunity-candidate.json` to verify deterministic validation:
 
 ```bash
-uv run prospect validate fixtures/opportunity-candidate.json
-uv run pytest
+npm run validate fixtures/opportunity-candidate.json
+npm test
 ```
 
 Test ingestion with a public university page, a PDF listing, a page with no deadline, a page with conflicting dates, a duplicate listing, and an inaccessible page. Confirm that no Notion mutation happens before Telegram approval and that repeated reminder executions do not resend a prior key.

@@ -11,7 +11,7 @@ The repository is the source of truth for the n8n workflows. The live n8n Cloud 
 
 ## Template format
 
-Templates and payload files are wired together with three sentinels, resolved by `uv run prospect build-workflows` (implementation: `src/prospect/workflows.py`):
+Templates and payload files are wired together with three sentinels, resolved by `npm run build-workflows` (implementation: `tools/build-workflows.cjs`):
 
 | Sentinel                  | Where it appears             | Expansion                                                                                                    |
 | ------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -21,14 +21,14 @@ Templates and payload files are wired together with three sentinels, resolved by
 
 Every `n8n/code/*.js` file starts with a one-line sandbox note (`// n8n Cloud Code-node sandbox: ...`); the build strips it, so it annotates the file without changing the deployed payload. n8n Cloud Code nodes have no `URL` constructor and no `require` – parse URLs with regexes (Date and Set are fine).
 
-Two placeholder families keep personal identifiers out of git and survive into the tracked templates: `REPLACE_WITH_TELEGRAM_USER_ID` (from `.env`'s `TELEGRAM_ALLOWED_USER_ID`) and `REPLACE_WITH_DATA_SOURCE_<NAME>` (from `notion-data-sources.json`, the output of `prospect bootstrap-notion`). The extract and research calls no longer use Anthropic strict structured output (it cannot express the polymorphic finding `value`); the JSON contract lives in the prompts, the responses are parsed leniently, and the deterministic Validate node remains the guardrail. A pytest tripwire asserts the prompts spell out exactly the knowledge states `schemas/opportunity-candidate.schema.json` defines.
+Two placeholder families keep personal identifiers out of git and survive into the tracked templates: `REPLACE_WITH_TELEGRAM_USER_ID` (from `.env`'s `TELEGRAM_ALLOWED_USER_ID`) and `REPLACE_WITH_DATA_SOURCE_<NAME>` (from `notion-data-sources.json`, the output of `npm run bootstrap-notion`). The extract and research calls no longer use Anthropic strict structured output (it cannot express the polymorphic finding `value`); the JSON contract lives in the prompts, the responses are parsed leniently, and the deterministic Validate node remains the guardrail. A `node:test` tripwire asserts the prompts spell out exactly the knowledge states `schemas/opportunity-candidate.schema.json` defines.
 
 ## Build and deploy flow
 
 1. Edit the payload files or templates in the repo.
-2. `uv run prospect build-workflows` – canonicalizes the tracked templates in place and writes deployable copies to `n8n/import/` using `.env` and `notion-data-sources.json`.
+2. `npm run build-workflows` – canonicalizes the tracked templates in place and writes deployable copies to `n8n/import/` using `.env` and `notion-data-sources.json`.
 3. Push the `n8n/import/*.json` content to the instance through the authenticated n8n MCP server (`update_workflow`).
-4. Verify the round trip: fetch the live workflow with `get_workflow_details`, save the JSON, and run `uv run python scripts/compare_workflows.py n8n/import/<name>.json <live-export>.json`. It must print `EQUIVALENT`.
+4. Verify the round trip: fetch the live workflow with `get_workflow_details`, save the JSON, and run `npm run compare-workflows n8n/import/<name>.json <live-export>.json`. It must print `EQUIVALENT`.
 
 Never leave the live instance ahead of the repo at the end of a work session: fold live experiments back into `n8n/code/`, `n8n/prompts/`, and `n8n/workflows/`, rebuild, and re-verify.
 
@@ -39,7 +39,7 @@ Known MCP validator noise: `validate_workflow` falsely warns "Missing discrimina
 ## Workflow boundaries
 
 - `01-ingest-opportunity.json`: Telegram admission, URL capture, retrieval, extraction, bounded read-only research, deterministic validation, Telegram approval callbacks, and Notion persistence of confirmed opportunities and their deadlines.
-- `02-deadline-reminders.json`: daily 09:00 run — queries verified, non-rolling deadlines from Notion, computes due reminders (`compute-due-reminders.js`, the contract-tested port of `src/prospect/reminders.py`), filters already-sent keys against the `Prospect sent reminders` Data Table (`rowNotExists`), sends the Telegram reminder, then inserts the sent key.
+- `02-deadline-reminders.json`: daily 09:00 run — queries verified, non-rolling deadlines from Notion, computes due reminders (`compute-due-reminders.js`, the deterministic due-reminder calculation, golden-tested by `tests/contract-reminders.test.cjs`), filters already-sent keys against the `Prospect sent reminders` Data Table (`rowNotExists`), sends the Telegram reminder, then inserts the sent key.
 - `03-recheck-active-opportunities.json`: weekly Monday 10:00 run — queries active confirmed opportunities, re-fetches each canonical source, asks Anthropic only whether it is still open, and `diff-and-alert.js` raises a Telegram alert on closure/withdrawal/status drift/no-longer-accepting/fetch failure while stamping `Last checked`. It never rewrites confirmed values.
 
 Do not put persistence tools directly on the research agent. Research is read-only (bounded web search and fetch); its output routes through validation and Telegram approval before any Notion mutation.
@@ -52,7 +52,7 @@ The ingestion flow rejects literal private-network, local-hostname, credentialed
 2. The researcher is limited to search and HTTP fetch, at most three searches and eight fetched pages per opportunity.
 3. Deterministic field/evidence validation before anything is stored.
 4. Telegram approval callbacks for confirm, research again, save incomplete, duplicate, and reject.
-5. Notion create/update operations use the data-source IDs produced by `prospect bootstrap-notion`.
+5. Notion create/update operations use the data-source IDs produced by `npm run bootstrap-notion`.
 6. Reminder idempotency keyed as `opportunity_id:deadline_id:version:offset`.
 7. Recheck diffs alert instead of silently overwriting confirmed critical findings.
 

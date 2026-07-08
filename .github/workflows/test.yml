@@ -14,13 +14,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install uv and Python
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - name: Install Node
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.12"
+          node-version: "22"
 
       - name: Test
-        run: uv run --frozen pytest
+        run: npm test
 
-      - name: Compile package
-        run: uv run --frozen python -m compileall -q src
+      - name: Build workflows is deterministic
+        run: |
+          printf 'TELEGRAM_ALLOWED_USER_ID=123456789\n' > .env
+          printf '{\n  "opportunities": "ds-opportunities-0000",\n  "deadlines": "ds-deadlines-0000"\n}\n' > notion-data-sources.json
+          npm run build-workflows
+          sha256sum n8n/import/*.json > first.txt
+          npm run build-workflows
+          sha256sum n8n/import/*.json > second.txt
+          diff first.txt second.txt

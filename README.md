@@ -231,10 +231,9 @@ The project is committed to n8n Cloud for now: Telegram webhooks receive a publi
 ├── n8n/code/                   Code-node JS payloads
 ├── n8n/prompts/                Anthropic system prompts
 ├── n8n/import/                 Git-ignored deployable workflows (built)
-├── scripts/                    Notion bootstrap and live-workflow comparison
+├── tools/                      Node tooling: workflow build/compare, Notion bootstrap, seed
 ├── schemas/                    Structured extraction contract
-├── src/prospect/               Deterministic validation, scheduling, and build logic
-└── tests/                      Behavioral tests
+└── tests/                      Behavioral tests (node:test) + golden contract cases
 ```
 
 ## Manual prerequisites
@@ -249,24 +248,22 @@ Never commit credentials. Copy `.env.example` to `.env` for the values the build
 
 ## Development
 
-Prospect is a Python project managed with `uv`.
+Prospect is a plain JavaScript project (Node >= 20, CommonJS, no runtime dependencies). The domain logic lives in the n8n Code-node payloads (`n8n/code/*.js`) and the tooling in `tools/*.cjs`.
 
 ```bash
-uv sync
-uv run pytest
-uv run prospect --help
+npm test
 ```
 
 Create the Notion data sources beneath the shared parent page:
 
 ```bash
-uv run prospect bootstrap-notion
+npm run bootstrap-notion
 ```
 
 Build the deployable workflows from the tracked templates and payload files:
 
 ```bash
-uv run prospect build-workflows
+npm run build-workflows
 ```
 
 Push the resulting `n8n/import/*.json` to n8n Cloud through the MCP server (see `n8n/README.md`) and bind the Telegram, Notion, model, and search credentials in the UI.

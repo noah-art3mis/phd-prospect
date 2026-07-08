@@ -19,7 +19,7 @@ A JSON array of supervisor/contact seed records. Written **directly** into the C
 Load after bootstrap:
 
 ```bash
-set -a; . ./.env; set +a; uv run prospect seed-contacts seeds/contacts.json \
+set -a; . ./.env; set +a; npm run seed-contacts seeds/contacts.json -- \
   --data-sources notion-data-sources.json
 ```
 
