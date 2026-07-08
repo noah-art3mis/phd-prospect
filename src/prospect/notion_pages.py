@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from prospect.identity import canonicalize_url
@@ -63,6 +62,14 @@ _TUITION_OPTIONS = {
     "unclear": "Unclear",
 }
 _CURRENCIES = ("EUR", "GBP", "USD", "CAD", "AUD", "CHF")
+_SUPERVISOR_CONTACT_OPTIONS = {
+    "true": "Required",
+    "yes": "Required",
+    "required": "Required",
+    "false": "Not required",
+    "no": "Not required",
+    "not required": "Not required",
+}
 
 
 def _optional_properties(findings: dict[str, Any]) -> dict[str, Any]:
@@ -78,6 +85,13 @@ def _optional_properties(findings: dict[str, Any]) -> dict[str, Any]:
     application_url = _found_value(findings, "application_url")
     if application_url.startswith(("http://", "https://")):
         properties["Application URL"] = {"url": application_url}
+    contact = findings.get("supervisor_contact_required", {})
+    if contact.get("state") == "found":
+        value = contact.get("value")
+        key = str(value).lower() if isinstance(value, bool) else _normalize_option(value)
+        option = _SUPERVISOR_CONTACT_OPTIONS.get(key)
+        if option:
+            properties["Supervisor contact required"] = _select(option)
     funding = findings.get("funding", {})
     if funding.get("state") == "found" and isinstance(funding.get("value"), dict):
         properties.update(_funding_properties(funding["value"]))
@@ -148,17 +162,25 @@ def _found_value(findings: dict[str, Any], name: str) -> str:
         return ""
     value = finding.get("value")
     if isinstance(value, list):
-        return ", ".join(str(item) for item in value)
-    return str(value)
+        return ", ".join(_render_item(item) for item in value)
+    return _render_item(value)
+
+
+def _render_item(item: Any) -> str:
+    if isinstance(item, dict):
+        name = str(item.get("name") or item.get("title") or "").strip()
+        return name or ", ".join(str(v) for v in item.values() if v not in (None, ""))
+    return str(item)
 
 
 def _evidence_summary(findings: dict[str, Any]) -> str:
-    evidence = {
-        name: finding.get("evidence", [])
-        for name, finding in findings.items()
-        if finding.get("evidence")
-    }
-    return json.dumps(evidence, ensure_ascii=False, separators=(",", ":"))[:2000]
+    lines = []
+    for name, finding in findings.items():
+        for item in finding.get("evidence", []):
+            excerpt = str(item.get("excerpt", "")).strip()
+            url = str(item.get("url", "")).strip()
+            lines.append(f"{name}: {excerpt}" + (f" ({url})" if url else ""))
+    return "\n".join(lines)[:2000]
 
 
 def _title(value: str) -> dict[str, Any]:

@@ -155,6 +155,7 @@ var summaryLines = [
   line('Funding', 'funding'),
   line('Deadlines', 'deadlines'),
   line('Eligibility', 'eligibility'),
+  line('Supervisor contact', 'supervisor_contact_required'),
   line('Required docs', 'required_documents'),
   '',
   ok ? '✅ Passed deterministic validation.' : ('⚠️ Validation issue: ' + errors.join('; ')),
