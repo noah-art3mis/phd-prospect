@@ -13,43 +13,244 @@
         "title": "Research Intern",
         "source_url": "https://University.Example/phd/research-intern?utm_source=telegram",
         "findings": {
-          "opportunity_type": {"state": "found", "value": "Research Internship", "evidence": []},
-          "institution": {"state": "found", "value": "Example University", "evidence": []},
-          "department_or_lab": {"state": "found", "value": "NLP Lab", "evidence": []},
-          "degree_or_programme": {"state": "found", "value": "PhD Computer Science", "evidence": []},
-          "country": {"state": "found", "value": "Germany", "evidence": []},
-          "city": {"state": "found", "value": "Darmstadt", "evidence": []},
-          "duration": {"state": "found", "value": "6-12 months", "evidence": []},
-          "advert_id": {"state": "found", "value": "UKP-2026-01", "evidence": []},
-          "start_date": {"state": "found", "value": "2026-10-01", "evidence": []},
-          "application_url": {"state": "found", "value": "https://apply.example/form", "evidence": []},
-          "summary": {"state": "found", "value": "A summary.", "evidence": []},
+          "opportunity_type": {
+            "state": "found",
+            "value": "Research Internship",
+            "evidence": []
+          },
+          "institution": {
+            "state": "found",
+            "value": "Example University",
+            "evidence": []
+          },
+          "department_or_lab": {
+            "state": "found",
+            "value": "NLP Lab",
+            "evidence": []
+          },
+          "degree_or_programme": {
+            "state": "found",
+            "value": "PhD Computer Science",
+            "evidence": []
+          },
+          "country": {
+            "state": "found",
+            "value": "Germany",
+            "evidence": []
+          },
+          "city": {
+            "state": "found",
+            "value": "Darmstadt",
+            "evidence": []
+          },
+          "duration": {
+            "state": "found",
+            "value": "6-12 months",
+            "evidence": []
+          },
+          "advert_id": {
+            "state": "found",
+            "value": "UKP-2026-01",
+            "evidence": []
+          },
+          "start_date": {
+            "state": "found",
+            "value": "2026-10-01",
+            "evidence": []
+          },
+          "application_url": {
+            "state": "found",
+            "value": "https://apply.example/form",
+            "evidence": []
+          },
+          "summary": {
+            "state": "found",
+            "value": "A summary.",
+            "evidence": []
+          },
           "funding": {
             "state": "found",
-            "value": {"status": "funded", "stipend": 1500, "currency": "EUR", "frequency": "monthly", "tuition_coverage": "full"},
-            "evidence": [{"url": "https://university.example/phd/research-intern", "retrieved_at": "2026-07-08T00:00:00+00:00", "excerpt": "funded with 1.500€ gross per month"}]
+            "value": {
+              "status": "funded",
+              "stipend": 1500,
+              "currency": "EUR",
+              "frequency": "monthly",
+              "tuition_coverage": "full"
+            },
+            "evidence": [
+              {
+                "url": "https://university.example/phd/research-intern",
+                "retrieved_at": "2026-07-08T00:00:00+00:00",
+                "excerpt": "funded with 1.500€ gross per month"
+              }
+            ]
+          },
+          "supervisors": {
+            "state": "found",
+            "value": [
+              "Prof. A. Example",
+              "Dr. B. Sample"
+            ],
+            "evidence": []
+          },
+          "research_topics": {
+            "state": "found",
+            "value": [
+              "NLP",
+              "Text Mining"
+            ],
+            "evidence": []
           }
         }
       },
       "expected_properties": {
-        "Name": {"title": [{"type": "text", "text": {"content": "Research Intern"}}]},
-        "Canonical URL": {"url": "https://university.example/phd/research-intern"},
-        "Source URL": {"url": "https://University.Example/phd/research-intern?utm_source=telegram"},
-        "Type": {"select": {"name": "Research Internship"}},
-        "Institution": {"rich_text": [{"type": "text", "text": {"content": "Example University"}}]},
-        "Department or lab": {"rich_text": [{"type": "text", "text": {"content": "NLP Lab"}}]},
-        "Programme": {"rich_text": [{"type": "text", "text": {"content": "PhD Computer Science"}}]},
-        "Country": {"rich_text": [{"type": "text", "text": {"content": "Germany"}}]},
-        "City": {"rich_text": [{"type": "text", "text": {"content": "Darmstadt"}}]},
-        "Duration": {"rich_text": [{"type": "text", "text": {"content": "6-12 months"}}]},
-        "Advert ID": {"rich_text": [{"type": "text", "text": {"content": "UKP-2026-01"}}]},
-        "Start date": {"date": {"start": "2026-10-01"}},
-        "Application URL": {"url": "https://apply.example/form"},
-        "Summary": {"rich_text": [{"type": "text", "text": {"content": "A summary."}}]},
-        "Funding status": {"select": {"name": "Fully funded"}},
-        "Stipend or salary": {"number": 1500},
-        "Currency": {"select": {"name": "EUR"}},
-        "Tuition coverage": {"select": {"name": "Full"}}
+        "Name": {
+          "title": [
+            {
+              "type": "text",
+              "text": {
+                "content": "Research Intern"
+              }
+            }
+          ]
+        },
+        "Canonical URL": {
+          "url": "https://university.example/phd/research-intern"
+        },
+        "Source URL": {
+          "url": "https://University.Example/phd/research-intern?utm_source=telegram"
+        },
+        "Type": {
+          "select": {
+            "name": "Research Internship"
+          }
+        },
+        "Institution": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "Example University"
+              }
+            }
+          ]
+        },
+        "Department or lab": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "NLP Lab"
+              }
+            }
+          ]
+        },
+        "Programme": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "PhD Computer Science"
+              }
+            }
+          ]
+        },
+        "Country": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "Germany"
+              }
+            }
+          ]
+        },
+        "City": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "Darmstadt"
+              }
+            }
+          ]
+        },
+        "Duration": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "6-12 months"
+              }
+            }
+          ]
+        },
+        "Advert ID": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "UKP-2026-01"
+              }
+            }
+          ]
+        },
+        "Start date": {
+          "date": {
+            "start": "2026-10-01"
+          }
+        },
+        "Application URL": {
+          "url": "https://apply.example/form"
+        },
+        "Summary": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "A summary."
+              }
+            }
+          ]
+        },
+        "Funding status": {
+          "select": {
+            "name": "Fully funded"
+          }
+        },
+        "Stipend or salary": {
+          "number": 1500
+        },
+        "Currency": {
+          "select": {
+            "name": "EUR"
+          }
+        },
+        "Tuition coverage": {
+          "select": {
+            "name": "Full"
+          }
+        },
+        "Supervisors": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "Prof. A. Example, Dr. B. Sample"
+              }
+            }
+          ]
+        },
+        "Research topics": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "NLP, Text Mining"
+              }
+            }
+          ]
+        }
       }
     },
     {
@@ -65,29 +266,102 @@
         "title": "Sparse Posting",
         "source_url": "https://university.example/phd/sparse",
         "findings": {
-          "institution": {"state": "found", "value": "Example University", "evidence": []},
-          "opportunity_type": {"state": "not_stated", "value": null, "evidence": []},
-          "city": {"state": "not_stated", "value": null, "evidence": []},
-          "start_date": {"state": "found", "value": "flexible, by arrangement", "evidence": []},
-          "application_url": {"state": "found", "value": "email the coordinator", "evidence": []},
+          "institution": {
+            "state": "found",
+            "value": "Example University",
+            "evidence": []
+          },
+          "opportunity_type": {
+            "state": "not_stated",
+            "value": null,
+            "evidence": []
+          },
+          "city": {
+            "state": "not_stated",
+            "value": null,
+            "evidence": []
+          },
+          "start_date": {
+            "state": "found",
+            "value": "flexible, by arrangement",
+            "evidence": []
+          },
+          "application_url": {
+            "state": "found",
+            "value": "email the coordinator",
+            "evidence": []
+          },
           "funding": {
             "state": "found",
-            "value": {"status": "industrial sponsorship possible", "stipend": "competitive", "currency": "JPY", "tuition_coverage": "waived for home students"},
-            "evidence": [{"url": "https://university.example/phd/sparse", "retrieved_at": "2026-07-08T00:00:00+00:00", "excerpt": "sponsorship"}]
+            "value": {
+              "status": "industrial sponsorship possible",
+              "stipend": "competitive",
+              "currency": "JPY",
+              "tuition_coverage": "waived for home students"
+            },
+            "evidence": [
+              {
+                "url": "https://university.example/phd/sparse",
+                "retrieved_at": "2026-07-08T00:00:00+00:00",
+                "excerpt": "sponsorship"
+              }
+            ]
           }
         }
       },
       "expected_properties": {
-        "Name": {"title": [{"type": "text", "text": {"content": "Sparse Posting"}}]},
-        "Canonical URL": {"url": "https://university.example/phd/sparse"},
-        "Source URL": {"url": "https://university.example/phd/sparse"},
-        "Institution": {"rich_text": [{"type": "text", "text": {"content": "Example University"}}]},
-        "City": {"rich_text": []},
-        "Programme": {"rich_text": []},
-        "Duration": {"rich_text": []},
-        "Advert ID": {"rich_text": []},
-        "Summary": {"rich_text": []},
-        "Currency": {"select": {"name": "Other"}}
+        "Name": {
+          "title": [
+            {
+              "type": "text",
+              "text": {
+                "content": "Sparse Posting"
+              }
+            }
+          ]
+        },
+        "Canonical URL": {
+          "url": "https://university.example/phd/sparse"
+        },
+        "Source URL": {
+          "url": "https://university.example/phd/sparse"
+        },
+        "Institution": {
+          "rich_text": [
+            {
+              "type": "text",
+              "text": {
+                "content": "Example University"
+              }
+            }
+          ]
+        },
+        "City": {
+          "rich_text": []
+        },
+        "Programme": {
+          "rich_text": []
+        },
+        "Duration": {
+          "rich_text": []
+        },
+        "Advert ID": {
+          "rich_text": []
+        },
+        "Summary": {
+          "rich_text": []
+        },
+        "Currency": {
+          "select": {
+            "name": "Other"
+          }
+        },
+        "Supervisors": {
+          "rich_text": []
+        },
+        "Research topics": {
+          "rich_text": []
+        }
       },
       "absent_properties": [
         "Type",
@@ -113,16 +387,39 @@
         "findings": {
           "funding": {
             "state": "found",
-            "value": {"status": "Partially_Funded", "tuition_coverage": "home fees only"},
-            "evidence": [{"url": "https://university.example/phd/partial", "retrieved_at": "2026-07-08T00:00:00+00:00", "excerpt": "partial"}]
+            "value": {
+              "status": "Partially_Funded",
+              "tuition_coverage": "home fees only"
+            },
+            "evidence": [
+              {
+                "url": "https://university.example/phd/partial",
+                "retrieved_at": "2026-07-08T00:00:00+00:00",
+                "excerpt": "partial"
+              }
+            ]
           }
         }
       },
       "expected_properties": {
-        "Funding status": {"select": {"name": "Partially funded"}},
-        "Tuition coverage": {"select": {"name": "Home only"}}
+        "Funding status": {
+          "select": {
+            "name": "Partially funded"
+          }
+        },
+        "Tuition coverage": {
+          "select": {
+            "name": "Home only"
+          }
+        }
       },
-      "absent_properties": ["Stipend or salary", "Currency", "Type", "Start date", "Application URL"]
+      "absent_properties": [
+        "Stipend or salary",
+        "Currency",
+        "Type",
+        "Start date",
+        "Application URL"
+      ]
     }
   ]
 }

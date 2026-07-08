@@ -26,6 +26,8 @@ def opportunity_page_payload(data_source_id: str, candidate: dict[str, Any]) -> 
         "Programme": _rich_text(_found_value(findings, "degree_or_programme")),
         "Duration": _rich_text(_found_value(findings, "duration")),
         "Advert ID": _rich_text(_found_value(findings, "advert_id")),
+        "Supervisors": _rich_text(_found_value(findings, "supervisors")),
+        "Research topics": _rich_text(_found_value(findings, "research_topics")),
         "Summary": _rich_text(_found_value(findings, "summary")),
         "Evidence": _rich_text(_evidence_summary(findings)),
     }
