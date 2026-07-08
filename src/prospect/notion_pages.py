@@ -63,6 +63,14 @@ _TUITION_OPTIONS = {
     "unclear": "Unclear",
 }
 _CURRENCIES = ("EUR", "GBP", "USD", "CAD", "AUD", "CHF")
+_SUPERVISOR_CONTACT_OPTIONS = {
+    "true": True,
+    "yes": True,
+    "required": True,
+    "false": False,
+    "no": False,
+    "not required": False,
+}
 
 
 def _optional_properties(findings: dict[str, Any]) -> dict[str, Any]:
@@ -78,6 +86,13 @@ def _optional_properties(findings: dict[str, Any]) -> dict[str, Any]:
     application_url = _found_value(findings, "application_url")
     if application_url.startswith(("http://", "https://")):
         properties["Application URL"] = {"url": application_url}
+    contact = findings.get("supervisor_contact_required", {})
+    if contact.get("state") == "found":
+        value = contact.get("value")
+        if not isinstance(value, bool):
+            value = _SUPERVISOR_CONTACT_OPTIONS.get(_normalize_option(value))
+        if value is not None:
+            properties["Supervisor contact required"] = {"checkbox": value}
     funding = findings.get("funding", {})
     if funding.get("state") == "found" and isinstance(funding.get("value"), dict):
         properties.update(_funding_properties(funding["value"]))

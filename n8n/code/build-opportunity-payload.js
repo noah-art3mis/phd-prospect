@@ -41,6 +41,7 @@ const properties = {
 const FUNDING_STATUS_OPTIONS = { 'funded':'Fully funded', 'fully funded':'Fully funded', 'partially funded':'Partially funded', 'partial':'Partially funded', 'salaried':'Salaried', 'salary':'Salaried', 'self funded':'Self-funded', 'self-funded':'Self-funded', 'unclear':'Unclear', 'unknown':'Unclear' };
 const TUITION_OPTIONS = { 'full':'Full', 'fully covered':'Full', 'home only':'Home only', 'home fees only':'Home only', 'partial':'Partial', 'none':'None', 'not covered':'None', 'unclear':'Unclear' };
 const CURRENCIES = ['EUR','GBP','USD','CAD','AUD','CHF'];
+const SUPERVISOR_CONTACT_OPTIONS = { 'true':true, 'yes':true, 'required':true, 'false':false, 'no':false, 'not required':false };
 function normOption(v){ return String(v == null ? '' : v).trim().toLowerCase().replace(/_/g, ' '); }
 function isIsoDate(v){ return /^\d{4}-\d{2}-\d{2}$/.test(v); }
 const oppType = foundVal('opportunity_type');
@@ -49,6 +50,12 @@ const startDate = foundVal('start_date');
 if (startDate.length >= 10 && isIsoDate(startDate.slice(0, 10))) properties['Start date'] = { date: { start: startDate.slice(0, 10) } };
 const applicationUrl = foundVal('application_url');
 if (applicationUrl.indexOf('http://') === 0 || applicationUrl.indexOf('https://') === 0) properties['Application URL'] = { url: applicationUrl };
+const contact = f['supervisor_contact_required'];
+if (contact && contact.state === 'found') {
+  const raw = contact.value;
+  const mapped = typeof raw === 'boolean' ? raw : SUPERVISOR_CONTACT_OPTIONS[normOption(raw)];
+  if (mapped !== undefined) properties['Supervisor contact required'] = { checkbox: mapped };
+}
 const funding = f['funding'];
 if (funding && funding.state === 'found' && funding.value && typeof funding.value === 'object' && !Array.isArray(funding.value)) {
   const fv = funding.value;
