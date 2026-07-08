@@ -422,12 +422,13 @@
       "name": "Acknowledge pending item",
       "parameters": {
         "additionalFields": {
-          "appendAttribution": false
+          "appendAttribution": false,
+          "parse_mode": "HTML"
         },
         "chatId": "={{ $json.chat_id }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=Prospect captured this opportunity as pending{{ $json.batch_size > 1 ? ' (' + ($json.batch_index + 1) + ' of ' + $json.batch_size + ')' : '' }}:\n{{ $json.source_url }}\n\nI will fetch it, extract the record, and ask you to confirm critical facts before saving."
+        "text": "=Prospect captured this opportunity as pending{{ $json.batch_size > 1 ? ' (' + ($json.batch_index + 1) + ' of ' + $json.batch_size + ')' : '' }}:\n{{ $json.source_url.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}\n\nI will fetch it, extract the record, and ask you to confirm critical facts before saving."
       },
       "position": [
         -640,
@@ -1141,7 +1142,8 @@
       "name": "Notify rejected",
       "parameters": {
         "additionalFields": {
-          "appendAttribution": false
+          "appendAttribution": false,
+          "parse_mode": "HTML"
         },
         "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
         "operation": "sendMessage",
@@ -1187,7 +1189,8 @@
       "name": "Notify duplicate",
       "parameters": {
         "additionalFields": {
-          "appendAttribution": false
+          "appendAttribution": false,
+          "parse_mode": "HTML"
         },
         "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
         "operation": "sendMessage",
@@ -1324,12 +1327,13 @@
       "parameters": {
         "additionalFields": {
           "appendAttribution": false,
-          "disable_web_page_preview": true
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
         },
         "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=✅ Saved to Notion{{ $('Authorize callback').item.json.action === 'save_incomplete' ? ' (marked incomplete)' : '' }}: {{ $('Build opportunity payload').item.json.title }}"
+        "text": "=✅ Saved to Notion{{ $('Authorize callback').item.json.action === 'save_incomplete' ? ' (marked incomplete)' : '' }}: {{ $('Build opportunity payload').item.json.title.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
       },
       "position": [
         840,
@@ -1437,12 +1441,13 @@
       "parameters": {
         "additionalFields": {
           "appendAttribution": false,
-          "disable_web_page_preview": true
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
         },
         "chatId": "={{ $json.chat_id }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=⚠️ Not saved — this record failed deterministic validation and cannot be persisted:\n{{ JSON.parse($json.validation_json).errors.join('; ') }}\n\nFix the source or resubmit."
+        "text": "=⚠️ Not saved — this record failed deterministic validation and cannot be persisted:\n{{ JSON.parse($json.validation_json).errors.join('; ').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}\n\nFix the source or resubmit."
       },
       "position": [
         40,

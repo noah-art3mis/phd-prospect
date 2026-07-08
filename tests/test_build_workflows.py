@@ -238,3 +238,47 @@ def test_repo_templates_build_without_leftover_sentinels() -> None:
         assert "{{FILE:" not in dumped, template_path.name
         assert "{{PROMPT_LINES:" not in dumped, template_path.name
         assert "{{INLINE_JS:" not in dumped, template_path.name
+
+
+def _telegram_send_nodes() -> list[tuple[str, dict]]:
+    nodes = []
+    for path in sorted((REPO_ROOT / "n8n" / "workflows").glob("*.json")):
+        workflow = json.loads(path.read_text())
+        for node in workflow.get("nodes", []):
+            params = node.get("parameters", {})
+            if (
+                node.get("type") == "n8n-nodes-base.telegram"
+                and params.get("operation") == "sendMessage"
+            ):
+                nodes.append((f"{path.name}:{node['name']}", params))
+    return nodes
+
+
+def test_telegram_send_nodes_declare_html_parse_mode() -> None:
+    """Without an explicit parse_mode the node falls back to legacy Markdown,
+    where a bare underscore in an interpolated URL or title makes Telegram
+    reject the send with 400 can't-parse-entities (live incident: ingest
+    acknowledgement failed on a URL containing `ukp_home/jobs_ukp`)."""
+    nodes = _telegram_send_nodes()
+    assert nodes, "expected telegram sendMessage nodes in the templates"
+    missing = [
+        name
+        for name, params in nodes
+        if params.get("additionalFields", {}).get("parse_mode") != "HTML"
+    ]
+    assert missing == []
+
+
+def test_telegram_send_nodes_escape_interpolated_values() -> None:
+    """In HTML parse mode every interpolated value must be HTML-escaped, or
+    a `<`, `>`, or `&` in a title, URL, or error string breaks the send."""
+    escape = ".replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')"
+    unescaped = []
+    for name, params in _telegram_send_nodes():
+        text = params.get("text", "")
+        for chunk in text.split("{{")[1:]:
+            expr = chunk.split("}}")[0]
+            is_string_valued = "$" in expr and "?" not in expr
+            if is_string_valued and escape not in expr:
+                unescaped.append(f"{name}: {expr.strip()}")
+    assert unescaped == []
