@@ -5,6 +5,7 @@ opportunity-candidate schema."""
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -238,3 +239,63 @@ def test_repo_templates_build_without_leftover_sentinels() -> None:
         assert "{{FILE:" not in dumped, template_path.name
         assert "{{PROMPT_LINES:" not in dumped, template_path.name
         assert "{{INLINE_JS:" not in dumped, template_path.name
+
+
+def _telegram_send_nodes() -> list[tuple[str, dict]]:
+    nodes = []
+    for path in sorted((REPO_ROOT / "n8n" / "workflows").glob("*.json")):
+        workflow = json.loads(path.read_text())
+        for node in workflow.get("nodes", []):
+            params = node.get("parameters", {})
+            if (
+                node.get("type") == "n8n-nodes-base.telegram"
+                and params.get("operation") == "sendMessage"
+            ):
+                nodes.append((f"{path.name}:{node['name']}", params))
+    return nodes
+
+
+def test_telegram_send_nodes_declare_html_parse_mode() -> None:
+    """Without an explicit parse_mode the node falls back to legacy Markdown,
+    where a bare underscore in an interpolated URL or title makes Telegram
+    reject the send with 400 can't-parse-entities (live incident: ingest
+    acknowledgement failed on a URL containing `ukp_home/jobs_ukp`)."""
+    nodes = _telegram_send_nodes()
+    assert nodes, "expected telegram sendMessage nodes in the templates"
+    missing = [
+        name
+        for name, params in nodes
+        if params.get("additionalFields", {}).get("parse_mode") != "HTML"
+    ]
+    assert missing == []
+
+
+def test_telegram_send_nodes_escape_interpolated_values() -> None:
+    """In HTML parse mode every interpolated value must be HTML-escaped, or
+    a `<`, `>`, or `&` in a title, URL, or error string breaks the send.
+    The contract is structural: the whole expression is a null-safe
+    `String(... ?? '')` coercion with the escape chain applied to its result
+    (nothing concatenated around it), or it is on the explicit allowlist of
+    expressions that cannot yield unsafe text."""
+    escaped = re.compile(
+        r"^String\(.+ \?\? ''\)"
+        r"\.replaceAll\('&','&amp;'\)"
+        r"\.replaceAll\('<','&lt;'\)"
+        r"\.replaceAll\('>','&gt;'\)$"
+    )
+    allowlist = {
+        # numeric batch arithmetic and static-string branches only
+        "$json.batch_size > 1 ? ' (' + ($json.batch_index + 1) + ' of '"
+        " + $json.batch_size + ')' : ''",
+        "$('Authorize callback').item.json.action === 'save_incomplete'"
+        " ? ' (marked incomplete)' : ''",
+    }
+    violations = []
+    for name, params in _telegram_send_nodes():
+        text = params.get("text", "")
+        for chunk in text.split("{{")[1:]:
+            expr = chunk.split("}}")[0].strip()
+            if expr in allowlist or escaped.fullmatch(expr):
+                continue
+            violations.append(f"{name}: {expr}")
+    assert violations == []

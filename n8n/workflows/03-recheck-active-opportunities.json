@@ -287,12 +287,13 @@
       "parameters": {
         "additionalFields": {
           "appendAttribution": false,
-          "disable_web_page_preview": true
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
         },
         "chatId": "={{ $json.chat_id }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "={{ $json.alert_text }}"
+        "text": "={{ String($json.alert_text ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
       },
       "position": [
         1760,

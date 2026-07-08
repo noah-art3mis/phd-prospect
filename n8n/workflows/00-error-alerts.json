@@ -51,12 +51,13 @@
       "name": "Send error alert",
       "parameters": {
         "additionalFields": {
-          "appendAttribution": false
+          "appendAttribution": false,
+          "parse_mode": "HTML"
         },
         "chatId": "REPLACE_WITH_TELEGRAM_USER_ID",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "={{ $json.alert_text }}"
+        "text": "={{ String($json.alert_text ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
       },
       "position": [
         440,
