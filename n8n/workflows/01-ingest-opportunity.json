@@ -428,7 +428,7 @@
         "chatId": "={{ $json.chat_id }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=Prospect captured this opportunity as pending{{ $json.batch_size > 1 ? ' (' + ($json.batch_index + 1) + ' of ' + $json.batch_size + ')' : '' }}:\n{{ $json.source_url.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}\n\nI will fetch it, extract the record, and ask you to confirm critical facts before saving."
+        "text": "=Prospect captured this opportunity as pending{{ $json.batch_size > 1 ? ' (' + ($json.batch_index + 1) + ' of ' + $json.batch_size + ')' : '' }}:\n{{ String($json.source_url ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}\n\nI will fetch it, extract the record, and ask you to confirm critical facts before saving."
       },
       "position": [
         -640,
@@ -589,7 +589,7 @@
         "chatId": "={{ $json.chat_id }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "={{ $json.listing_text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
+        "text": "={{ String($json.listing_text ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
       },
       "position": [
         1180,
@@ -881,7 +881,7 @@
         "operation": "sendMessage",
         "replyMarkup": "inlineKeyboard",
         "resource": "message",
-        "text": "={{ $('Validate record').item.json.approval_text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
+        "text": "={{ String($('Validate record').item.json.approval_text ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
       },
       "position": [
         2280,
@@ -1333,7 +1333,7 @@
         "chatId": "={{ $('Authorize callback').item.json.chat_id }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=✅ Saved to Notion{{ $('Authorize callback').item.json.action === 'save_incomplete' ? ' (marked incomplete)' : '' }}: {{ $('Build opportunity payload').item.json.title.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
+        "text": "=✅ Saved to Notion{{ $('Authorize callback').item.json.action === 'save_incomplete' ? ' (marked incomplete)' : '' }}: {{ String($('Build opportunity payload').item.json.title ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
       },
       "position": [
         840,
@@ -1447,7 +1447,7 @@
         "chatId": "={{ $json.chat_id }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=⚠️ Not saved — this record failed deterministic validation and cannot be persisted:\n{{ JSON.parse($json.validation_json).errors.join('; ').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}\n\nFix the source or resubmit."
+        "text": "=⚠️ Not saved — this record failed deterministic validation and cannot be persisted:\n{{ String(JSON.parse($json.validation_json).errors.join('; ') ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}\n\nFix the source or resubmit."
       },
       "position": [
         40,

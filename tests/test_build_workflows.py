@@ -5,6 +5,7 @@ opportunity-candidate schema."""
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -271,14 +272,30 @@ def test_telegram_send_nodes_declare_html_parse_mode() -> None:
 
 def test_telegram_send_nodes_escape_interpolated_values() -> None:
     """In HTML parse mode every interpolated value must be HTML-escaped, or
-    a `<`, `>`, or `&` in a title, URL, or error string breaks the send."""
-    escape = ".replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')"
-    unescaped = []
+    a `<`, `>`, or `&` in a title, URL, or error string breaks the send.
+    The contract is structural: the whole expression is a null-safe
+    `String(... ?? '')` coercion with the escape chain applied to its result
+    (nothing concatenated around it), or it is on the explicit allowlist of
+    expressions that cannot yield unsafe text."""
+    escaped = re.compile(
+        r"^String\(.+ \?\? ''\)"
+        r"\.replaceAll\('&','&amp;'\)"
+        r"\.replaceAll\('<','&lt;'\)"
+        r"\.replaceAll\('>','&gt;'\)$"
+    )
+    allowlist = {
+        # numeric batch arithmetic and static-string branches only
+        "$json.batch_size > 1 ? ' (' + ($json.batch_index + 1) + ' of '"
+        " + $json.batch_size + ')' : ''",
+        "$('Authorize callback').item.json.action === 'save_incomplete'"
+        " ? ' (marked incomplete)' : ''",
+    }
+    violations = []
     for name, params in _telegram_send_nodes():
         text = params.get("text", "")
         for chunk in text.split("{{")[1:]:
-            expr = chunk.split("}}")[0]
-            is_string_valued = "$" in expr and "?" not in expr
-            if is_string_valued and escape not in expr:
-                unescaped.append(f"{name}: {expr.strip()}")
-    assert unescaped == []
+            expr = chunk.split("}}")[0].strip()
+            if expr in allowlist or escaped.fullmatch(expr):
+                continue
+            violations.append(f"{name}: {expr}")
+    assert violations == []

@@ -57,7 +57,7 @@
         "chatId": "REPLACE_WITH_TELEGRAM_USER_ID",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "={{ $json.alert_text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
+        "text": "={{ String($json.alert_text ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
       },
       "position": [
         440,

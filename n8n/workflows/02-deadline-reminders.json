@@ -187,7 +187,7 @@
         "chatId": "REPLACE_WITH_TELEGRAM_USER_ID",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=⌛ Pending approval expired after {{ String($('Compute TTL cutoff').item.json.ttl_days).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }} days without a decision and was discarded:\n{{ $json.source_url.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}\nRe-send the URL to ingest it again."
+        "text": "=⌛ Pending approval expired after {{ String($('Compute TTL cutoff').item.json.ttl_days ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }} days without a decision and was discarded:\n{{ String($json.source_url ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}\nRe-send the URL to ingest it again."
       },
       "position": [
         560,
@@ -220,7 +220,7 @@
         "chatId": "={{ $json.chat_id }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "={{ $json.reminder_text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
+        "text": "={{ String($json.reminder_text ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
       },
       "position": [
         560,
