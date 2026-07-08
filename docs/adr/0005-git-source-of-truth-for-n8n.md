@@ -4,6 +4,10 @@
 
 Accepted
 
+## Amendment (2026-07-07): JavaScript is the single language
+
+The "deterministic validation logic lives in two languages by necessity" premise below no longer holds. JavaScript is now the single language of the repo: the n8n Code-node payloads (`n8n/code/*.js`) are the only domain implementation, and the former Python spec package (`src/prospect/`) and its cross-language contract tests were deleted. The contract is preserved by golden-driven `node:test` unit tests over the same `tests/golden/*.json` cases (for validation, `tests/contract-normalize.test.cjs`). The build/compare/bootstrap/seed tooling that ADR-0005's guards rely on was ported to Node under `tools/*.cjs`, invoked via `npm run …`. Wherever this ADR says "Python spec" / `prospect.*` / `pytest` / `src/prospect/*`, read it as the retired predecessor of that JS test or tool. Every other decision here (git is authoritative, one owner per duplication surface, mechanical guards) stands.
+
 ## Context
 
 Step 5 (extract → research → validate → approve → persist) is built live in n8n Cloud through the n8n MCP, but the repo also tracks canonical workflow JSON under `n8n/workflows/`. The same artifacts then exist in more than one place – the workflow graph, the deterministic validation logic (Python spec vs. the JS Code node), the prompts, and the output schema – and can silently drift. This change touches security-relevant logic (SSRF, auth, untrusted content, no-invention validation), so it is explicitly not a fast-lane patch and needs an agreed development approach before more nodes are added. See issue #4.
