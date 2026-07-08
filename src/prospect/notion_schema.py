@@ -21,6 +21,12 @@ def database_specs(parent_page_id: str) -> dict[str, dict[str, Any]]:
                     "Fellowship",
                     "Scholarship",
                     "Self-proposed route",
+                    "Masters programme",
+                    "Internship",
+                    "Research assistantship",
+                    "Postdoc",
+                    "Summer school",
+                    "Other",
                 ),
                 "Institution": {"rich_text": {}},
                 "Department or lab": {"rich_text": {}},
@@ -58,7 +64,9 @@ def database_specs(parent_page_id: str) -> dict[str, dict[str, Any]]:
                 "Fingerprint": {"rich_text": {}},
                 "Last checked": {"date": {}},
                 "Confirmed": {"checkbox": {}},
-                "Supervisor contact required": {"checkbox": {}},
+                # A select, not a checkbox: an empty cell stays visibly unknown
+                # instead of rendering identically to "not required".
+                "Supervisor contact required": _select("Required", "Not required"),
                 "Funding status": _select(
                     "Fully funded", "Partially funded", "Salaried", "Self-funded", "Unclear"
                 ),

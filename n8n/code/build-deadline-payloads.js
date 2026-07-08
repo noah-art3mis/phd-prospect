@@ -31,7 +31,7 @@ if (dfi && dfi.state === 'found' && Array.isArray(dfi.value)) {
       'Evidence excerpt': ev0.excerpt ? { rich_text: [{ type: 'text', text: { content: String(ev0.excerpt).slice(0, 2000) } }] } : { rich_text: [] },
       'Opportunity': { relation: [{ id: opportunityPageId }] }
     };
-    if (!rolling && dueIso) properties['Due'] = { date: { start: dueIso } };
+    if (dueIso) properties['Due'] = { date: { start: dueIso } };
     items.push({ json: { notion_page: { parent: { type: 'data_source_id', data_source_id: DS_DEADLINES }, properties: properties } } });
   }
 }

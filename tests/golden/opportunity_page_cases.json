@@ -449,7 +449,9 @@
       },
       "expected_properties": {
         "Supervisor contact required": {
-          "checkbox": true
+          "select": {
+            "name": "Required"
+          }
         }
       },
       "absent_properties": []
@@ -476,7 +478,9 @@
       },
       "expected_properties": {
         "Supervisor contact required": {
-          "checkbox": false
+          "select": {
+            "name": "Not required"
+          }
         }
       },
       "absent_properties": []
