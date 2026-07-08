@@ -92,7 +92,7 @@ async function main(argv) {
   return 0;
 }
 
-module.exports = { contactPagePayload, seedContacts };
+module.exports = { contactPagePayload, seedContacts, dataSourceIdFrom };
 
 if (require.main === module) {
   main(process.argv.slice(2)).then((code) => process.exit(code));
