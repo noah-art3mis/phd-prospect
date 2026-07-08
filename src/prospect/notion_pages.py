@@ -22,13 +22,100 @@ def opportunity_page_payload(data_source_id: str, candidate: dict[str, Any]) -> 
         "Institution": _rich_text(_found_value(findings, "institution")),
         "Department or lab": _rich_text(_found_value(findings, "department_or_lab")),
         "Country": _rich_text(_found_value(findings, "country")),
+        "City": _rich_text(_found_value(findings, "city")),
+        "Programme": _rich_text(_found_value(findings, "degree_or_programme")),
+        "Duration": _rich_text(_found_value(findings, "duration")),
+        "Advert ID": _rich_text(_found_value(findings, "advert_id")),
         "Summary": _rich_text(_found_value(findings, "summary")),
         "Evidence": _rich_text(_evidence_summary(findings)),
     }
+    properties.update(_optional_properties(findings))
     return {
         "parent": {"type": "data_source_id", "data_source_id": data_source_id},
         "properties": properties,
     }
+
+
+# Free-text finding values map onto Notion select options only through these
+# recorded synonyms; anything unmapped stays absent (unknown stays unknown).
+_FUNDING_STATUS_OPTIONS = {
+    "funded": "Fully funded",
+    "fully funded": "Fully funded",
+    "partially funded": "Partially funded",
+    "partial": "Partially funded",
+    "salaried": "Salaried",
+    "salary": "Salaried",
+    "self funded": "Self-funded",
+    "self-funded": "Self-funded",
+    "unclear": "Unclear",
+    "unknown": "Unclear",
+}
+_TUITION_OPTIONS = {
+    "full": "Full",
+    "fully covered": "Full",
+    "home only": "Home only",
+    "home fees only": "Home only",
+    "partial": "Partial",
+    "none": "None",
+    "not covered": "None",
+    "unclear": "Unclear",
+}
+_CURRENCIES = ("EUR", "GBP", "USD", "CAD", "AUD", "CHF")
+
+
+def _optional_properties(findings: dict[str, Any]) -> dict[str, Any]:
+    """Properties emitted only when a found value maps cleanly onto the column."""
+
+    properties: dict[str, Any] = {}
+    opportunity_type = _found_value(findings, "opportunity_type")
+    if opportunity_type:
+        properties["Type"] = _select(opportunity_type.replace(",", " ")[:100])
+    start_date = _found_value(findings, "start_date")
+    if len(start_date) >= 10 and _is_iso_date(start_date[:10]):
+        properties["Start date"] = {"date": {"start": start_date[:10]}}
+    application_url = _found_value(findings, "application_url")
+    if application_url.startswith(("http://", "https://")):
+        properties["Application URL"] = {"url": application_url}
+    funding = findings.get("funding", {})
+    if funding.get("state") == "found" and isinstance(funding.get("value"), dict):
+        properties.update(_funding_properties(funding["value"]))
+    return properties
+
+
+def _funding_properties(funding: dict[str, Any]) -> dict[str, Any]:
+    properties: dict[str, Any] = {}
+    status = _FUNDING_STATUS_OPTIONS.get(_normalize_option(funding.get("status")))
+    if status:
+        properties["Funding status"] = _select(status)
+    stipend = funding.get("stipend")
+    if isinstance(stipend, (int, float)) and not isinstance(stipend, bool):
+        properties["Stipend or salary"] = {"number": stipend}
+    currency = str(funding.get("currency") or "").strip().upper()
+    if currency:
+        properties["Currency"] = _select(
+            currency if currency in _CURRENCIES else "Other"
+        )
+    tuition = _TUITION_OPTIONS.get(_normalize_option(funding.get("tuition_coverage")))
+    if tuition:
+        properties["Tuition coverage"] = _select(tuition)
+    return properties
+
+
+def _normalize_option(value: Any) -> str:
+    return str(value or "").strip().lower().replace("_", " ")
+
+
+def _is_iso_date(value: str) -> bool:
+    parts = value.split("-")
+    return (
+        len(parts) == 3
+        and tuple(len(part) for part in parts) == (4, 2, 2)
+        and all(part.isdigit() for part in parts)
+    )
+
+
+def _select(name: str) -> dict[str, Any]:
+    return {"select": {"name": name}}
 
 
 def contact_page_payload(data_source_id: str, contact: dict[str, Any]) -> dict[str, Any]:
