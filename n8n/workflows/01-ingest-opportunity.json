@@ -425,6 +425,8 @@
           "appendAttribution": false
         },
         "chatId": "={{ $json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
         "text": "=Prospect captured this opportunity as pending{{ $json.batch_size > 1 ? ' (' + ($json.batch_index + 1) + ' of ' + $json.batch_size + ')' : '' }}:\n{{ $json.source_url }}\n\nI will fetch it, extract the record, and ask you to confirm critical facts before saving."
       },
       "position": [
