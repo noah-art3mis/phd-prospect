@@ -37,7 +37,13 @@ function databaseSpecs(parentPageId) {
         'CDT or cohort',
         'Fellowship',
         'Scholarship',
-        'Self-proposed route'
+        'Self-proposed route',
+        'Masters programme',
+        'Internship',
+        'Research assistantship',
+        'Postdoc',
+        'Summer school',
+        'Other'
       ),
       Institution: { rich_text: {} },
       'Department or lab': { rich_text: {} },
@@ -72,12 +78,12 @@ function databaseSpecs(parentPageId) {
       'Canonical URL': { url: {} },
       'Source URL': { url: {} },
       'Application URL': { url: {} },
-      'Application ID': { rich_text: {} },
-      'Portal status': { rich_text: {} },
       Fingerprint: { rich_text: {} },
       'Last checked': { date: {} },
       Confirmed: { checkbox: {} },
-      'Supervisor contact required': { checkbox: {} },
+      // A select, not a checkbox: an empty cell stays visibly unknown
+      // instead of rendering identically to "not required".
+      'Supervisor contact required': select('Required', 'Not required'),
       'Funding status': select(
         'Fully funded',
         'Partially funded',
@@ -88,20 +94,8 @@ function databaseSpecs(parentPageId) {
       'Stipend or salary': { number: { format: 'number' } },
       Currency: select('EUR', 'GBP', 'USD', 'CAD', 'AUD', 'CHF', 'Other'),
       'Tuition coverage': select('Full', 'Home only', 'Partial', 'None', 'Unclear'),
-      'Eligibility state': select(
-        'Eligible',
-        'Likely eligible',
-        'Needs confirmation',
-        'Ineligible',
-        'Unknown'
-      ),
       Supervisors: { rich_text: {} },
       'Research topics': { rich_text: {} },
-      'Research fit': { number: { format: 'number' } },
-      'Funding fit': { number: { format: 'number' } },
-      'Location fit': { number: { format: 'number' } },
-      'Next action': { rich_text: {} },
-      'Next action due': { date: {} },
       Summary: { rich_text: {} },
       Evidence: { rich_text: {} },
     }),

@@ -8,11 +8,12 @@ const action = $('Authorize callback').item.json.action;
 const DS_OPPORTUNITIES = 'REPLACE_WITH_DATA_SOURCE_OPPORTUNITIES';
 const record = JSON.parse(row.candidate_json);
 const f = record.findings || {};
-function foundVal(name){ const fi=f[name]; if(!fi||fi.state!=='found') return ''; const v=fi.value; if(Array.isArray(v)) return v.map(function(x){return typeof x==='object'?JSON.stringify(x):String(x);}).join(', '); return v==null?'':String(v); }
+function renderItem(x){ if(x&&typeof x==='object'&&!Array.isArray(x)){ const n=String(x.name||x.title||'').trim(); if(n) return n; return Object.values(x).filter(function(v){return v!=null&&v!=='';}).map(String).join(', '); } return x==null?'':String(x); }
+function foundVal(name){ const fi=f[name]; if(!fi||fi.state!=='found') return ''; const v=fi.value; if(Array.isArray(v)) return v.map(renderItem).join(', '); return renderItem(v); }
 function title(v){ return { title: [{ type:'text', text:{ content: String(v).slice(0,2000) } }] }; }
 function richText(v){ return v ? { rich_text: [{ type:'text', text:{ content: String(v).slice(0,2000) } }] } : { rich_text: [] }; }
 function select(name){ return { select: { name: name } }; }
-function evidenceSummary(){ const ev={}; for(const k of Object.keys(f)){ const e=f[k].evidence; if(e && e.length) ev[k]=e; } return JSON.stringify(ev).slice(0,2000); }
+function evidenceSummary(){ const lines=[]; for(const k of Object.keys(f)){ const e=f[k].evidence||[]; for(const item of e){ const excerpt=String(item.excerpt||'').trim(); const url=String(item.url||'').trim(); lines.push(k+': '+excerpt+(url?' ('+url+')':'')); } } return lines.join('\n').slice(0,2000); }
 const oppStatusRaw = foundVal('opportunity_status').toLowerCase();
 const oppStatus = oppStatusRaw.indexOf('open')>=0 ? 'Open' : oppStatusRaw.indexOf('closed')>=0 ? 'Closed' : oppStatusRaw.indexOf('withdrawn')>=0 ? 'Withdrawn' : 'Unknown';
 const properties = {
@@ -41,6 +42,7 @@ const properties = {
 const FUNDING_STATUS_OPTIONS = { 'funded':'Fully funded', 'fully funded':'Fully funded', 'partially funded':'Partially funded', 'partial':'Partially funded', 'salaried':'Salaried', 'salary':'Salaried', 'self funded':'Self-funded', 'self-funded':'Self-funded', 'unclear':'Unclear', 'unknown':'Unclear' };
 const TUITION_OPTIONS = { 'full':'Full', 'fully covered':'Full', 'home only':'Home only', 'home fees only':'Home only', 'partial':'Partial', 'none':'None', 'not covered':'None', 'unclear':'Unclear' };
 const CURRENCIES = ['EUR','GBP','USD','CAD','AUD','CHF'];
+const SUPERVISOR_CONTACT_OPTIONS = { 'true':'Required', 'yes':'Required', 'required':'Required', 'false':'Not required', 'no':'Not required', 'not required':'Not required' };
 function normOption(v){ return String(v == null ? '' : v).trim().toLowerCase().replace(/_/g, ' '); }
 function isIsoDate(v){ return /^\d{4}-\d{2}-\d{2}$/.test(v); }
 const oppType = foundVal('opportunity_type');
@@ -49,6 +51,12 @@ const startDate = foundVal('start_date');
 if (startDate.length >= 10 && isIsoDate(startDate.slice(0, 10))) properties['Start date'] = { date: { start: startDate.slice(0, 10) } };
 const applicationUrl = foundVal('application_url');
 if (applicationUrl.indexOf('http://') === 0 || applicationUrl.indexOf('https://') === 0) properties['Application URL'] = { url: applicationUrl };
+const contact = f['supervisor_contact_required'];
+if (contact && contact.state === 'found') {
+  const raw = contact.value;
+  const option = SUPERVISOR_CONTACT_OPTIONS[typeof raw === 'boolean' ? String(raw) : normOption(raw)];
+  if (option) properties['Supervisor contact required'] = select(option);
+}
 const funding = f['funding'];
 if (funding && funding.state === 'found' && funding.value && typeof funding.value === 'object' && !Array.isArray(funding.value)) {
   const fv = funding.value;

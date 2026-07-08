@@ -306,6 +306,11 @@
                 "excerpt": "sponsorship"
               }
             ]
+          },
+          "supervisor_contact_required": {
+            "state": "found",
+            "value": "ask the department",
+            "evidence": []
           }
         }
       },
@@ -369,7 +374,8 @@
         "Application URL",
         "Funding status",
         "Stipend or salary",
-        "Tuition coverage"
+        "Tuition coverage",
+        "Supervisor contact required"
       ]
     },
     {
@@ -420,6 +426,64 @@
         "Start date",
         "Application URL"
       ]
+    },
+    {
+      "name": "supervisor_contact_required_true_sets_checkbox",
+      "row": {
+        "canonical_url": "https://university.example/phd/contact-first",
+        "fingerprint": "ghi789",
+        "token": "tok4",
+        "chat_id": 111222333
+      },
+      "action": "confirm",
+      "candidate": {
+        "title": "Contact-first Posting",
+        "source_url": "https://university.example/phd/contact-first",
+        "findings": {
+          "supervisor_contact_required": {
+            "state": "found",
+            "value": true,
+            "evidence": []
+          }
+        }
+      },
+      "expected_properties": {
+        "Supervisor contact required": {
+          "select": {
+            "name": "Required"
+          }
+        }
+      },
+      "absent_properties": []
+    },
+    {
+      "name": "supervisor_contact_required_negative_and_unknown",
+      "row": {
+        "canonical_url": "https://university.example/phd/open-call",
+        "fingerprint": "jkl012",
+        "token": "tok5",
+        "chat_id": 111222333
+      },
+      "action": "confirm",
+      "candidate": {
+        "title": "Open Call Posting",
+        "source_url": "https://university.example/phd/open-call",
+        "findings": {
+          "supervisor_contact_required": {
+            "state": "found",
+            "value": "no",
+            "evidence": []
+          }
+        }
+      },
+      "expected_properties": {
+        "Supervisor contact required": {
+          "select": {
+            "name": "Not required"
+          }
+        }
+      },
+      "absent_properties": []
     }
   ]
 }
