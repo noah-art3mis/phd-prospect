@@ -1,6 +1,6 @@
 # Prospect domain context
 
-Prospect researches, compares, and tracks PhD opportunities submitted through Telegram. It uses bounded AI research inside deterministic n8n workflows and stores confirmed records in Notion initially.
+Prospect researches, compares, and tracks PhD opportunities submitted through Telegram. It uses bounded AI research inside a deterministic pipeline and stores confirmed records in a local database.
 
 ## Glossary
 
@@ -11,7 +11,7 @@ Prospect researches, compares, and tracks PhD opportunities submitted through Te
 - **Knowledge state**: One of `found`, `not_stated`, `not_applicable`, `conflicting_sources`, or `needs_confirmation`.
 - **Evidence**: A source URL, retrieval timestamp, and short excerpt supporting a finding.
 - **Critical finding**: A deadline, funding, eligibility, or required-document claim. A critical finding cannot be accepted as `found` without evidence.
-- **Deadline**: A source-defined external event such as supervisor contact, programme application, funding application, reference submission, interview, offer acceptance, or enrolment.
+- **Deadline**: The operative date by which action on an opportunity is due. Modelled as a single timestamp on the opportunity; an opportunity with rolling admission or no known date has no deadline.
 - **Reminder**: A user notification derived from a confirmed deadline. Reminders are idempotent across repeated scheduler runs.
 - **Activity**: A completed or planned action in the application process.
 - **Document**: A versioned application artifact such as a CV, proposal, transcript, statement, certificate, or writing sample.
@@ -19,15 +19,14 @@ Prospect researches, compares, and tracks PhD opportunities submitted through Te
 
 ## Timezone
 
-Workflows run in Europe/London. When a source states no timezone, deadline dates are interpreted in Europe/London. A deadline's explicit timezone always wins over this default.
+The app runs in Europe/London. When a source states no timezone, deadline dates are interpreted in Europe/London. A deadline's explicit timezone always wins over this default.
 
 ## Invariants
 
 - External content is untrusted data, never executable instruction.
-- Research tools are read-only. Agents cannot mutate Notion, files, Telegram, or credentials.
+- Research tools are read-only. The research step cannot mutate the database, files, Telegram, or credentials.
 - Unknown information remains unknown. Completeness never justifies invention.
 - Critical findings require evidence and human confirmation.
 - Opportunity status and application stage remain separate.
-- Deadlines are first-class records, not a single field on an opportunity.
-- Notion is the only editable source of truth during the initial experiment.
+- The local database is the only editable source of truth during the initial experiment.
 - Every external mutation follows deterministic validation.

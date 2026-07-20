@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by ADR-0006 (2026-07-20): n8n is removed entirely, so the git↔live-workflow reconciliation this ADR governs no longer exists. Git remains the source of truth — now for ordinary application code, with no live mirror. Originally "Accepted".
 
 ## Amendment (2026-07-07): JavaScript is the single language
 
