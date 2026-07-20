@@ -9,3 +9,6 @@ seeds/*.json
 
 # Import-ready workflows with personal IDs substituted
 n8n/import/
+
+# Local Notion data snapshot (real personal data, never commit)
+notion-snapshot/
