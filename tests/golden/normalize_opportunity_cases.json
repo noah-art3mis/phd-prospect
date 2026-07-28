@@ -1,5 +1,5 @@
 {
-  "_comment": "Golden contract for the deterministic validate() seam (src/core/validate.cjs). Each case's `expect` is either the string \"ok\" (candidate is persistence-safe) or {\"invalid\": \"<exact InvalidRecord message>\"}. Add a case here for every new validation rule. Two contract changes landed with the standalone-app rebuild (see issue #22): the deadline is the SOLE critical finding, so funding, eligibility and required_documents no longer need evidence to be `found`; and the SSRF helpers are gone, because nothing fetches a user-submitted URL locally (ADR-0007) — a source_url only has to be http or https.",
+  "_comment": "Golden contract for the deterministic validate() seam (src/core/validate.cjs). Each case's `expect` is either the string \"ok\" (candidate is persistence-safe) or {\"invalid\": \"<exact InvalidRecord message>\"}. Add a case here for every new validation rule. Two contract changes landed with the standalone-app rebuild (see issue #22): the deadline is the SOLE critical finding, so funding, eligibility and required_documents no longer need evidence to be `found`; and the SSRF helpers are gone, because nothing fetches a user-submitted URL locally (ADR-0007) – a source_url only has to be http or https.",
   "cases": [
     {
       "name": "happy_path",

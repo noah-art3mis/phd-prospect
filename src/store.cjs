@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS backup_event (
 const JSON_COLUMNS = ['findings', 'contacts', 'references', 'reminders_sent'];
 
 // What updateOpportunity is allowed to write. The column name is an identifier, so it cannot
-// be a bound parameter and has to be interpolated — which means the set of things that can
+// be a bound parameter and has to be interpolated – which means the set of things that can
 // appear there must be closed rather than checked. Today's only caller already constrains
 // its fields, but that is its invariant, not this one's.
 const UPDATABLE_COLUMNS = new Set([

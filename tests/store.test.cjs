@@ -137,7 +137,7 @@ test('editing a field before approval changes what gets stored', () => {
 test('updateOpportunity refuses a column it does not own', () => {
   // A column name is an identifier, so it cannot be a bound parameter and has to be
   // interpolated into the statement. The set of things that can appear there is therefore
-  // closed here rather than checked by the caller — today's only caller happens to constrain
+  // closed here rather than checked by the caller – today's only caller happens to constrain
   // its fields, but that is its invariant, not this one's.
   withStore((store) => {
     const id = store.insertCandidate(CANDIDATE);
