@@ -1,0 +1,23 @@
+# Secrets and local state must never enter the image. The .env is mounted at run time by
+# Compose; baking it in would put the bot token and API key in every layer.
+.env
+.env.*
+!.env.example
+
+node_modules
+data
+backups
+
+# Real personal data, gitignored and equally unwanted in a build context.
+notion-snapshot
+seeds
+
+.git
+.github
+tests
+docs
+*.md
+!README.md
+__pycache__
+.pytest_cache
+.venv
