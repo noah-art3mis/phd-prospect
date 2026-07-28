@@ -7,7 +7,7 @@
 //
 // Also pure so the layout is assertable without a Telegram account.
 
-const { resolveDeadline } = require('./deadline.cjs');
+const { resolveDeadline, formatLocalDate } = require('./deadline.cjs');
 
 // Order matters: what the user needs to judge whether to approve, first.
 const SHOWN_FIELDS = [
@@ -48,21 +48,12 @@ function renderFinding(finding) {
   return value ? `${value}  (${label})` : label;
 }
 
-function localDate(instant, zone) {
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: zone,
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(instant));
-}
-
 function approvalCard(opportunity, { zone }) {
   const lines = [opportunity.title, opportunity.source_url, ''];
 
   lines.push(
     opportunity.deadline_at
-      ? `Deadline: ${localDate(opportunity.deadline_at, zone)}`
+      ? `Deadline: ${formatLocalDate(opportunity.deadline_at, zone)}`
       : 'Deadline: none on file – no reminders will fire'
   );
   lines.push('');

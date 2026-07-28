@@ -132,7 +132,10 @@ function run({ config, store }) {
       onUpdate: (u) => app.bot.handleUpdate(u),
       // A poll failure is the network being down, which recovers on its own – alerting on
       // every retry would turn one outage into a stream of messages.
-      onError: (error) => console.error(`poll failed, retrying: ${error.message}`),
+      onPollError: (error) => console.error(`poll failed, retrying: ${error.message}`),
+      // A handler failure is not that. It is a bug, a rejected send, or a malformed update,
+      // and it has to speak: the alternative is the silence that otherwise means "working".
+      onUpdateError: alerter.report('handling an update'),
     }),
     ...jobs,
   ]);

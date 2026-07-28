@@ -9,6 +9,8 @@
 //
 // Which is why it sends even when there is nothing to report. An empty digest is the point.
 
+const { formatLocalDate } = require('./deadline.cjs');
+
 const HORIZON_DAYS = 30;
 
 // Approximate on purpose. The content cap already bounds the worst case near $9/month, so
@@ -19,12 +21,6 @@ const USD_PER_MILLION = { input: 3, output: 15 };
 
 function approximateSpend({ input_tokens: input = 0, output_tokens: output = 0 }) {
   return (input / 1e6) * USD_PER_MILLION.input + (output / 1e6) * USD_PER_MILLION.output;
-}
-
-function formatDate(instant, zone) {
-  return new Intl.DateTimeFormat('en-GB', { timeZone: zone, day: 'numeric', month: 'short' }).format(
-    new Date(instant)
-  );
 }
 
 function describeBackupAge(lastBackup, now) {
@@ -47,7 +43,7 @@ function digestText({ trackedCount, upcoming, lastBackup, usage, zone, now }) {
   } else {
     lines.push(`Deadlines in the next ${HORIZON_DAYS} days:`);
     for (const opportunity of upcoming) {
-      lines.push(`  ${formatDate(opportunity.deadline_at, zone)} – ${opportunity.title}`);
+      lines.push(`  ${formatLocalDate(opportunity.deadline_at, zone, { month: 'short' })} – ${opportunity.title}`);
     }
   }
   lines.push('');

@@ -65,6 +65,22 @@ CREATE TABLE IF NOT EXISTS backup_event (
 
 const JSON_COLUMNS = ['findings', 'contacts', 'references', 'reminders_sent'];
 
+// What updateOpportunity is allowed to write. The column name is an identifier, so it cannot
+// be a bound parameter and has to be interpolated — which means the set of things that can
+// appear there must be closed rather than checked. Today's only caller already constrains
+// its fields, but that is its invariant, not this one's.
+const UPDATABLE_COLUMNS = new Set([
+  'title',
+  'source_url',
+  'canonical_url',
+  'institution',
+  'deadline_at',
+  'findings',
+  'contacts',
+  'references',
+  'reminders_sent',
+]);
+
 function hydrate(row) {
   if (!row) return null;
   const out = { ...row, confirmed: row.confirmed === 1, seeded: row.seeded === 1 };
@@ -160,6 +176,9 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
     updateOpportunity(id, changes) {
       const columns = Object.keys(changes);
       if (columns.length === 0) return;
+      for (const column of columns) {
+        if (!UPDATABLE_COLUMNS.has(column)) throw new Error(`'${column}' is not an updatable column`);
+      }
       const assignments = columns.map((c) => `"${c}" = ?`).join(', ');
       const values = columns.map((c) => (JSON_COLUMNS.includes(c) ? JSON.stringify(changes[c]) : changes[c]));
       db.prepare(`UPDATE opportunity SET ${assignments}, updated_at = ? WHERE id = ?`).run(

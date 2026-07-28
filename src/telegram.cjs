@@ -29,11 +29,22 @@ function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_AP
   // Telegram rejects anything over 4096 characters. A findings-heavy approval card can
   // exceed that, and dropping it would mean an ingest that cost a model call produced
   // nothing – so split, and keep the buttons on the final chunk where they belong.
+  //
+  // Cutting on code points rather than UTF-16 units: slicing between a surrogate pair leaves
+  // a lone surrogate, which has no UTF-8 encoding and is serialised as U+FFFD. That silently
+  // corrupts the character rather than merely splitting it, and the text being split comes
+  // verbatim from pages this app does not control.
   function chunk(text) {
     if (text.length <= MAX_MESSAGE_LENGTH) return [text];
+
     const chunks = [];
-    for (let i = 0; i < text.length; i += MAX_MESSAGE_LENGTH) {
-      chunks.push(text.slice(i, i + MAX_MESSAGE_LENGTH));
+    let start = 0;
+    while (start < text.length) {
+      let end = Math.min(start + MAX_MESSAGE_LENGTH, text.length);
+      // A high surrogate at the cut means the pair straddles it; keep both halves together.
+      if (end < text.length && /[\uD800-\uDBFF]/.test(text[end - 1])) end -= 1;
+      chunks.push(text.slice(start, end));
+      start = end;
     }
     return chunks;
   }
@@ -85,9 +96,22 @@ function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_AP
 // The polling loop. `rounds` bounds it for tests; in production it runs until the process
 // stops. A poll that fails backs off and retries – losing the network and regaining it has
 // to resume without anyone intervening, because nobody is watching the box.
+//
+// Two error channels, deliberately separate. A failed poll is the network being down: it
+// recovers on its own, and alerting on every retry would turn one outage into a stream of
+// messages. A failed *handler* is something else entirely – a bug, a rejected send, a
+// malformed update – and has to speak, or the user sees the same silence that means
+// "still working".
 async function pollUpdates(
   telegram,
-  { onUpdate, onError = () => {}, rounds = Infinity, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), maxBackoffMs = 60000 }
+  {
+    onUpdate,
+    onPollError = () => {},
+    onUpdateError = () => {},
+    rounds = Infinity,
+    sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
+    maxBackoffMs = 60000,
+  }
 ) {
   let offset;
   let backoffMs = 1000;
@@ -97,7 +121,7 @@ async function pollUpdates(
     try {
       updates = await telegram.getUpdates({ offset });
     } catch (error) {
-      onError(error);
+      onPollError(error);
       await sleep(backoffMs);
       backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
       continue;
@@ -112,7 +136,7 @@ async function pollUpdates(
       try {
         await onUpdate(update);
       } catch (error) {
-        onError(error);
+        onUpdateError(error);
       }
     }
   }

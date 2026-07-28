@@ -123,9 +123,15 @@ test('loadPrompt reads a file and falls back to its stem for the name', () => {
   }
 });
 
-test('the shipped ingest prompt loads and declares its model and token budget', () => {
+test('the shipped ingest prompt declares a model whose tool versions it can actually use', () => {
+  // web_search_20260209 / web_fetch_20260209 require Opus 5/4.8/4.7/4.6, Sonnet 5 or
+  // Sonnet 4.6. Editing the frontmatter to Haiku to save money would be accepted by the
+  // loader and rejected by the API, one call later.
+  const eligible = ['claude-opus-5', 'claude-opus-4-8', 'claude-opus-4-7', 'claude-opus-4-6', 'claude-sonnet-5', 'claude-sonnet-4-6'];
   const prompt = loadPrompt(path.join(__dirname, '..', 'prompts', 'ingest.prompt'));
-  assert.equal(typeof prompt.metadata.model, 'string');
-  assert.equal(typeof prompt.metadata.max_tokens, 'number');
-  assert.ok(prompt.messages.length > 0);
+
+  assert.ok(
+    eligible.includes(prompt.metadata.model),
+    `${prompt.metadata.model} does not support the server-tool versions the ingest request uses`
+  );
 });

@@ -134,6 +134,20 @@ test('editing a field before approval changes what gets stored', () => {
   });
 });
 
+test('updateOpportunity refuses a column it does not own', () => {
+  // A column name is an identifier, so it cannot be a bound parameter and has to be
+  // interpolated into the statement. The set of things that can appear there is therefore
+  // closed here rather than checked by the caller — today's only caller happens to constrain
+  // its fields, but that is its invariant, not this one's.
+  withStore((store) => {
+    const id = store.insertCandidate(CANDIDATE);
+
+    assert.throws(() => store.updateOpportunity(id, { confirmed: 1 }), /not an updatable column/);
+    assert.throws(() => store.updateOpportunity(id, { 'title" = "owned': 'x' }), /not an updatable column/);
+    assert.equal(store.getOpportunity(id).confirmed, false, 'the rejected write must not have landed');
+  });
+});
+
 test('a rolling opportunity stores a null deadline rather than a placeholder date', () => {
   withStore((store) => {
     const id = store.insertCandidate({ ...CANDIDATE, deadline_at: null });

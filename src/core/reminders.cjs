@@ -7,6 +7,8 @@
 //
 // The job around this (query, send, write-back, schedule) lives in src/jobs/reminders.cjs.
 
+const { formatLocalDate } = require('./deadline.cjs');
+
 // Calendar day number for an instant *as seen in `zone`*. Counting in UTC would fire a
 // reminder a day early for any deadline late in the local evening.
 function localDayNumber(instant, zone) {
@@ -68,12 +70,7 @@ function recordSent(sent, reminders) {
 // One reminder as the user reads it. Plain text: no parse_mode anywhere in this app, so a
 // title lifted from a page an attacker controls has nothing to escape.
 function reminderText(reminder, zone) {
-  const when = new Intl.DateTimeFormat('en-GB', {
-    timeZone: zone,
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(reminder.deadline_at));
+  const when = formatLocalDate(reminder.deadline_at, zone);
 
   if (reminder.days_remaining === 0) return `Closes today: ${reminder.title} (${when}).`;
   const days = reminder.days_remaining === 1 ? '1 day' : `${reminder.days_remaining} days`;

@@ -75,6 +75,26 @@ test('a message longer than Telegram allows is split rather than rejected', asyn
   assert.equal(calls.map((c) => c.body.text).join('').length, 9000);
 });
 
+test('splitting never cuts a character in half', async () => {
+  // A lone surrogate has no UTF-8 encoding and is serialised as U+FFFD, so a naive slice
+  // does not split the emoji across two messages – it destroys it. The text being split
+  // comes verbatim from pages this app does not control.
+  const { fetch, calls } = stubFetch(() => ({ message_id: 1 }));
+  const telegram = createTelegram({ token: 'T', fetch });
+
+  // Land a surrogate pair exactly on the 4096 boundary.
+  const text = 'x'.repeat(4095) + '😀' + 'y'.repeat(200);
+  await telegram.sendMessage(42, text);
+
+  const parts = calls.map((c) => c.body.text);
+  assert.equal(parts.join(''), text, 'the message must survive the round trip unchanged');
+  for (const part of parts) {
+    assert.ok(!/[\uD800-\uDBFF]$/.test(part), 'a chunk ends on a lone high surrogate');
+    assert.ok(!/^[\uDC00-\uDFFF]/.test(part), 'a chunk starts on a lone low surrogate');
+    assert.equal(Buffer.from(part, 'utf8').toString('utf8'), part, 'the chunk does not survive UTF-8');
+  }
+});
+
 test('buttons are attached to the final chunk of a split message', async () => {
   const { fetch, calls } = stubFetch(() => ({ message_id: 1 }));
   const telegram = createTelegram({ token: 'T', fetch });
@@ -148,15 +168,20 @@ test('a handler that throws does not stop the loop or lose the offset', async ()
   const { fetch, calls } = stubFetch((url, n) => (n === 1 ? [{ update_id: 300 }] : []));
   const telegram = createTelegram({ token: 'T', fetch });
 
-  const failures = [];
+  const alerted = [];
+  const logged = [];
   await pollUpdates(telegram, {
     onUpdate: () => {
       throw new Error('handler blew up');
     },
-    onError: (e) => failures.push(e.message),
+    // Two channels, deliberately separate: a failed poll is the network being down and
+    // recovers on its own; a failed handler is a bug and has to speak.
+    onUpdateError: (e) => alerted.push(e.message),
+    onPollError: (e) => logged.push(e.message),
     rounds: 2,
   });
 
-  assert.deepEqual(failures, ['handler blew up']);
+  assert.deepEqual(alerted, ['handler blew up'], 'a handler failure must reach the alert channel');
+  assert.deepEqual(logged, [], 'a handler failure is not a poll failure');
   assert.equal(calls[1].body.offset, 301, 'a failing update must not be retried forever');
 });

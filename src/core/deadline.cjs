@@ -28,10 +28,23 @@ function offsetMinutes(instant, zone) {
 // A wall-clock reading in `zone` as a UTC instant. Two passes: guess the offset at the
 // UTC-interpreted instant, correct, then re-check – the second pass fixes readings that sit
 // on the far side of a daylight-saving change from the guess.
+//
+// Spring-forward gaps need the extra step below. On the morning clocks jump 02:00 to 03:00,
+// "02:30" is a time that never happened, and the two-pass correction lands on 01:30 – an
+// hour *earlier* than asked for. Silently moving a deadline backwards is the worst available
+// answer, so a reading inside a gap is moved forward to the first instant that exists, which
+// is what every calendar does with the same input.
 function fromWallClock({ year, month, day, hour, minute }, zone) {
   const naive = Date.UTC(year, month - 1, day, hour, minute);
   let instant = new Date(naive - offsetMinutes(new Date(naive), zone) * 60000);
   instant = new Date(naive - offsetMinutes(instant, zone) * 60000);
+
+  // If reading the result back in `zone` does not give the wall clock we were asked for, the
+  // requested time does not exist. The shortfall is the size of the gap.
+  const roundTrip = Date.UTC(year, month - 1, day, hour, minute) - offsetMinutes(instant, zone) * 60000;
+  if (roundTrip !== instant.getTime()) {
+    return new Date(roundTrip);
+  }
   return instant;
 }
 
@@ -69,4 +82,16 @@ function resolveDeadline(value, zone) {
   throw new Error(`deadline '${raw}' is not a date the app can act on`);
 }
 
-module.exports = { resolveDeadline, offsetMinutes };
+// A stored instant as the user reads it, in their zone. One formatter rather than one per
+// caller, so the approval card, the reminders and the digest cannot drift apart on how a
+// date looks.
+function formatLocalDate(instant, zone, { month = 'long' } = {}) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: zone,
+    day: 'numeric',
+    month,
+    year: month === 'long' ? 'numeric' : undefined,
+  }).format(new Date(instant));
+}
+
+module.exports = { resolveDeadline, offsetMinutes, formatLocalDate };

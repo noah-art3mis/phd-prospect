@@ -39,6 +39,32 @@ test('a local date-time with no offset is read in the configured zone', () => {
   assert.equal(resolveDeadline('2026-09-01T17:00:00', 'America/Mexico_City'), '2026-09-01T23:00:00.000Z');
 });
 
+test('a time inside a spring-forward gap moves forward, never backward', () => {
+  // On 8 March 2026 New York clocks jump 02:00 to 03:00, so 02:30 never happens. Resolving
+  // it to 01:30 would move a deadline an hour earlier than the source stated, silently.
+  const resolved = resolveDeadline('2026-03-08T02:30', 'America/New_York');
+  const local = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/New_York',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(resolved));
+
+  assert.equal(local, '03:30', 'a nonexistent time must land on the first instant that exists');
+  assert.ok(
+    new Date(resolved) > new Date('2026-03-08T06:59:00.000Z'),
+    'the resolved instant must not be earlier than the requested wall clock'
+  );
+});
+
+test('an ambiguous time on a fall-back day resolves deterministically', () => {
+  // 01:30 happens twice on 1 November in New York. Either is defensible; drifting between
+  // them run to run is not.
+  const first = resolveDeadline('2026-11-01T01:30', 'America/New_York');
+  assert.equal(resolveDeadline('2026-11-01T01:30', 'America/New_York'), first);
+  assert.equal(first, '2026-11-01T05:30:00.000Z');
+});
+
 test('no deadline resolves to null rather than a placeholder date', () => {
   // NULL is how the model represents rolling admission; there is no `rolling` flag.
   assert.equal(resolveDeadline(null, 'America/Mexico_City'), null);
