@@ -21,8 +21,7 @@ const MAX_RESUMES = 6;
 // genuine disagreement is meant to travel, not a longer list under `found`.
 function scalarValue(finding) {
   if (!finding || finding.state !== 'found') return null;
-  const values = Array.isArray(finding.value) ? finding.value : [finding.value];
-  return values.length === 0 ? null : values[0];
+  return finding.value[0] ?? null;
 }
 
 // PDFs are handed to the model as base64 document blocks – nothing parses them locally, and

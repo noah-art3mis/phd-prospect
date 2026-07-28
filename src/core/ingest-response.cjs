@@ -85,6 +85,12 @@ function readIngestResponse(response) {
   const byField = new Map();
   for (const finding of findings) {
     const { field, ...rest } = finding ?? {};
+    // The enum in the schema already forbids this. Checked anyway because this is where an
+    // untrusted response stops being untrusted: an invented field would be stored and shown
+    // like any other, and nothing downstream looks for it, so nothing would ever notice.
+    if (!FINDING_FIELDS.includes(field)) {
+      return { status: 'failed', usage, reason: `The model returned a field nobody asked for: '${field}'.` };
+    }
     // A map would swallow this: the second write replaces the first, and a contradicted
     // deadline would disappear with nothing to show anyone.
     if (byField.has(field)) {

@@ -117,6 +117,9 @@ test('the schema stays within the API limit on union-typed parameters', () => {
   };
 
   assert.ok(countUnions(request().output_config.format.schema) <= UNION_LIMIT);
+  // Pinned, like the research bounds above: the limit is the API's, not ours to raise, and a
+  // constant quietly bumped to fit an over-budget schema would make this test agree with it.
+  assert.equal(UNION_LIMIT, 16);
 });
 
 test('a finding value is a list of strings, so no finding spends a union', () => {
@@ -215,6 +218,18 @@ test('a field named twice is a failure, not a silent last-one-wins', () => {
   const result = readIngestResponse(responseWith(findings));
   assert.equal(result.status, 'failed');
   assert.match(result.reason, /deadline/);
+});
+
+test('a field nobody asked for is a failure, not a stowaway in the record', () => {
+  // The enum makes this unreachable, which is the reason to check it rather than a reason
+  // not to: the reader is where an untrusted response stops being untrusted, and a field
+  // invented here would be stored, shown, and never matched by anything that reads findings.
+  const result = readIngestResponse(
+    responseWith(everyField().concat([{ field: 'tuition_fees', state: 'found', value: ['x'], evidence: [] }]))
+  );
+
+  assert.equal(result.status, 'failed');
+  assert.match(result.reason, /tuition_fees/);
 });
 
 test('a missing field is a failure – the schema can no longer require all sixteen', () => {
