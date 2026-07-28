@@ -14,6 +14,8 @@ const { createBot } = require('./bot.cjs');
 const { createIngest } = require('./ingest.cjs');
 const { createApproval } = require('./approval.cjs');
 const { loadPrompt } = require('./core/prompt.cjs');
+const { scheduleJob } = require('./scheduler.cjs');
+const { runReminderSweep } = require('./jobs/reminders.cjs');
 
 const INGEST_PROMPT = path.join(__dirname, '..', 'prompts', 'ingest.prompt');
 
@@ -111,7 +113,40 @@ function run({ config, store }) {
   const onError = (error) => console.error(error.stack ?? error.message);
   const app = createApp({ config, store, anthropic, telegram, prompt, onError });
 
-  return pollUpdates(telegram, { onUpdate: (u) => app.bot.handleUpdate(u), onError });
+  const jobs = scheduleJobs({ config, store, telegram, onError });
+
+  return Promise.all([pollUpdates(telegram, { onUpdate: (u) => app.bot.handleUpdate(u), onError }), ...jobs]);
 }
 
-module.exports = { createApp, createSubmissionHandler, run, alreadyTracked, MAX_PDF_BYTES };
+// The scheduled half of the process. Both jobs are pinned to the configured zone, so
+// relocating moves when they arrive rather than shifting them by the new UTC offset.
+function scheduleJobs({ config, store, telegram, onError, signal }) {
+  const chatId = config.telegramAllowedUserId;
+  const common = { zone: config.timezone, onError, signal };
+
+  return [
+    scheduleJob({
+      ...common,
+      name: 'reminders',
+      hour: config.reminderSendHour,
+      run: () =>
+        runReminderSweep({
+          store,
+          telegram,
+          chatId,
+          zone: config.timezone,
+          leadTimes: config.reminderLeadTimes,
+          onError,
+        }),
+    }),
+  ];
+}
+
+module.exports = {
+  createApp,
+  createSubmissionHandler,
+  scheduleJobs,
+  run,
+  alreadyTracked,
+  MAX_PDF_BYTES,
+};
