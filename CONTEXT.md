@@ -7,7 +7,8 @@ Prospect researches, compares, and tracks PhD opportunities submitted through Te
 - **Opportunity**: A potentially applicable PhD project, doctoral programme, cohort, fellowship, scholarship, or self-proposed route.
 - **Opportunity status**: Whether the external opportunity is open, closed, withdrawn, or unknown. This is independent of an application.
 - **Application stage**: The user's progress from inbox through research, preparation, submission, interview, and decision.
-- **Finding**: A candidate field value produced by extraction or research, together with its knowledge state and evidence.
+- **Confirmed**: Whether the user has approved an opportunity for tracking. An unconfirmed opportunity is a candidate awaiting that decision, and is excluded from reminders, listings, and counts. This is a state of the record, distinct from both opportunity status and application stage.
+- **Finding**: A candidate field value for an opportunity, together with its knowledge state and evidence.
 - **Knowledge state**: One of `found`, `not_stated`, `not_applicable`, `conflicting_sources`, or `needs_confirmation`.
 - **Evidence**: A source URL, retrieval timestamp, and short excerpt supporting a finding.
 - **Critical finding**: A deadline, funding, eligibility, or required-document claim. A critical finding cannot be accepted as `found` without evidence.
