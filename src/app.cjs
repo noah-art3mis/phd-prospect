@@ -16,6 +16,7 @@ const { createApproval } = require('./approval.cjs');
 const { loadPrompt } = require('./core/prompt.cjs');
 const { scheduleJob } = require('./scheduler.cjs');
 const { runReminderSweep } = require('./jobs/reminders.cjs');
+const { createAlerter, installTopLevelHandlers } = require('./alerts.cjs');
 
 const INGEST_PROMPT = path.join(__dirname, '..', 'prompts', 'ingest.prompt');
 
@@ -110,12 +111,24 @@ function run({ config, store }) {
   const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
   const prompt = loadPrompt(INGEST_PROMPT);
 
-  const onError = (error) => console.error(error.stack ?? error.message);
-  const app = createApp({ config, store, anthropic, telegram, prompt, onError });
+  // One alert channel, wired into every failure path: the bot's detached work, the polling
+  // loop, the scheduled jobs, and anything unhandled at top level.
+  const alerter = createAlerter({ telegram, chatId: config.telegramAllowedUserId });
+  installTopLevelHandlers({ alerter });
 
-  const jobs = scheduleJobs({ config, store, telegram, onError });
+  const app = createApp({ config, store, anthropic, telegram, prompt, onError: alerter.report() });
 
-  return Promise.all([pollUpdates(telegram, { onUpdate: (u) => app.bot.handleUpdate(u), onError }), ...jobs]);
+  const jobs = scheduleJobs({ config, store, telegram, onError: alerter.report(), signal: undefined });
+
+  return Promise.all([
+    pollUpdates(telegram, {
+      onUpdate: (u) => app.bot.handleUpdate(u),
+      // A poll failure is the network being down, which recovers on its own — alerting on
+      // every retry would turn one outage into a stream of messages.
+      onError: (error) => console.error(`poll failed, retrying: ${error.message}`),
+    }),
+    ...jobs,
+  ]);
 }
 
 // The scheduled half of the process. Both jobs are pinned to the configured zone, so
