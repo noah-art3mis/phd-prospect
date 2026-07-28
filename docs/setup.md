@@ -1,61 +1,50 @@
-# Setup
+# First run
 
-## 1. Authorize Codex against n8n Cloud
+Getting Prospect from a fresh checkout to a bot that answers. `docs/deploy.md` covers the VM; this is the checklist before and around it.
 
-The global Codex configuration contains:
+Your `.env` already carries `TELEGRAM_ALLOWED_USER_ID` across from the n8n build, along with the four settings that are preferences rather than secrets. Three credentials are outstanding, and none of them can be recovered from anywhere – they have to be created.
 
-```toml
-[mcp_servers.n8n]
-url = "https://noah-art3mis.app.n8n.cloud/mcp-server/http"
-```
+## Credentials still needed
 
-Restart Codex and complete the n8n OAuth flow in the browser. The n8n tools are unavailable in the session that wrote the configuration. Do not debug missing tools until both restart and OAuth are complete.
+- [ ] **`TELEGRAM_BOT_TOKEN`** – message [@BotFather](https://t.me/BotFather), `/newbot`, follow the prompts. He hands back a token of the form `<digits>:AA<letters>`. Paste it into `.env`.
+- [ ] **`ANTHROPIC_API_KEY`** – [console.anthropic.com](https://console.anthropic.com) → API keys. Ingest costs roughly $0.11 per opportunity, bounded near $0.31 by the content cap, so a small spend limit on the key is reasonable belt-and-braces on top of the caps already in the code.
+- [ ] **`GCS_BACKUP_BUCKET`** – create a bucket in the same GCP project as the VM. The name alone goes in `.env`; there is no key to store, because the instance's own service account is used.
 
-## 2. Create the Notion integration
+Check them with `node src/index.cjs --check`, which names anything still missing and exits non-zero.
 
-Create an internal Notion integration with read, insert, and update content capabilities. Create an empty parent page named `Prospect`, then share that page with the integration. Copy the integration token and parent page ID into a local `.env` based on `.env.example`.
+## Local shakedown
 
-Preview the exact API payload without making changes:
+Do this before touching the VM – it exercises everything except the container.
 
-```bash
-set -a; . ./.env; set +a; npm run bootstrap-notion -- --dry-run
-```
+- [ ] `npm ci`
+- [ ] `node src/index.cjs --check` – expect "config ok", "database ready", "tracking 7 opportunities" (the Notion seed)
+- [ ] `npm run ingest-url -- <a real PhD advert URL>` – one live model call, prints the validated record, writes nothing. The cheapest way to see whether the prompt does what you want before any of it is wired to Telegram.
+- [ ] `node src/index.cjs` in one terminal, then send that same link to the bot. Expect an acknowledgement within a second or two, then a card a minute or two later. Press Approve.
+- [ ] `npm run remind -- --dry` – lists what is due without sending
+- [ ] `npm run digest` – prints this week's digest without sending
+- [ ] `npm run backup -- --local` – writes a file under `data/backups/`; open it with any SQLite client to confirm it restores
 
-Create the five databases and their relations:
+## The VM
 
-```bash
-set -a; . ./.env; set +a; npm run bootstrap-notion > notion-data-sources.json
-```
+Follow `docs/deploy.md`. In order:
 
-The command targets Notion API version `2026-03-11`. It is a one-time, non-idempotent bootstrap: do not run it twice against the same parent page. Keep the generated IDs for n8n configuration. If a request fails partway through, inspect the parent page and remove partial databases before retrying.
+- [ ] Create the `e2-micro` in a free-tier region (`us-west1`, `us-central1`, `us-east1`)
+- [ ] Attach a service account with `devstorage.read_write` **at creation time** – adding it later means recreating the instance
+- [ ] `git clone`, `cp .env.example .env`, fill in the same three credentials
+- [ ] `docker compose up -d --build`
+- [ ] Send a link from Telegram and confirm the round trip works on the box
+- [ ] Verify restart-on-failure: `docker compose exec prospect kill 1`, then confirm it comes back
+- [ ] `docker compose exec prospect npm run backup` – confirm the upload reaches the bucket
 
-## 3. Create the Telegram bot
+## Known-unverified
 
-Use BotFather in Telegram to create a bot and copy its token. Send the bot a message, then obtain your numeric Telegram user ID from the trigger test output and store it as `TELEGRAM_ALLOWED_USER_ID` in `.env`. The build step substitutes it for `REPLACE_WITH_TELEGRAM_USER_ID`; the tracked templates never carry the real ID. Bind the same Telegram credential to the trigger and send nodes.
+Carried forward from the rebuild so it does not get lost. Each is a stub that has never met the real thing:
 
-Do not accept group messages or additional users during the initial experiment.
+- [ ] **The container has never been built.** Docker was unavailable in the environment this was written in, so the first `docker compose up --build` is genuinely the first one.
+- [ ] **The GCS upload has only run against a stub.** The metadata-server token fetch and the bucket write are untested against the real API.
+- [ ] **The Telegram round trip has only run against a stub.** Long polling, `getFile`, and inline buttons are unexercised against the live API.
 
-## 4. Configure n8n
+## Then
 
-Build the deployable workflows and push them to n8n Cloud through the authenticated n8n MCP server, following `n8n/README.md`:
-
-```bash
-npm run build-workflows
-```
-
-This writes `n8n/import/*.json` (git-ignored) with real identifiers taken from `.env` and `notion-data-sources.json`. Deployed workflows stay inactive until step 6 passes. In n8n Cloud, bind credentials in the UI; custom environment variables are not available on Cloud Starter. The project runs on n8n Cloud; the hosting question is tracked separately.
-
-## 5. Configure AI and search
-
-Choose one current structured-output-capable chat model and one search provider. Do not expose Notion, Telegram-send, filesystem, arbitrary HTTP credentials, or shell execution as agent tools. The researcher receives only bounded search and public page-fetch tools. Use `n8n/prompts/extract.md`, `n8n/prompts/research.md`, and `schemas/opportunity-candidate.schema.json` as the contract.
-
-## 6. Test before publishing
-
-Use `fixtures/opportunity-candidate.json` to verify deterministic validation:
-
-```bash
-npm run validate fixtures/opportunity-candidate.json
-npm test
-```
-
-Test ingestion with a public university page, a PDF listing, a page with no deadline, a page with conflicting dates, a duplicate listing, and an inaccessible page. Confirm that no Notion mutation happens before Telegram approval and that repeated reminder executions do not resend a prior key.
+- [ ] Watch for the first Sunday digest. Its arrival is the signal the whole alerting design rests on – if it does not come, something is wrong regardless of how healthy the container looks.
+- [ ] Take one manual off-box backup (`npm run backup -- --local`, then copy it somewhere that is not GCP). Primary and backup share a project, so a billing problem takes both; this is the mitigation, and it only works as a habit.
