@@ -132,7 +132,7 @@ for (const [what, response, expected] of INGEST_FAILURES) {
 test('a validation rejection reports rather than silently discarding the record', async () => {
   const ungated = structuredClone(fixture('complete'));
   const record = JSON.parse(ungated.content.at(-1).text);
-  record.findings.deadline.evidence = [];
+  record.findings.find((f) => f.field === 'deadline').evidence = [];
   ungated.content.at(-1).text = JSON.stringify(record);
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prospect-alerts-'));

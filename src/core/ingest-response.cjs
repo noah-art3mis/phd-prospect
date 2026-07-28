@@ -11,6 +11,8 @@
 // Every branch returns a status rather than throwing, so the caller's loop reads as a state
 // machine instead of a pile of try/catch.
 
+const { FINDING_FIELDS } = require('./ingest-request.cjs');
+
 function textOf(response) {
   return (response.content ?? [])
     .filter((block) => block.type === 'text')
@@ -72,7 +74,43 @@ function readIngestResponse(response) {
     return { status: 'failed', usage, reason: 'The model returned something that was not a record.' };
   }
 
-  return { status: 'complete', usage, candidate };
+  // Findings travel as a list because the schema grammar cannot afford sixteen copies of the
+  // finding shape, but a list is the wrong thing to reason with: every reader downstream
+  // wants "the deadline finding", not a scan. The conversion happens once, here.
+  const findings = candidate.findings;
+  if (!Array.isArray(findings)) {
+    return { status: 'failed', usage, reason: 'The model returned findings that were not a list.' };
+  }
+
+  const byField = new Map();
+  for (const finding of findings) {
+    const { field, ...rest } = finding ?? {};
+    // The enum in the schema already forbids this. Checked anyway because this is where an
+    // untrusted response stops being untrusted: an invented field would be stored and shown
+    // like any other, and nothing downstream looks for it, so nothing would ever notice.
+    if (!FINDING_FIELDS.includes(field)) {
+      return { status: 'failed', usage, reason: `The model returned a field nobody asked for: '${field}'.` };
+    }
+    // A map would swallow this: the second write replaces the first, and a contradicted
+    // deadline would disappear with nothing to show anyone.
+    if (byField.has(field)) {
+      return { status: 'failed', usage, reason: `The model returned '${field}' more than once.` };
+    }
+    byField.set(field, rest);
+  }
+
+  const missing = FINDING_FIELDS.filter((field) => !byField.has(field));
+  if (missing.length > 0) {
+    // The schema used to guarantee this. A missing field is not an unknown value – it is a
+    // field nobody answered, and downstream cannot tell the two apart.
+    return { status: 'failed', usage, reason: `The model left out: ${missing.join(', ')}.` };
+  }
+
+  return {
+    status: 'complete',
+    usage,
+    candidate: { ...candidate, findings: Object.fromEntries(byField) },
+  };
 }
 
 // Whether the model actually managed to read the submitted page. An unreadable page –

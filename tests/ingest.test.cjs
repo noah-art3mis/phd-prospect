@@ -10,7 +10,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { buildIngestRequest, MAX_SEARCHES, MAX_FETCHES, MAX_CONTENT_TOKENS } = require('../src/core/ingest-request.cjs');
+const {
+  buildIngestRequest,
+  MAX_SEARCHES,
+  MAX_FETCHES,
+  MAX_CONTENT_TOKENS,
+  UNION_LIMIT,
+  FINDING_FIELDS,
+} = require('../src/core/ingest-request.cjs');
 const { readIngestResponse } = require('../src/core/ingest-response.cjs');
 const { createIngest, MAX_RESUMES } = require('../src/ingest.cjs');
 const { loadPrompt } = require('../src/core/prompt.cjs');
@@ -82,13 +89,45 @@ test('the response is constrained by a schema, so a malformed record is unreacha
   assert.deepEqual(format.schema.required.sort(), ['contacts', 'findings', 'references', 'source_url', 'title']);
 });
 
-test('the schema requires every finding, so an unstated field comes back explicitly', () => {
-  // Structured outputs cannot express an open map, and enumerating is the better answer:
-  // "the page did not say" must be a stated answer, not a silently omitted key.
+test('findings are requested as a list, so the grammar holds one finding schema, not sixteen', () => {
+  // Enumerating the sixteen fields as properties repeats the whole finding schema – state,
+  // value, and the evidence objects – sixteen times over, and the API rejects the compiled
+  // grammar as too large. A list states the shape once and names the field inside it.
   const findings = request().output_config.format.schema.properties.findings;
-  assert.equal(findings.additionalProperties, false);
-  assert.ok(findings.required.includes('deadline'));
-  assert.deepEqual(findings.required.sort(), Object.keys(findings.properties).sort());
+
+  assert.equal(findings.type, 'array');
+  assert.deepEqual(findings.items.required.sort(), ['evidence', 'field', 'state', 'value']);
+  assert.deepEqual(findings.items.properties.field.enum, FINDING_FIELDS);
+});
+
+test('the schema stays within the API limit on union-typed parameters', () => {
+  // The API rejects a schema with more than 16 union-typed parameters (type arrays, anyOf,
+  // oneOf) with a 400 at request time, so an over-budget schema is not a style problem –
+  // ingest stops working entirely. Counted here because nothing else can catch it offline.
+  const countUnions = (node) => {
+    if (!node || typeof node !== 'object') return 0;
+    if (Array.isArray(node)) return node.reduce((n, item) => n + countUnions(item), 0);
+    const self = Array.isArray(node.type) || node.anyOf || node.oneOf ? 1 : 0;
+    return Object.entries(node).reduce((n, [key, value]) => {
+      if (key === 'properties') return n + Object.values(value).reduce((m, v) => m + countUnions(v), 0);
+      if (key === 'items') return n + countUnions(value);
+      if (['anyOf', 'oneOf', 'allOf'].includes(key)) return n + countUnions(value);
+      return n;
+    }, self);
+  };
+
+  assert.ok(countUnions(request().output_config.format.schema) <= UNION_LIMIT);
+  // Pinned, like the research bounds above: the limit is the API's, not ours to raise, and a
+  // constant quietly bumped to fit an over-budget schema would make this test agree with it.
+  assert.equal(UNION_LIMIT, 16);
+});
+
+test('a finding value is a list of strings, so no finding spends a union', () => {
+  // One union per finding is 16 on its own, which leaves no room for anything else. A list
+  // carries every case the union did: nothing found is [], and `state` already says which
+  // kind of nothing it was, so a null value was only ever a second way to say not_stated.
+  const value = request().output_config.format.schema.properties.findings.items.properties.value;
+  assert.deepEqual(value, { type: 'array', items: { type: 'string' } });
 });
 
 test('adaptive thinking is on and effort is high', () => {
@@ -124,6 +163,82 @@ test('a finished response yields a candidate that passes validate', () => {
   const result = readIngestResponse(fixture('complete'));
   assert.equal(result.status, 'complete');
   assert.doesNotThrow(() => validate(result.candidate));
+});
+
+// The wire format is a list; everything downstream – validate, the card, the store – reads a
+// map keyed by field. The reader is the one place that knows both.
+
+const responseWith = (findings) => ({
+  id: 'msg_x',
+  type: 'message',
+  role: 'assistant',
+  model: 'claude-sonnet-5',
+  stop_reason: 'end_turn',
+  usage: { input_tokens: 1, output_tokens: 1 },
+  content: [
+    {
+      type: 'text',
+      text: JSON.stringify({
+        title: 'PhD in Something',
+        source_url: 'https://uni.example/phd',
+        findings,
+        contacts: [],
+        references: [],
+      }),
+    },
+  ],
+});
+
+const everyField = (overrides = []) => {
+  const listed = new Map(overrides.map((o) => [o.field, o]));
+  return FINDING_FIELDS.map(
+    (field) => listed.get(field) ?? { field, state: 'not_stated', value: [], evidence: [] }
+  );
+};
+
+test('the findings list becomes a map keyed by field', () => {
+  const result = readIngestResponse(
+    responseWith(everyField([{ field: 'institution', state: 'found', value: ['UCD'], evidence: [] }]))
+  );
+
+  assert.equal(result.status, 'complete');
+  assert.equal(result.candidate.findings.institution.state, 'found');
+  assert.deepEqual(result.candidate.findings.institution.value, ['UCD']);
+  assert.equal(result.candidate.findings.deadline.state, 'not_stated');
+  assert.ok(!Array.isArray(result.candidate.findings), 'findings must be a map downstream');
+});
+
+test('a field named twice is a failure, not a silent last-one-wins', () => {
+  // Collapsing a list into a map hides duplicates by construction: the second write simply
+  // replaces the first, and a contradicted deadline would vanish without anyone seeing it.
+  const findings = everyField([
+    { field: 'deadline', state: 'found', value: ['2026-01-01'], evidence: [] },
+  ]).concat([{ field: 'deadline', state: 'not_stated', value: [], evidence: [] }]);
+
+  const result = readIngestResponse(responseWith(findings));
+  assert.equal(result.status, 'failed');
+  assert.match(result.reason, /deadline/);
+});
+
+test('a field nobody asked for is a failure, not a stowaway in the record', () => {
+  // The enum makes this unreachable, which is the reason to check it rather than a reason
+  // not to: the reader is where an untrusted response stops being untrusted, and a field
+  // invented here would be stored, shown, and never matched by anything that reads findings.
+  const result = readIngestResponse(
+    responseWith(everyField().concat([{ field: 'tuition_fees', state: 'found', value: ['x'], evidence: [] }]))
+  );
+
+  assert.equal(result.status, 'failed');
+  assert.match(result.reason, /tuition_fees/);
+});
+
+test('a missing field is a failure – the schema can no longer require all sixteen', () => {
+  // A list cannot express "exactly these sixteen", so the guarantee moves here. Without it a
+  // silently omitted field reads downstream as a field that was never asked about.
+  const result = readIngestResponse(responseWith(everyField().filter((f) => f.field !== 'funding')));
+
+  assert.equal(result.status, 'failed');
+  assert.match(result.reason, /funding/);
 });
 
 test('a pause_turn response is not an answer', () => {
@@ -182,6 +297,16 @@ test('a URL becomes a validated candidate in a single call', async () => {
   assert.doesNotThrow(() => validate(result.candidate));
 });
 
+test('list-valued findings become scalar columns on the candidate', async () => {
+  // `institution` and `deadline_at` are single columns, so the list the model returns has to
+  // be narrowed on the way in. Storing "Example University" as a one-element list would put
+  // a JSON array into a text column and every later read would have to undo it.
+  const result = await ingestWith(fakeAnthropic([fixture('complete')]))(SUBMISSION);
+
+  assert.equal(result.candidate.institution, 'Example University');
+  assert.equal(result.candidate.deadline_at, '2026-12-01T23:59:00.000Z');
+});
+
 test('a pause_turn causes a resume rather than being accepted as final', async () => {
   const anthropic = fakeAnthropic([fixture('pause_turn'), fixture('complete')]);
   const result = await ingestWith(anthropic)(SUBMISSION);
@@ -222,7 +347,7 @@ test('unstated fields come back not_stated; the deadline is found only with evid
   const { findings } = result.candidate;
 
   assert.equal(findings.start_date.state, 'not_stated');
-  assert.equal(findings.start_date.value, null);
+  assert.deepEqual(findings.start_date.value, []);
   assert.equal(findings.deadline.state, 'found');
   assert.ok(findings.deadline.evidence.length > 0);
 });
@@ -248,7 +373,7 @@ test('usage is reported for every call the loop made, not just the last', async 
 test('a candidate that fails validation is reported, not stored', async () => {
   const ungated = structuredClone(fixture('complete'));
   const record = JSON.parse(ungated.content.at(-1).text);
-  record.findings.deadline.evidence = [];
+  record.findings.find((f) => f.field === 'deadline').evidence = [];
   ungated.content.at(-1).text = JSON.stringify(record);
 
   const result = await ingestWith(fakeAnthropic([ungated]))(SUBMISSION);
