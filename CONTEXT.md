@@ -9,7 +9,7 @@ Prospect records PhD opportunities submitted through Telegram, together with the
 - **Finding**: A candidate field value for an opportunity, together with its knowledge state and evidence.
 - **Knowledge state**: One of `found`, `not_stated`, `not_applicable`, `conflicting_sources`, or `needs_confirmation`.
 - **Evidence**: A source URL, retrieval timestamp, and short excerpt supporting a finding.
-- **Critical finding**: A deadline, funding, eligibility, or required-document claim. A critical finding cannot be accepted as `found` without evidence.
+- **Critical finding**: A deadline claim. It is the only finding the app acts on without the user present, so it cannot be accepted as `found` without evidence.
 - **Deadline**: The operative date by which action on an opportunity is due. Modelled as a single timestamp on the opportunity; an opportunity with rolling admission or no known date has no deadline.
 - **Reminder**: A user notification derived from a confirmed deadline. Reminders are idempotent across repeated scheduler runs.
 - **Contact**: A supervisor, coordinator, administrator, current student, referee, or other person connected to an opportunity.
