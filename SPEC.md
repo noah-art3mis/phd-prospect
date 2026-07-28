@@ -51,12 +51,18 @@ It runs as a single always-on process in Docker on a free VM, with no n8n, no No
 ## Implementation Decisions
 
 - **Architecture (ADR-0006):** a single long-running Node application, containerised with Docker, hosted on a free always-on VM (GCP "Always Free" e2-micro; a ~€3/mo Hetzner box is the zero-hassle fallback). The one process owns the Telegram bot, the ingest pipeline, the scheduled reminder job, and the web UI. No n8n, no Notion, no build/deploy pipeline, no MCP.
-- **Ingest transport:** the Telegram bot receives messages via webhook (the always-on host makes instant replies possible) and drives approval through inline buttons. Exactly one user is admitted, gated on `TELEGRAM_ALLOWED_USER_ID`.
-- **Pipeline stages** run as ordinary, individually testable functions: `fetch` (page/PDF → text) → `extract` (text → candidate record via the AI model) → `research` (fill explicitly-missing fields) → `validate` (deterministic) → `approve` (human gate) → `persist`.
-- **Research bound (ADR-0001):** read-only tools only; a hard cap on searches and fetched pages per opportunity; official domains preferred. The research step has no ability to write records, send arbitrary messages, run shell, or touch credentials.
+- **Ingest transport:** the Telegram bot uses **long polling** — no domain, TLS certificate, reverse proxy, or inbound port, and no need to authenticate incoming requests, because the app dials out. Approval runs through inline buttons. Exactly one user is admitted, gated on `TELEGRAM_ALLOWED_USER_ID`.
+- **Ingest is one agentic call (ADR-0007):** the submitted URL goes to a single Anthropic call whose server-side `web_fetch` and `web_search` tools fetch the page, extract the opportunity, and fill gaps. The app never fetches a user-submitted URL itself, so no SSRF surface exists to defend. The remaining stages are ordinary testable functions: `validate` (deterministic) → `approve` (human gate) → `persist`.
+- **`pause_turn` must be handled.** Anthropic's server-side tool loop stops at its iteration limit with `stop_reason: "pause_turn"` and HTTP 200. Ingest checks `stop_reason` and re-sends to resume; treating the first response as final yields truncated candidates that look successful.
+- **Research bound (ADR-0001):** read-only tools only, bounded by `max_uses` on the tool definitions — 3 searches, 8 fetches — carried over from the n8n build. The model has no tool that can write records, send messages, run shell, or touch credentials, so the read-only property holds by construction rather than by policy.
+- **Telegram messages carry no `parse_mode`.** Findings come from pages an attacker controls and are interpolated into the approval message. Sending plain text means there is nothing to escape, removing the class of bug that required commits `5ff20d5` and `1c5601d` in the n8n build.
 - **Data contract (ADR-0003):** the record is `{ title, source_url, findings: { <field>: { state, value, evidence[] } } }`, per `schemas/opportunity-candidate.schema.json`. `state` ∈ {`found`, `not_stated`, `not_applicable`, `conflicting_sources`, `needs_confirmation`}. Evidence items are `{ url, retrieved_at, excerpt }`. Critical findings cannot be `found` without evidence; `conflicting_sources` needs ≥2 sources; validation never upgrades a state.
-- **AI model:** Anthropic, used for both extraction and the bounded research step. Model output is parsed leniently; the deterministic validation step is the guardrail (not a schema-enforced decode).
+- **AI model:** `claude-sonnet-5` at effort `high` with adaptive thinking, for the single ingest call. Haiku is not eligible — the `web_search_20260209` / `web_fetch_20260209` tool versions require Opus 5/4.8/4.7/4.6, Sonnet 5, or Sonnet 4.6. Effort stays at `high` because the design depends on the model actually calling its tools, and tool-use rate falls at lower effort and with thinking disabled. Cost is roughly $0.12–$0.30 per opportunity. Model output is parsed leniently; deterministic validation is the guardrail (not a schema-enforced decode).
+- **PDFs** are downloaded from Telegram's own API and passed to the model as base64 `document` blocks — no local PDF parsing. A Telegram file URL is never handed to `web_fetch`: the bot token is embedded in its path.
 - **Storage — SQLite, a single `opportunity` table.** Scalar columns for the queried/sorted fields (title, source_url, status, application stage, priority, institution, …). Attached lists that are only ever read with the opportunity — `findings`, `evidence`, `supervisors`, `contacts`, `research_topics`, `references` — are **JSON columns**, not separate tables. This stores lists-of-objects natively, which was the specific thing Notion made painful.
+- **Pending candidates are unconfirmed rows in the same table**, marked by a `confirmed` flag — not a second table, and *not* a value of `application_stage` or `status`. Those two mean the user's progress and the external world respectively; whether a record has been approved is a property of the record. Keeping it a separate column makes "skip unapproved rows" one predicate that the reminder query and every listing must apply, rather than an enum value it is possible to forget.
+- **Reject deletes the row.** No rejected-history is kept, so resubmitting a previously rejected link runs the full call again. Accepted as a simplification; `opportunityFingerprint` therefore has no consumer and is not ported.
+- **Re-submission of a confirmed opportunity is caught before the model call:** canonicalize the submitted URL (porting `canonicalizeUrl` from `validate_opportunity.js`, already golden-tested), look for an existing confirmed row, and if found reply with its deadline and stage instead of calling the model. This prevents both the wasted call and the duplicate reminders two rows for one deadline would produce.
 - **Deadline as a scalar:** a single nullable `deadline_at` timestamp column on the opportunity, plus a `reminders_sent` JSON field recording which lead-times have already fired (idempotency). Rolling/dateless ⇒ `deadline_at = NULL`. No deadline `type`, no per-deadline evidence (the reference lives in the opportunity's `references`), no `verified`/`rolling` flags — Telegram approval *is* verification, and NULL *is* rolling.
 - **Reminder query:** the daily job selects opportunities where `deadline_at` is non-null and falls within a configured lead window, sends any lead-time reminder not yet in `reminders_sent`, and records it. Idempotency key is effectively `opportunity + lead_time`.
 - **Status vs stage:** external opportunity status and the user's application stage are separate fields (invariant from CONTEXT.md); neither derives from the other.
@@ -70,9 +76,10 @@ It runs as a single always-on process in Docker on a free VM, with no n8n, no No
 - **What a good test is here:** it asserts external behaviour at a stage boundary — given inputs, the record/verdict/reminders produced — not internal wiring. IO edges (Telegram, the AI model, the HTTP fetch, the database) are thin and are stubbed or exercised as focused integration tests, never asserted on for their internal calls.
 - **Primary seam — validation/normalization:** the deterministic `validate` function (candidate record → accepted record or rejection) is the highest-value, purest seam and already has **golden contract cases** as prior art (`node:test` over `tests/golden/*.json`). New rules extend the golden set. This is the one seam to prefer.
 - **Secondary seams:**
-  - `extract` parsing: given representative fetched content (fixtures), assert the shape and knowledge-states of the produced findings.
-  - `research` merge: given a candidate with missing fields plus stubbed search/fetch results, assert only explicitly-missing fields are filled and evidence is attached; unknown stays unknown.
-  - `reminders`: given a set of opportunities with `deadline_at`/`reminders_sent` and a fixed "now", assert exactly the due lead-times are returned and that a second run with the updated state returns nothing (idempotency).
+  - Response parsing: given a recorded Anthropic response (fixture), assert the shape and knowledge-states of the produced findings — including a `pause_turn` fixture, asserting the caller resumes rather than accepting a partial candidate as final.
+  - `reminders`: given a set of opportunities with `deadline_at`/`reminders_sent` and a fixed "now", assert exactly the due lead-times are returned, that a second run with the updated state returns nothing (idempotency), and that unconfirmed rows are never returned at all.
+  - Re-submission: given a confirmed row, assert a URL that canonicalizes to the same value short-circuits without a model call.
+- **The research-merge seam is gone** along with the two-stage pipeline; `merge-research.js` and `build-research-request.js` have no successor.
 - **Prior art:** the existing golden-driven `node:test` suite is the pattern to follow for all of the above; reuse the golden fixtures where the contract is unchanged.
 
 ## Out of Scope
@@ -83,33 +90,36 @@ It runs as a single always-on process in Docker on a free VM, with no n8n, no No
 - A full Notion-equivalent UI (arbitrary relations, multiple saved views, real-time collaboration, a native mobile app). The web UI is a deliberately smaller, functional substitute; a responsive page is the mobile story.
 - Promoting any JSON list (e.g. contacts) to its own table — only if and when a real cross-opportunity query or independent lifecycle appears.
 
-## Still to specify (placeholders — fill via grilling)
+## Still to specify
 
-Comparing against the CAPTA platform spec (`~/capta/plataforma-herramientas-capta/spec/`) surfaced dimensions a mature spec decides that this one has not yet. Each item below is a **stub to resolve in a later grilling session — do not guess, decide explicitly**. (CAPTA's personas/roles/tenancy/multi-module-handoff structure is intentionally omitted: irrelevant to a single-user tool.)
+Comparing against the CAPTA platform spec (`~/capta/plataforma-herramientas-capta/spec/`) surfaced dimensions a mature spec decides that this one had not. (CAPTA's personas/roles/tenancy/multi-module-handoff structure is intentionally omitted: irrelevant to a single-user tool.)
 
-### LLM pipeline — TODO
-- [ ] Which Anthropic model for extraction vs. research (same or different tier).
-- [ ] Where prompt assets live and how they're versioned; the exact extraction and research prompts.
-- [ ] Token/cost budget per opportunity and a hard ceiling.
+A grilling session on 2026-07-28 resolved the ingest, transport, storage-shape, and security branches — those are ticked below and written up in *Implementation Decisions* and ADR-0007. Unticked items are still open: **decide them explicitly rather than guessing.**
+
+### LLM pipeline
+- [x] Model — `claude-sonnet-5`, effort `high`, adaptive thinking. One call, so no extraction/research split. Haiku ineligible (server-side tool versions).
+- [x] Research bound — 3 searches, 8 fetches, as `max_uses` on the tool definitions.
+- [x] Cost per opportunity — ~$0.12–$0.30 measured against current pricing; single-digit dollars per month at realistic volume. A *hard* ceiling is still undecided (see below).
+- [ ] Where prompt assets live and how they're versioned; the exact ingest prompt. (`n8n/prompts/research.md` is prior art; the extraction prompt lived in the workflow JSON.)
 - [ ] Behaviour when the model returns malformed / unparseable output (retry policy, surfacing).
-- [ ] Concrete research bound — replace the current "tbd": exact max searches and fetched pages, and the search provider. Prior art: `n8n/README.md` records the bound the n8n build actually ran with — at most three searches and eight fetched pages per opportunity. Confirm or revise rather than re-deriving.
+- [ ] Whether to set a hard token ceiling — `max_tokens`, or a `task_budget` — so a pathological page can't run up an unbounded call.
 
-### Integrations (each as a contract: purpose, config/secret, failure mode) — TODO
-- [ ] Telegram — webhook vs. polling final decision; bot setup; how the single-user gate is enforced.
-- [ ] Anthropic — key management, rate limits, timeout handling.
-- [ ] Web fetch — JS-rendered pages, PDFs, paywalls, bot-blocking, size/truncation cap.
-- [ ] Search provider — which one, free tier, key.
-- [ ] PDF ingestion path (Telegram document → text).
+### Integrations (each as a contract: purpose, config/secret, failure mode)
+- [x] Telegram — long polling; single-user gate on `TELEGRAM_ALLOWED_USER_ID`.
+- [x] Web fetch — server-side; JS-rendered pages, paywalls and bot-blocking become a reported failure, not local engineering. Size capped by `max_content_tokens`.
+- [x] Search provider — none. `web_search` is part of the model call; no vendor, no account, no key.
+- [x] PDF — downloaded from Telegram's API, passed as a base64 `document` block.
+- [ ] Anthropic — key management, rate limits, timeout handling (note a single ingest call can run for minutes).
 
 ### Persistence, backup & migration — TODO
 - [ ] Where the SQLite file lives on the VM; backup cadence and target (off-box?).
 - [ ] Schema migration approach as the model evolves.
 - [ ] Notion snapshot → `opportunity` seed transform (field mapping).
-- [ ] Retention: do rejected candidates persist at all? Any history/audit?
+- [x] Retention — reject deletes the row; no rejected history, no audit trail.
 
-### Security — TODO
-- [ ] SSRF / fetch safety for untrusted user-supplied URLs. Prior art: ADR-0004 has the threat model and a design (per-hop DNS re-resolution, manual redirect walking, connect-to-validated-IP to close the TOCTOU window). Note the standalone app loses n8n Cloud's managed protection on this hop, so the pre-fetch blocklist inherited from `n8n/code/validate_opportunity.js` is no longer backed by anything.
-- [ ] Where "external content is data, never instructions" is enforced in the pipeline.
+### Security
+- [x] SSRF — dissolved. The app never resolves or connects to a user-submitted URL; its only outbound hosts are `api.anthropic.com` and `api.telegram.org`. ADR-0004's design is not built.
+- [x] "External content is data, never instructions" — enforced by shape. The model's only tools are read-only search and fetch, so an injected page instruction cannot reach the database, Telegram, or credentials; the worst outcome is a wrong candidate, which meets validation and human approval. The one rendering hazard is closed by sending Telegram messages with no `parse_mode`.
 - [ ] Web UI auth — single password vs. Tailscale, final call.
 - [ ] Secrets management (env only, never in git); which secrets exist.
 
@@ -119,20 +129,20 @@ Comparing against the CAPTA platform spec (`~/capta/plataforma-herramientas-capt
 - [ ] Error-alert channel mechanics (Telegram-to-self on any production failure).
 - [ ] Cost/health monitoring so a silent failure or overage is noticed.
 
-### Non-functional budget — TODO
-- [ ] Monthly cost ceiling.
-- [ ] Acceptable latency (instant Telegram ack vs. research completing in minutes).
-- [ ] Rate limits to respect (Telegram, Anthropic, search).
+### Non-functional budget
+- [x] Monthly cost — single-digit dollars at realistic volume; the VM is free and there is no SaaS subscription.
+- [ ] Acceptable latency (instant Telegram ack vs. the ingest call completing in minutes).
+- [ ] Rate limits to respect (Telegram, Anthropic).
 
 ### Domain model & code structure — TODO
 
 Raised by a DDD / functional-core-imperative-shell pass over this spec (2026-07-28). The architecture in *Implementation Decisions* is unaffected; these are about the shape of the code inside it.
 
-- [ ] **A second aggregate is missing.** Storage is specified as "a single `opportunity` table", but stories 13–16 need somewhere durable to hold a candidate between "presented on Telegram" and "you pressed a button" — addressable by callback ID, surviving restart, and expiring if never answered. That is a `Submission` / `PendingReview` with its own lifecycle, not part of `Opportunity`. The n8n build had it as a Data Table with a TTL sweep. Decide the table and its expiry.
+- [x] **The pending-candidate gap** — resolved as an unconfirmed row in the `opportunity` table, marked by a `confirmed` column kept separate from both `application_stage` and `status`. No second aggregate.
+- [x] **FCIS research inversion** — dissolved. Anthropic runs the search/fetch loop, so there is no loop on our side to invert; the bound is a `max_uses` number, not a counter we maintain. What stays pure is what already was.
+- [x] **SSRF checks in domain normalization** — moot; the checks aren't ported, because nothing fetches user URLs locally.
 - [ ] Whether the finding invariants become constructor-enforced value objects (`Finding`, `Evidence`, `SourceUrl`, `KnowledgeState`) rather than post-hoc checks in `validate` — making "a critical finding cannot be `found` without evidence" unrepresentable instead of defended against.
-- [ ] Whether `research` inverts to the FCIS shape: a pure core returning *the next action* ("search these terms" / "fetch this URL" / "done") with the shell performing it and feeding results back. This makes the bounded-research rules testable with canned results and no stubs, and it constrains how the research-bound item above gets specified.
 - [ ] Confirm `now`, IDs, and randomness are arguments everywhere, never ambient. `n8n/code/compute-due-reminders.js` calls `new Date()` inline and reads `$input` from scope; story 20's idempotency is untestable if that ports across as-is.
-- [ ] Whether SSRF/private-IP checks move out of domain normalization (they sit inside `n8n/code/validate_opportunity.js` today) and in with `fetch`, where the boundary concern belongs.
 - [ ] Rename ported payloads from pipeline-stage names (`build-opportunity-payload`, `prepare-opportunities`, `diff-and-alert`) to the domain terms already in CONTEXT.md.
 
 ### Open questions carried over — TODO
