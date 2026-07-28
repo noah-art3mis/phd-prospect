@@ -17,8 +17,13 @@ const { loadPrompt } = require('./core/prompt.cjs');
 const { scheduleJob } = require('./scheduler.cjs');
 const { runReminderSweep } = require('./jobs/reminders.cjs');
 const { createAlerter, installTopLevelHandlers } = require('./alerts.cjs');
+const { runBackup } = require('./jobs/backup.cjs');
 
 const INGEST_PROMPT = path.join(__dirname, '..', 'prompts', 'ingest.prompt');
+
+// Not configuration: nobody needs to tune when a backup runs, and one more required key is
+// one more way for the app to refuse to start.
+const BACKUP_HOUR = 4;
 
 // Anthropic accepts requests up to 32 MB, and base64 inflates bytes by about a third.
 // Telegram's own bot API caps downloads at 20 MB, so this is the binding limit either way —
@@ -136,6 +141,7 @@ function run({ config, store }) {
 function scheduleJobs({ config, store, telegram, onError, signal }) {
   const chatId = config.telegramAllowedUserId;
   const common = { zone: config.timezone, onError, signal };
+  const backupDirectory = path.join(path.dirname(path.resolve(config.dbPath)), 'backups');
 
   return [
     scheduleJob({
@@ -151,6 +157,15 @@ function scheduleJobs({ config, store, telegram, onError, signal }) {
           leadTimes: config.reminderLeadTimes,
           onError,
         }),
+    }),
+
+    // Early morning, before the reminder sweep, so a day's approvals are already on the
+    // copy that leaves the box.
+    scheduleJob({
+      ...common,
+      name: 'backup',
+      hour: BACKUP_HOUR,
+      run: () => runBackup({ store, directory: backupDirectory, bucket: config.gcsBackupBucket }),
     }),
   ];
 }
