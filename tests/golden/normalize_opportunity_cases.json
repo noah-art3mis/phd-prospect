@@ -10,7 +10,9 @@
         "findings": {
           "institution": {
             "state": "found",
-            "value": "Example University",
+            "value": [
+              "Example University"
+            ],
             "evidence": [
               {
                 "url": "https://university.example/research/phd/trustworthy-ai",
@@ -21,7 +23,9 @@
           },
           "deadline": {
             "state": "found",
-            "value": "2026-12-01T23:59:00+01:00",
+            "value": [
+              "2026-12-01T23:59:00+01:00"
+            ],
             "evidence": [
               {
                 "url": "https://university.example/research/phd/trustworthy-ai#apply",
@@ -32,12 +36,12 @@
           },
           "eligibility": {
             "state": "needs_confirmation",
-            "value": null,
+            "value": [],
             "evidence": []
           },
           "required_documents": {
             "state": "not_stated",
-            "value": null,
+            "value": [],
             "evidence": []
           }
         }
@@ -52,17 +56,17 @@
         "findings": {
           "deadline": {
             "state": "not_stated",
-            "value": null,
+            "value": [],
             "evidence": []
           },
           "funding": {
             "state": "needs_confirmation",
-            "value": null,
+            "value": [],
             "evidence": []
           },
           "eligibility": {
             "state": "not_applicable",
-            "value": null,
+            "value": [],
             "evidence": []
           }
         }
@@ -77,7 +81,9 @@
         "findings": {
           "institution": {
             "state": "found",
-            "value": "Example University",
+            "value": [
+              "Example University"
+            ],
             "evidence": []
           }
         }
@@ -92,7 +98,7 @@
         "findings": {
           "funding": {
             "state": "conflicting_sources",
-            "value": null,
+            "value": [],
             "evidence": [
               {
                 "url": "https://uni.example/a",
@@ -118,7 +124,9 @@
         "findings": {
           "deadline": {
             "state": "found",
-            "value": "2026-12-01T23:59:00+01:00",
+            "value": [
+              "2026-12-01T23:59:00+01:00"
+            ],
             "evidence": [
               {
                 "url": "https://uni.example/apply",
@@ -243,7 +251,7 @@
         "findings": {
           "eligibility": {
             "state": "maybe",
-            "value": null,
+            "value": [],
             "evidence": []
           }
         }
@@ -260,7 +268,7 @@
         "findings": {
           "institution": {
             "state": "not_stated",
-            "value": null,
+            "value": [],
             "evidence": {}
           }
         }
@@ -277,7 +285,7 @@
         "findings": {
           "institution": {
             "state": "found",
-            "value": null,
+            "value": [],
             "evidence": []
           }
         }
@@ -294,7 +302,9 @@
         "findings": {
           "deadline": {
             "state": "found",
-            "value": "2026-12-01T23:59:00+01:00",
+            "value": [
+              "2026-12-01T23:59:00+01:00"
+            ],
             "evidence": []
           }
         }
@@ -311,7 +321,7 @@
         "findings": {
           "funding": {
             "state": "conflicting_sources",
-            "value": null,
+            "value": [],
             "evidence": [
               {
                 "url": "https://uni.example/a",
@@ -334,7 +344,9 @@
         "findings": {
           "institution": {
             "state": "found",
-            "value": "X",
+            "value": [
+              "X"
+            ],
             "evidence": [
               "just a string"
             ]
@@ -353,7 +365,9 @@
         "findings": {
           "institution": {
             "state": "found",
-            "value": "X",
+            "value": [
+              "X"
+            ],
             "evidence": [
               {
                 "url": "ftp://uni.example/a",
@@ -376,7 +390,9 @@
         "findings": {
           "institution": {
             "state": "found",
-            "value": "X",
+            "value": [
+              "X"
+            ],
             "evidence": [
               {
                 "url": "https://uni.example/a",
@@ -399,7 +415,9 @@
         "findings": {
           "institution": {
             "state": "found",
-            "value": "X",
+            "value": [
+              "X"
+            ],
             "evidence": [
               {
                 "url": "https://uni.example/a",
@@ -422,7 +440,9 @@
         "findings": {
           "institution": {
             "state": "found",
-            "value": "X",
+            "value": [
+              "X"
+            ],
             "evidence": [
               {
                 "url": "https://uni.example/a",
@@ -445,7 +465,9 @@
         "findings": {
           "institution": {
             "state": "found",
-            "value": "X",
+            "value": [
+              "X"
+            ],
             "evidence": [
               {
                 "url": "https://uni.example/a",
@@ -492,7 +514,9 @@
         "findings": {
           "institution": {
             "state": "found",
-            "value": "U",
+            "value": [
+              "U"
+            ],
             "evidence": [
               {
                 "url": "http://0x7f000001/",
@@ -523,7 +547,9 @@
         "findings": {
           "funding": {
             "state": "found",
-            "value": "Fully funded, 4 years",
+            "value": [
+              "Fully funded, 4 years"
+            ],
             "evidence": []
           }
         }
@@ -538,7 +564,9 @@
         "findings": {
           "eligibility": {
             "state": "found",
-            "value": "Master's degree in a related field",
+            "value": [
+              "Master's degree in a related field"
+            ],
             "evidence": []
           }
         }

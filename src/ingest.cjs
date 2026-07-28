@@ -15,6 +15,16 @@ const { resolveDeadline } = require('./core/deadline.cjs');
 // A stuck loop is worse than a reported failure: each resume costs another call.
 const MAX_RESUMES = 6;
 
+// Findings arrive as lists; `institution` and `deadline_at` are single columns. A field that
+// holds one thing and came back with several is the model disagreeing with the column, and
+// the first entry is the one its own ordering puts first – `conflicting_sources` is how a
+// genuine disagreement is meant to travel, not a longer list under `found`.
+function scalarValue(finding) {
+  if (!finding || finding.state !== 'found') return null;
+  const values = Array.isArray(finding.value) ? finding.value : [finding.value];
+  return values.length === 0 ? null : values[0];
+}
+
 // PDFs are handed to the model as base64 document blocks – nothing parses them locally, and
 // the Telegram file URL is never given to web_fetch, because the bot token is in its path.
 function submissionContent(submission) {
@@ -89,9 +99,9 @@ function createIngest({ anthropic, prompt, zone, onUsage = () => {} }) {
       candidate: {
         ...accepted,
         canonical_url: canonicalizeUrl(accepted.source_url),
-        institution: accepted.findings.institution?.state === 'found' ? accepted.findings.institution.value : null,
+        institution: scalarValue(accepted.findings.institution),
         // Resolved with the zone in force now, so changing TZ later never reinterprets it.
-        deadline_at: deadlineFinding?.state === 'found' ? resolveDeadline(deadlineFinding.value, zone) : null,
+        deadline_at: resolveDeadline(scalarValue(deadlineFinding), zone),
         contacts: accepted.contacts ?? [],
         references: accepted.references ?? [],
         prompt_hash: prompt.contentHash,

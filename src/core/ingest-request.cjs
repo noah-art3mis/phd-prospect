@@ -39,19 +39,29 @@ const FINDING_FIELDS = [
 
 const KNOWLEDGE_STATES = ['found', 'not_stated', 'not_applicable', 'conflicting_sources', 'needs_confirmation'];
 
-// Structured outputs cannot express `additionalProperties: <schema>`, so the finding map is
-// enumerated rather than open. That is a feature here: every field comes back explicitly,
-// with not_stated where the source was silent, instead of being quietly omitted.
+// The API compiles union-typed parameters (type arrays, anyOf, oneOf) at exponential cost and
+// rejects a schema carrying more than this many with a 400. Sixteen findings means one union
+// per finding would spend the entire budget, which is why a finding value is a plain list.
+const UNION_LIMIT = 16;
+
+// One finding schema, named by `field`, rather than sixteen properties each repeating it.
+// Enumerating them compiles a grammar the API rejects as too large: the evidence objects are
+// the bulk of it, and a map pays for them once per field. The list pays once.
+//
+// Requiring all sixteen fields is no longer expressible here – a list cannot say "exactly
+// these" – so readIngestResponse enforces it instead. "The page did not say" must still be a
+// stated answer rather than a missing key, and that rule now has one owner.
 function findingSchema() {
   return {
     type: 'object',
     additionalProperties: false,
-    required: ['state', 'value', 'evidence'],
+    required: ['field', 'state', 'value', 'evidence'],
     properties: {
+      field: { enum: FINDING_FIELDS },
       state: { enum: KNOWLEDGE_STATES },
-      value: {
-        anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }, { type: 'null' }],
-      },
+      // Always a list, never a union: nothing found is [], and `state` already distinguishes
+      // the kinds of nothing, so a null value would only restate it. See UNION_LIMIT.
+      value: { type: 'array', items: { type: 'string' } },
       evidence: {
         type: 'array',
         items: {
@@ -77,12 +87,7 @@ function candidateSchema() {
     properties: {
       title: { type: 'string' },
       source_url: { type: 'string' },
-      findings: {
-        type: 'object',
-        additionalProperties: false,
-        required: [...FINDING_FIELDS],
-        properties: Object.fromEntries(FINDING_FIELDS.map((field) => [field, findingSchema()])),
-      },
+      findings: { type: 'array', items: findingSchema() },
       contacts: {
         type: 'array',
         items: {
@@ -161,4 +166,5 @@ module.exports = {
   MAX_SEARCHES,
   MAX_FETCHES,
   MAX_CONTENT_TOKENS,
+  UNION_LIMIT,
 };
