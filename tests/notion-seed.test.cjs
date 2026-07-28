@@ -9,6 +9,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const {
@@ -18,6 +19,12 @@ const {
 } = require(path.join(__dirname, '..', 'tools', 'notion-to-seed.cjs'));
 
 const SNAPSHOT = path.join(__dirname, '..', 'notion-snapshot');
+
+// The snapshot is real personal data and is gitignored, so it exists on the author's box
+// and nowhere else. The cases that read it skip when it is absent rather than fail; the
+// committed output of the transform (seed/) is what CI actually has to work with, and
+// tests/seed-load.test.cjs asserts against that.
+const withSnapshot = { skip: fs.existsSync(SNAPSHOT) ? false : 'notion-snapshot/ not present' };
 
 test('parseEvidenceBlob splits "field: excerpt (url)" lines', () => {
   const blob = [
@@ -47,12 +54,12 @@ test('parseEvidenceBlob ignores lines with no parenthesised URL', () => {
   assert.deepEqual(parseEvidenceBlob('institution: NTNU with no source', false), {});
 });
 
-test('every snapshot opportunity becomes exactly one seed record', () => {
+test('every snapshot opportunity becomes exactly one seed record', withSnapshot, () => {
   const records = buildSeedRecords(SNAPSHOT);
   assert.equal(records.length, 7);
 });
 
-test('seed records carry the scalar columns the schema queries on', () => {
+test('seed records carry the scalar columns the schema queries on', withSnapshot, () => {
   const records = buildSeedRecords(SNAPSHOT);
   for (const r of records) {
     assert.equal(typeof r.title, 'string');
@@ -63,7 +70,7 @@ test('seed records carry the scalar columns the schema queries on', () => {
   }
 });
 
-test('a deadline finding is `found` only when it carries evidence', () => {
+test('a deadline finding is `found` only when it carries evidence', withSnapshot, () => {
   // The one invariant the app enforces at runtime, applied to seeded rows too: the deadline is
   // the sole critical finding, so `found` without evidence must be unreachable in the seed.
   const records = buildSeedRecords(SNAPSHOT);
@@ -80,7 +87,7 @@ test('a deadline finding is `found` only when it carries evidence', () => {
   }
 });
 
-test('deadline_at agrees with the deadline finding', () => {
+test('deadline_at agrees with the deadline finding', withSnapshot, () => {
   const records = buildSeedRecords(SNAPSHOT);
   for (const r of records) {
     const found = r.findings.deadline.state === 'found';
@@ -88,14 +95,14 @@ test('deadline_at agrees with the deadline finding', () => {
   }
 });
 
-test('the four opportunities with a linked deadline get one', () => {
+test('the four opportunities with a linked deadline get one', withSnapshot, () => {
   // Snapshot fact: 5 deadline rows across 4 opportunities; the rest are rolling or unknown,
   // which the scalar model represents as NULL rather than as a separate state.
   const records = buildSeedRecords(SNAPSHOT);
   assert.equal(records.filter((r) => r.deadline_at !== null).length, 4);
 });
 
-test('unpopulated Notion columns become not_stated, never invented values', () => {
+test('unpopulated Notion columns become not_stated, never invented values', withSnapshot, () => {
   const records = buildSeedRecords(SNAPSHOT);
   for (const r of records) {
     for (const [field, finding] of Object.entries(r.findings)) {
@@ -111,7 +118,7 @@ test('unpopulated Notion columns become not_stated, never invented values', () =
   }
 });
 
-test('start_date is not_stated across the corpus', () => {
+test('start_date is not_stated across the corpus', withSnapshot, () => {
   // Snapshot fact: Start date is 0/7 populated. Guards against a transform that silently
   // reuses the deadline as a start date, which the flat Evidence blob invites.
   const records = buildSeedRecords(SNAPSHOT);
@@ -120,7 +127,7 @@ test('start_date is not_stated across the corpus', () => {
   }
 });
 
-test('dropped Notion concepts do not appear on seed records', () => {
+test('dropped Notion concepts do not appear on seed records', withSnapshot, () => {
   // application_stage, status, priority and the Activities/Documents relations were all cut.
   const records = buildSeedRecords(SNAPSHOT);
   for (const r of records) {
@@ -130,7 +137,7 @@ test('dropped Notion concepts do not appear on seed records', () => {
   }
 });
 
-test('contacts attach only where Notion actually linked them', () => {
+test('contacts attach only where Notion actually linked them', withSnapshot, () => {
   // Snapshot fact: all 17 contacts are orphans — none carries an Opportunity relation and no
   // opportunity links back. Contacts have no table of their own in the new model, so an
   // unlinked contact has nowhere to live on a record. The transform must not guess an owner.
@@ -140,7 +147,7 @@ test('contacts attach only where Notion actually linked them', () => {
   }
 });
 
-test('orphan contacts are exported rather than dropped', () => {
+test('orphan contacts are exported rather than dropped', withSnapshot, () => {
   // 17 people with names, roles and institutions are real work not to throw away, even though
   // the relation that would place them was never filled in.
   const orphans = collectUnlinkedContacts(SNAPSHOT);
@@ -150,7 +157,7 @@ test('orphan contacts are exported rather than dropped', () => {
   }
 });
 
-test('seed records are unconfirmed-safe: confirmed reflects Notion, not a default', () => {
+test('seed records are unconfirmed-safe: confirmed reflects Notion, not a default', withSnapshot, () => {
   const records = buildSeedRecords(SNAPSHOT);
   assert.ok(records.some((r) => r.confirmed), 'expected at least one confirmed row');
 });

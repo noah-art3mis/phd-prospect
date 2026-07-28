@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared cross-language contract for normalize_opportunity. Consumed by BOTH tests/test_contract_normalize.py (Python spec, src/prospect/records.py) and tests/js/run_contract.cjs (the JS port in n8n/code/validate_opportunity.js that the n8n Code node embeds). Each case's `expect` is either the string \"ok\" (candidate is persistence-safe) or {\"invalid\": \"<exact InvalidRecord message>\"}. If the two implementations ever disagree with each other or with these expectations, CI goes red. Add a case here for every new validation rule.",
+  "_comment": "Golden contract for the deterministic validate() seam (src/core/validate.cjs). Each case's `expect` is either the string \"ok\" (candidate is persistence-safe) or {\"invalid\": \"<exact InvalidRecord message>\"}. Add a case here for every new validation rule. Two contract changes landed with the standalone-app rebuild (see issue #22): the deadline is the SOLE critical finding, so funding, eligibility and required_documents no longer need evidence to be `found`; and the SSRF helpers are gone, because nothing fetches a user-submitted URL locally (ADR-0007) — a source_url only has to be http or https.",
   "cases": [
     {
       "name": "happy_path",
@@ -19,14 +19,9 @@
               }
             ]
           },
-          "deadlines": {
+          "deadline": {
             "state": "found",
-            "value": [
-              {
-                "type": "programme_application",
-                "due_at": "2026-12-01T23:59:00+01:00"
-              }
-            ],
+            "value": "2026-12-01T23:59:00+01:00",
             "evidence": [
               {
                 "url": "https://university.example/research/phd/trustworthy-ai#apply",
@@ -55,7 +50,7 @@
         "title": "PhD position",
         "source_url": "https://uni.example/phd",
         "findings": {
-          "deadlines": {
+          "deadline": {
             "state": "not_stated",
             "value": null,
             "evidence": []
@@ -121,13 +116,9 @@
         "title": "PhD position",
         "source_url": "https://uni.example/phd",
         "findings": {
-          "deadlines": {
+          "deadline": {
             "state": "found",
-            "value": [
-              {
-                "type": "programme_application"
-              }
-            ],
+            "value": "2026-12-01T23:59:00+01:00",
             "evidence": [
               {
                 "url": "https://uni.example/apply",
@@ -174,9 +165,7 @@
     },
     {
       "name": "source_url_with_credentials",
-      "expect": {
-        "invalid": "opportunity requires an http or https source_url"
-      },
+      "expect": "ok",
       "input": {
         "title": "PhD position",
         "source_url": "https://user:pass@uni.example/phd",
@@ -185,9 +174,7 @@
     },
     {
       "name": "source_url_localhost",
-      "expect": {
-        "invalid": "opportunity requires an http or https source_url"
-      },
+      "expect": "ok",
       "input": {
         "title": "PhD position",
         "source_url": "http://localhost/phd",
@@ -196,9 +183,7 @@
     },
     {
       "name": "source_url_private_ip",
-      "expect": {
-        "invalid": "opportunity requires an http or https source_url"
-      },
+      "expect": "ok",
       "input": {
         "title": "PhD position",
         "source_url": "http://10.0.0.1/phd",
@@ -207,9 +192,7 @@
     },
     {
       "name": "source_url_link_local_ip",
-      "expect": {
-        "invalid": "opportunity requires an http or https source_url"
-      },
+      "expect": "ok",
       "input": {
         "title": "PhD position",
         "source_url": "http://169.254.169.254/latest/meta-data",
@@ -218,9 +201,7 @@
     },
     {
       "name": "source_url_nonstandard_port",
-      "expect": {
-        "invalid": "opportunity requires an http or https source_url"
-      },
+      "expect": "ok",
       "input": {
         "title": "PhD position",
         "source_url": "http://uni.example:8080/phd",
@@ -241,13 +222,13 @@
     {
       "name": "finding_not_object",
       "expect": {
-        "invalid": "finding 'deadlines' must be an object"
+        "invalid": "finding 'deadline' must be an object"
       },
       "input": {
         "title": "PhD position",
         "source_url": "https://uni.example/phd",
         "findings": {
-          "deadlines": "nope"
+          "deadline": "nope"
         }
       }
     },
@@ -305,19 +286,15 @@
     {
       "name": "critical_found_without_evidence",
       "expect": {
-        "invalid": "critical finding 'deadlines' requires evidence"
+        "invalid": "critical finding 'deadline' requires evidence"
       },
       "input": {
         "title": "PhD position",
         "source_url": "https://uni.example/phd",
         "findings": {
-          "deadlines": {
+          "deadline": {
             "state": "found",
-            "value": [
-              {
-                "type": "programme_application"
-              }
-            ],
+            "value": "2026-12-01T23:59:00+01:00",
             "evidence": []
           }
         }
@@ -487,9 +464,7 @@
         "source_url": "http://0x7f000001/phd",
         "findings": {}
       },
-      "expect": {
-        "invalid": "opportunity requires an http or https source_url"
-      }
+      "expect": "ok"
     },
     {
       "name": "source_url_decimal_ip",
@@ -498,9 +473,7 @@
         "source_url": "http://2130706433/phd",
         "findings": {}
       },
-      "expect": {
-        "invalid": "opportunity requires an http or https source_url"
-      }
+      "expect": "ok"
     },
     {
       "name": "source_url_shorthand_ip",
@@ -509,9 +482,7 @@
         "source_url": "http://127.1/phd",
         "findings": {}
       },
-      "expect": {
-        "invalid": "opportunity requires an http or https source_url"
-      }
+      "expect": "ok"
     },
     {
       "name": "evidence_obfuscated_ip",
@@ -532,9 +503,7 @@
           }
         }
       },
-      "expect": {
-        "invalid": "finding 'institution' has evidence with an invalid url"
-      }
+      "expect": "ok"
     },
     {
       "name": "source_url_global_ip_ok",
@@ -544,6 +513,54 @@
         "findings": {}
       },
       "expect": "ok"
+    },
+    {
+      "name": "former_critical_funding_needs_no_evidence",
+      "expect": "ok",
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "funding": {
+            "state": "found",
+            "value": "Fully funded, 4 years",
+            "evidence": []
+          }
+        }
+      }
+    },
+    {
+      "name": "former_critical_eligibility_needs_no_evidence",
+      "expect": "ok",
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "eligibility": {
+            "state": "found",
+            "value": "Master's degree in a related field",
+            "evidence": []
+          }
+        }
+      }
+    },
+    {
+      "name": "former_critical_required_documents_needs_no_evidence",
+      "expect": "ok",
+      "input": {
+        "title": "PhD position",
+        "source_url": "https://uni.example/phd",
+        "findings": {
+          "required_documents": {
+            "state": "found",
+            "value": [
+              "CV",
+              "Research proposal"
+            ],
+            "evidence": []
+          }
+        }
+      }
     }
   ]
 }

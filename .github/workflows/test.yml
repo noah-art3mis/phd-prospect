@@ -21,13 +21,3 @@ jobs:
 
       - name: Test
         run: npm test
-
-      - name: Build workflows is deterministic
-        run: |
-          printf 'TELEGRAM_ALLOWED_USER_ID=123456789\n' > .env
-          printf '{\n  "opportunities": "ds-opportunities-0000",\n  "deadlines": "ds-deadlines-0000"\n}\n' > notion-data-sources.json
-          npm run build-workflows
-          sha256sum n8n/import/*.json > first.txt
-          npm run build-workflows
-          sha256sum n8n/import/*.json > second.txt
-          diff first.txt second.txt

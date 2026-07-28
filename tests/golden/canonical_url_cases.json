@@ -1,0 +1,35 @@
+{
+  "_comment": "Golden contract for src/core/url.cjs::canonicalizeUrl — the stored key the re-submission short-circuit looks up (issue #28). Canonicalization drops what does not change which page a link points at: scheme, default ports, case, duplicated and trailing slashes, fragments, tracking parameters, and query order. It keeps everything that does. The fingerprint cases of the n8n build are gone with `opportunityFingerprint`: reject deletes the row, so cross-source identity has no consumer.",
+  "cases": [
+    {
+      "name": "tracking_and_case",
+      "input": "HTTPS://University.Example:443//phd/project/?utm_source=telegram&ref=board&project=trustworthy-ai#apply",
+      "expect": "https://university.example/phd/project?project=trustworthy-ai&ref=board"
+    },
+    {
+      "name": "scheme_folded_so_http_and_https_are_one_opportunity",
+      "input": "http://Example.com:80/a//b/",
+      "expect": "https://example.com/a/b"
+    },
+    {
+      "name": "nonstandard_port_kept",
+      "input": "https://example.com:8443/x/",
+      "expect": "https://example.com:8443/x"
+    },
+    {
+      "name": "blank_value_kept",
+      "input": "https://example.com/p?a=&b=2&fbclid=zz",
+      "expect": "https://example.com/p?a=&b=2"
+    },
+    {
+      "name": "root_path",
+      "input": "https://example.com",
+      "expect": "https://example.com/"
+    },
+    {
+      "name": "unparseable_input_is_returned_trimmed",
+      "input": "  not a url  ",
+      "expect": "not a url"
+    }
+  ]
+}

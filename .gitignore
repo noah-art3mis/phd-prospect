@@ -12,3 +12,7 @@ n8n/import/
 
 # Local Notion data snapshot (real personal data, never commit)
 notion-snapshot/
+
+# Python bytecode left by the retired package
+__pycache__/
+.pytest_cache/
