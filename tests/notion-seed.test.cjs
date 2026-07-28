@@ -2,7 +2,7 @@
 //
 // The Notion corpus predates the findings model: it has flat scalar columns and a single
 // truncated `Evidence` rich_text blob per opportunity, not per-field evidence. The transform's
-// job is to recover what is recoverable and mark the rest `not_stated` — never to invent a
+// job is to recover what is recoverable and mark the rest `not_stated` – never to invent a
 // state it cannot support. The deadline is the only critical finding (SPEC), so it is the one
 // place evidence must survive the round trip, and it does: the Deadlines database carries its
 // own `Evidence excerpt` and `Evidence URL`.
@@ -138,7 +138,7 @@ test('dropped Notion concepts do not appear on seed records', withSnapshot, () =
 });
 
 test('contacts attach only where Notion actually linked them', withSnapshot, () => {
-  // Snapshot fact: all 17 contacts are orphans — none carries an Opportunity relation and no
+  // Snapshot fact: all 17 contacts are orphans – none carries an Opportunity relation and no
   // opportunity links back. Contacts have no table of their own in the new model, so an
   // unlinked contact has nowhere to live on a record. The transform must not guess an owner.
   const records = buildSeedRecords(SNAPSHOT);

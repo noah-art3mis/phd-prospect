@@ -1,6 +1,6 @@
 // The tracer bullet, end to end: a link arrives on Telegram and becomes a confirmed row.
 //
-// Everything real except the two network edges — the store is a temporary SQLite file, and
+// Everything real except the two network edges – the store is a temporary SQLite file, and
 // Telegram and Anthropic are stubs returning recorded fixtures. What this pins is the wiring
 // between the pieces, which none of the per-module tests can see.
 
@@ -94,7 +94,7 @@ test('a link becomes an approval card, and approving it writes a confirmed row',
     await app.bot.handleUpdate(linkFrom());
     await app.bot.settle();
 
-    // Ack first, then the card — the ack did not wait on the model call.
+    // Ack first, then the card – the ack did not wait on the model call.
     assert.equal(telegram.sent.length, 2);
     assert.match(telegram.sent[0].text, /Got it/);
     assert.match(telegram.sent[1].text, /PhD in Trustworthy Artificial Intelligence/);

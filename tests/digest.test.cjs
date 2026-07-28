@@ -1,7 +1,7 @@
 // The weekly digest.
 //
 // The load-bearing test is the boring one: it sends even when there is nothing to report.
-// That is the whole mechanism — its absence is the alarm, so a "nothing due, skip it" branch
+// That is the whole mechanism – its absence is the alarm, so a "nothing due, skip it" branch
 // would make silence ambiguous again.
 
 const test = require('node:test');
@@ -49,7 +49,7 @@ async function withDigest(setup, run) {
   }
 }
 
-test('the digest sends even when nothing is due — that is the point', async () => {
+test('the digest sends even when nothing is due – that is the point', async () => {
   await withDigest(null, async ({ sent, digest }) => {
     await digest();
 

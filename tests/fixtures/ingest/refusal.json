@@ -1,5 +1,5 @@
 {
-  "_comment": "The safety classifiers declined the request. HTTP 200, empty content, stop_reason refusal — code that reads content[0] unconditionally breaks here.",
+  "_comment": "The safety classifiers declined the request. HTTP 200, empty content, stop_reason refusal – code that reads content[0] unconditionally breaks here.",
   "id": "msg_refused",
   "type": "message",
   "role": "assistant",

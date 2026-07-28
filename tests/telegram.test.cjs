@@ -1,8 +1,8 @@
 // Focused integration tests for the Telegram edge, against a stubbed fetch.
 //
-// This is a thin IO edge, so what is asserted is the behaviour the app depends on — no
+// This is a thin IO edge, so what is asserted is the behaviour the app depends on – no
 // parse_mode on the wire, the offset advancing so an update is delivered once, and polling
-// surviving a network failure — not which internal calls were made.
+// surviving a network failure – not which internal calls were made.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -143,7 +143,7 @@ test('backoff resets after a successful poll, so a later blip waits briefly agai
 });
 
 test('a handler that throws does not stop the loop or lose the offset', async () => {
-  // One bad update must not take the bot offline — that would be a silent death, which is
+  // One bad update must not take the bot offline – that would be a silent death, which is
   // exactly what the alerting discipline exists to prevent.
   const { fetch, calls } = stubFetch((url, n) => (n === 1 ? [{ update_id: 300 }] : []));
   const telegram = createTelegram({ token: 'T', fetch });

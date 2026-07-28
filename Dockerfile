@@ -5,7 +5,7 @@
 # without a native dependency to compile on a shared-core e2-micro.
 FROM node:22-slim
 
-# Long polling means nothing dials in, so the container needs no ports and no reverse proxy —
+# Long polling means nothing dials in, so the container needs no ports and no reverse proxy –
 # but it does need CA certificates to dial out to Telegram, Anthropic and GCS.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \

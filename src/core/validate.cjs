@@ -1,8 +1,8 @@
-// Deterministic validation — the seam every candidate crosses before a human sees it.
+// Deterministic validation – the seam every candidate crosses before a human sees it.
 //
 // Pure: a candidate object goes in, an accepted clone comes out or an InvalidRecord is
 // thrown. No clock, no environment, no network. Structured outputs already guarantee the
-// record's *shape*; this enforces what a schema cannot express — the evidence rule and
+// record's *shape*; this enforces what a schema cannot express – the evidence rule and
 // the knowledge-state machine. It never upgrades a state and never fills in a value.
 
 const CRITICAL_FINDINGS = ['deadline'];
@@ -24,8 +24,8 @@ function isEmptyValue(value) {
   return value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
 }
 
-// The app never resolves or connects to a user-submitted URL — the model's server-side
-// web_fetch does (ADR-0007) — so there is no SSRF surface here to defend and the private
+// The app never resolves or connects to a user-submitted URL – the model's server-side
+// web_fetch does (ADR-0007) – so there is no SSRF surface here to defend and the private
 // address checks of the n8n build are not ported. A URL only has to be a web link.
 function isHttpUrl(value) {
   return /^https?:\/\/\S+$/i.test(String(value == null ? '' : value).trim());

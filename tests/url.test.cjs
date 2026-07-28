@@ -1,4 +1,4 @@
-// Golden contract for URL canonicalization — the key the re-submission short-circuit
+// Golden contract for URL canonicalization – the key the re-submission short-circuit
 // looks up. Two links a person would call "the same page" must canonicalize identically.
 
 const test = require('node:test');

@@ -89,7 +89,7 @@ test('lead times are sorted descending and de-duplicated', () => {
   assert.deepEqual(config.reminderLeadTimes, [30, 7, 1]);
 });
 
-test('a zero lead time is allowed — "closes today" is a reminder worth sending', () => {
+test('a zero lead time is allowed – "closes today" is a reminder worth sending', () => {
   assert.deepEqual(loadConfig({ ...COMPLETE, REMINDER_LEAD_TIMES: '7,0' }).reminderLeadTimes, [7, 0]);
 });
 

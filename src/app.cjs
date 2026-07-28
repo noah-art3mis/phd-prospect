@@ -28,7 +28,7 @@ const BACKUP_HOUR = 4;
 const DIGEST_WEEKDAY = 0; // Sunday
 
 // Anthropic accepts requests up to 32 MB, and base64 inflates bytes by about a third.
-// Telegram's own bot API caps downloads at 20 MB, so this is the binding limit either way —
+// Telegram's own bot API caps downloads at 20 MB, so this is the binding limit either way –
 // stated here so the failure names a number rather than surfacing as a request error.
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
@@ -50,7 +50,7 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId }) 
 
     const result = await ingest(submission);
     if (!result.ok) {
-      // Thrown so the alert path reports it — a failed ingest must never be silent, because
+      // Thrown so the alert path reports it – a failed ingest must never be silent, because
       // silence is the only other thing the user could be seeing.
       throw new Error(result.reason);
     }
@@ -58,7 +58,7 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId }) 
   };
 }
 
-// The PDF is downloaded from Telegram's own API and handed to the model as base64 — nothing
+// The PDF is downloaded from Telegram's own API and handed to the model as base64 – nothing
 // parses it locally. The Telegram file URL is never given to web_fetch: the bot token is
 // embedded in its path, so passing it to an external service would disclose the token.
 async function fetchPdf(telegram, submission) {
@@ -70,7 +70,7 @@ async function fetchPdf(telegram, submission) {
 
   const bytes = await telegram.downloadFile(submission.fileId);
   if (bytes.length > MAX_PDF_BYTES) {
-    // Telegram does not always report file_size, so the real length is checked too — better
+    // Telegram does not always report file_size, so the real length is checked too – better
     // a named failure than a truncated record.
     throw new Error(
       `${submission.fileName} is too large to send to the model (${Math.round(bytes.length / 1048576)} MB; the limit is 20 MB).`
@@ -82,7 +82,7 @@ async function fetchPdf(telegram, submission) {
 function alreadyTracked(opportunity) {
   const deadline = opportunity.deadline_at
     ? `Deadline on file: ${opportunity.deadline_at.slice(0, 10)}.`
-    : 'No deadline on file — rolling admission.';
+    : 'No deadline on file – rolling admission.';
   return `Already tracking that one.\n\n${opportunity.title}\n${deadline}`;
 }
 
@@ -130,7 +130,7 @@ function run({ config, store }) {
   return Promise.all([
     pollUpdates(telegram, {
       onUpdate: (u) => app.bot.handleUpdate(u),
-      // A poll failure is the network being down, which recovers on its own — alerting on
+      // A poll failure is the network being down, which recovers on its own – alerting on
       // every retry would turn one outage into a stream of messages.
       onError: (error) => console.error(`poll failed, retrying: ${error.message}`),
     }),
@@ -171,7 +171,7 @@ function scheduleJobs({ config, store, telegram, onError, signal }) {
     }),
 
     // Sunday morning. Its absence is the alarm, so it goes out at the same hour reminders
-    // do — a time the user already associates with hearing from the bot.
+    // do – a time the user already associates with hearing from the bot.
     scheduleJob({
       ...common,
       name: 'digest',

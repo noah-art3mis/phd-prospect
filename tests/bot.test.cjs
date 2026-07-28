@@ -1,7 +1,7 @@
 // The bot loop: gate, acknowledge, dispatch.
 //
 // The load-bearing property is that the acknowledgement does not wait on downstream work.
-// Ingest is fire-and-forget — the handler acks and returns, and the call runs unawaited,
+// Ingest is fire-and-forget – the handler acks and returns, and the call runs unawaited,
 // delivering the approval message when it finishes. A test that only checked "the ack was
 // sent eventually" would pass even if the ack were stuck behind a two-minute model call, so
 // these assert the ordering explicitly.

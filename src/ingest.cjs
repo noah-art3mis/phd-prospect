@@ -1,6 +1,6 @@
 // Ingest: a submission becomes a validated candidate.
 //
-// The IO edge around two pure seams — buildIngestRequest and readIngestResponse. The loop
+// The IO edge around two pure seams – buildIngestRequest and readIngestResponse. The loop
 // here exists for one reason: Anthropic's server-side tool loop stops at its iteration limit
 // with stop_reason "pause_turn" and HTTP 200, and the call has to be re-sent to resume.
 // Treating the first response as final is the failure mode this whole module is shaped
@@ -15,7 +15,7 @@ const { resolveDeadline } = require('./core/deadline.cjs');
 // A stuck loop is worse than a reported failure: each resume costs another call.
 const MAX_RESUMES = 6;
 
-// PDFs are handed to the model as base64 document blocks — nothing parses them locally, and
+// PDFs are handed to the model as base64 document blocks – nothing parses them locally, and
 // the Telegram file URL is never given to web_fetch, because the bot token is in its path.
 function submissionContent(submission) {
   if (submission.kind !== 'document') return null;
@@ -46,7 +46,7 @@ function createIngest({ anthropic, prompt, zone, onUsage = () => {} }) {
 
       if (result.status !== 'paused') break;
 
-      // Resume: append the paused turn and re-send. No extra user message — the API sees the
+      // Resume: append the paused turn and re-send. No extra user message – the API sees the
       // trailing server_tool_use and picks up where it stopped.
       messages.push({ role: 'assistant', content: result.assistantContent });
     }
@@ -69,7 +69,7 @@ function createIngest({ anthropic, prompt, zone, onUsage = () => {} }) {
     if (!readEverything(candidate)) {
       return {
         ok: false,
-        reason: 'I could not read anything from that page — it may be JS-rendered, paywalled, blocked, or gone.',
+        reason: 'I could not read anything from that page – it may be JS-rendered, paywalled, blocked, or gone.',
       };
     }
 

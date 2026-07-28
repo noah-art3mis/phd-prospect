@@ -12,7 +12,7 @@ function main(argv) {
   try {
     booted = boot();
   } catch (error) {
-    // Nothing has connected yet, so there is no alert channel to report through — stderr and
+    // Nothing has connected yet, so there is no alert channel to report through – stderr and
     // a non-zero exit are the whole contract.
     console.error(error.message);
     process.exitCode = 1;

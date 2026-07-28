@@ -1,8 +1,8 @@
 // The approval flow: card, buttons, and what each press does to the database.
 //
 // Runs against a real temporary store and a fake Telegram, because the behaviour worth
-// pinning is the state change — a confirmed row, a deleted row, an edited value that is
-// what gets stored — not which methods were called.
+// pinning is the state change – a confirmed row, a deleted row, an edited value that is
+// what gets stored – not which methods were called.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');

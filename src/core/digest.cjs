@@ -1,7 +1,7 @@
 // The weekly digest, as pure text.
 //
 // It is a dead-man's switch that carries useful information, so it gets read rather than
-// ignored. The daily sweep only speaks when something is due, so its silence is ambiguous —
+// ignored. The daily sweep only speaks when something is due, so its silence is ambiguous –
 // no message means either nothing is due or the app is dead. Long polling hides a broken app
 // from outside, GCP restarts instances for maintenance, and a post-deploy crash loop is
 // silent. That ambiguity would otherwise surface as a missed deadline, the one outcome this
@@ -13,7 +13,7 @@ const HORIZON_DAYS = 30;
 
 // Approximate on purpose. The content cap already bounds the worst case near $9/month, so
 // precise accounting would track a number that cannot surprise; summing logged tokens is
-// enough to notice a change in shape. List price for the configured model — the introductory
+// enough to notice a change in shape. List price for the configured model – the introductory
 // rate would flatter the figure, and an estimate that reads high is the safer error.
 const USD_PER_MILLION = { input: 3, output: 15 };
 
@@ -28,12 +28,12 @@ function formatDate(instant, zone) {
 }
 
 function describeBackupAge(lastBackup, now) {
-  if (!lastBackup) return 'Backup: none on record — check the logs';
+  if (!lastBackup) return 'Backup: none on record – check the logs';
   const ageHours = Math.floor((now.getTime() - new Date(lastBackup.occurred_at).getTime()) / 3600000);
   if (ageHours < 36) return `Backup: ${ageHours} hours ago, ok`;
-  // A stale backup is visible here, not only in the alert that fired at the time — which is
+  // A stale backup is visible here, not only in the alert that fired at the time – which is
   // the failure mode a person scrolling past one alert would miss.
-  return `Backup: STALE — last successful one was ${Math.floor(ageHours / 24)} days ago`;
+  return `Backup: STALE – last successful one was ${Math.floor(ageHours / 24)} days ago`;
 }
 
 function digestText({ trackedCount, upcoming, lastBackup, usage, zone, now }) {
@@ -47,7 +47,7 @@ function digestText({ trackedCount, upcoming, lastBackup, usage, zone, now }) {
   } else {
     lines.push(`Deadlines in the next ${HORIZON_DAYS} days:`);
     for (const opportunity of upcoming) {
-      lines.push(`  ${formatDate(opportunity.deadline_at, zone)} — ${opportunity.title}`);
+      lines.push(`  ${formatDate(opportunity.deadline_at, zone)} – ${opportunity.title}`);
     }
   }
   lines.push('');

@@ -1,7 +1,7 @@
 // The Telegram edge.
 //
 // Long polling: the app dials out, so there is no domain, no TLS certificate, no reverse
-// proxy, no inbound port — and no incoming request to authenticate. Who is allowed is
+// proxy, no inbound port – and no incoming request to authenticate. Who is allowed is
 // decided in src/core/router.cjs, off the sender id.
 //
 // Messages carry no parse_mode, anywhere, ever. Findings come from pages an attacker
@@ -28,7 +28,7 @@ function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_AP
 
   // Telegram rejects anything over 4096 characters. A findings-heavy approval card can
   // exceed that, and dropping it would mean an ingest that cost a model call produced
-  // nothing — so split, and keep the buttons on the final chunk where they belong.
+  // nothing – so split, and keep the buttons on the final chunk where they belong.
   function chunk(text) {
     if (text.length <= MAX_MESSAGE_LENGTH) return [text];
     const chunks = [];
@@ -83,7 +83,7 @@ function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_AP
 }
 
 // The polling loop. `rounds` bounds it for tests; in production it runs until the process
-// stops. A poll that fails backs off and retries — losing the network and regaining it has
+// stops. A poll that fails backs off and retries – losing the network and regaining it has
 // to resume without anyone intervening, because nobody is watching the box.
 async function pollUpdates(
   telegram,
@@ -106,7 +106,7 @@ async function pollUpdates(
 
     for (const update of updates) {
       // The offset advances whether or not the handler succeeded. A failing update that is
-      // retried forever takes the bot offline, which is worse than dropping it — and the
+      // retried forever takes the bot offline, which is worse than dropping it – and the
       // failure is reported through the alert path either way.
       offset = update.update_id + 1;
       try {

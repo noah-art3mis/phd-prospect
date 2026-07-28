@@ -1,7 +1,7 @@
 // The approval card, as pure text.
 //
 // Findings come from pages an attacker controls and are interpolated straight into this
-// message. It is sent with no parse_mode at all, so there is nothing to escape — that
+// message. It is sent with no parse_mode at all, so there is nothing to escape – that
 // removes the class of bug rather than handling it, and it is why nothing here does any
 // quoting or sanitising: any transformation would be a thing that could be got wrong.
 //
@@ -43,7 +43,7 @@ function renderFinding(finding) {
   if (!finding) return 'not stated';
   if (finding.state === 'found') return renderValue(finding.value);
   const label = STATE_LABEL[finding.state] ?? finding.state;
-  // A conflicting or unconfirmed value is shown, not hidden — the user judges it.
+  // A conflicting or unconfirmed value is shown, not hidden – the user judges it.
   const value = renderValue(finding.value);
   return value ? `${value}  (${label})` : label;
 }
@@ -63,7 +63,7 @@ function approvalCard(opportunity, { zone }) {
   lines.push(
     opportunity.deadline_at
       ? `Deadline: ${localDate(opportunity.deadline_at, zone)}`
-      : 'Deadline: none on file — no reminders will fire'
+      : 'Deadline: none on file – no reminders will fire'
   );
   lines.push('');
 
@@ -118,7 +118,7 @@ function parseEdit(text, { zone }) {
   }
 
   if (field === 'deadline') {
-    // "none" is how a user says rolling admission — the column's NULL, not a placeholder.
+    // "none" is how a user says rolling admission – the column's NULL, not a placeholder.
     if (/^(none|null|rolling)$/i.test(value)) {
       return { opportunityId: Number(rawId), changes: { deadline_at: null } };
     }

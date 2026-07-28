@@ -6,7 +6,7 @@
 //
 // The frontmatter reader below handles scalars only and throws on anything else. That is
 // deliberate: a hand-rolled parser that quietly misreads a nested block would let a prompt
-// look configured when it is not, and the alternative — a YAML dependency — buys nothing
+// look configured when it is not, and the alternative – a YAML dependency – buys nothing
 // for four keys.
 
 const crypto = require('node:crypto');
@@ -94,7 +94,7 @@ function render(template, variables) {
   });
 }
 
-// A prompt's messages with every placeholder resolved — what the caller sends.
+// A prompt's messages with every placeholder resolved – what the caller sends.
 function renderMessages(prompt, variables) {
   return prompt.messages.map((message) => ({
     role: message.role,

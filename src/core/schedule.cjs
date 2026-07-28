@@ -1,4 +1,4 @@
-// When a scheduled job next runs — pure, so "fires at 9am local, not 9am UTC" is assertable
+// When a scheduled job next runs – pure, so "fires at 9am local, not 9am UTC" is assertable
 // without waiting a day.
 //
 // The schedule is pinned to the configured zone rather than to UTC, so relocating moves
@@ -34,7 +34,7 @@ function instantFor({ year, month, day, hour }, zone) {
   return new Date(naive - offsetMinutes(instant, zone) * 60000);
 }
 
-// The next time the local clock reads `hour` — on `weekday` if one is given (0 = Sunday).
+// The next time the local clock reads `hour` – on `weekday` if one is given (0 = Sunday).
 // Strictly in the future, so a job that has just run does not immediately run again.
 function nextRunAt({ now, zone, hour, weekday = null }) {
   for (let ahead = 0; ahead <= 8; ahead += 1) {

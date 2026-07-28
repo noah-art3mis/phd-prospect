@@ -1,7 +1,7 @@
 // Contract for resolving a deadline finding to a stored UTC instant.
 //
 // The rule from the spec: a deadline is resolved to an instant *at ingest*, using the zone
-// in force then. Changing TZ later must never reinterpret a deadline already approved — it
+// in force then. Changing TZ later must never reinterpret a deadline already approved – it
 // only affects how new ones are read and when reminders arrive.
 
 const test = require('node:test');
@@ -50,7 +50,7 @@ test('an unparseable value is an error, not a silently wrong instant', () => {
   assert.throws(() => resolveDeadline('sometime in the autumn', 'America/Mexico_City'), /deadline/i);
 });
 
-test('resolving is idempotent — a stored instant re-resolves to itself', () => {
+test('resolving is idempotent – a stored instant re-resolves to itself', () => {
   const once = resolveDeadline('2026-09-01', 'America/Mexico_City');
   assert.equal(resolveDeadline(once, 'Europe/London'), once, 'a stored instant must not drift');
 });

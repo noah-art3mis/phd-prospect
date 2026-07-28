@@ -1,5 +1,5 @@
 {
-  "_comment": "A well-formed record with nothing in it: the page was JS-rendered, paywalled, bot-blocked or dead, so every field is not_stated. Structurally this is a success, which is exactly the trap — presenting it as a finished opportunity would be worse than saying the page could not be read.",
+  "_comment": "A well-formed record with nothing in it: the page was JS-rendered, paywalled, bot-blocked or dead, so every field is not_stated. Structurally this is a success, which is exactly the trap – presenting it as a finished opportunity would be worse than saying the page could not be read.",
   "id": "msg_empty",
   "type": "message",
   "role": "assistant",

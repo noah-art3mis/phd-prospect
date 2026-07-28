@@ -1,5 +1,5 @@
 {
-  "_comment": "HTTP 200, and NOT an answer. Anthropic’s server-side tool loop stopped at its iteration limit. The call must be re-sent with this turn appended so the server resumes; accepting it as final yields a truncated candidate that looks successful. Note content carries no text block at all — code that reads content[0].text would produce an empty record here.",
+  "_comment": "HTTP 200, and NOT an answer. Anthropic’s server-side tool loop stopped at its iteration limit. The call must be re-sent with this turn appended so the server resumes; accepting it as final yields a truncated candidate that looks successful. Note content carries no text block at all – code that reads content[0].text would produce an empty record here.",
   "id": "msg_paused",
   "type": "message",
   "role": "assistant",

@@ -1,4 +1,4 @@
-// Configuration — the one place in the app that reads process.env.
+// Configuration – the one place in the app that reads process.env.
 //
 // Everything downstream receives values as arguments, which is what keeps the rest of the
 // modules testable without mutating a global. loadConfig is the pure half (environment in,
@@ -8,7 +8,7 @@
 // misconfigured app starts cleanly and sits there looking healthy; a missing key would
 // otherwise surface hours later as a failed ingest.
 
-// The whole surface. Model id and max_tokens are deliberately absent — they live in the
+// The whole surface. Model id and max_tokens are deliberately absent – they live in the
 // prompt file, tuned together with the wording rather than varying by deployment.
 const CONFIG_KEYS = [
   'TELEGRAM_BOT_TOKEN',

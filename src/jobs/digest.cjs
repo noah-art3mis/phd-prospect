@@ -1,7 +1,7 @@
 // The weekly digest job: gather, render, send.
 //
 // Deliberately unconditional. The whole value is that its absence is the alarm, so there is
-// no "nothing to report, skip this week" branch — that branch would make silence ambiguous
+// no "nothing to report, skip this week" branch – that branch would make silence ambiguous
 // again and undo the point of the job.
 
 const { digestText, upcomingDeadlines } = require('../core/digest.cjs');

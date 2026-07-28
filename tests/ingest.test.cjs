@@ -49,7 +49,7 @@ test('research is bounded: 3 searches, 8 fetches, 5000 content tokens per page',
   assert.equal(MAX_SEARCHES, 3);
   assert.equal(fetch.max_uses, MAX_FETCHES);
   assert.equal(MAX_FETCHES, 8);
-  // max_uses limits how many pages are fetched, not how large they are — the content cap is
+  // max_uses limits how many pages are fetched, not how large they are – the content cap is
   // what actually bounds cost.
   assert.equal(fetch.max_content_tokens, MAX_CONTENT_TOKENS);
   assert.equal(MAX_CONTENT_TOKENS, 5000);
@@ -69,7 +69,7 @@ test('the tool versions are the ones that support the configured model', () => {
   assert.equal(body.tools.find((t) => t.name === 'web_fetch').type, 'web_fetch_20260209');
 });
 
-test('citations are not requested — they are incompatible with structured outputs', () => {
+test('citations are not requested – they are incompatible with structured outputs', () => {
   // Asking for both returns a 400. Provenance travels in the evidence findings instead.
   const body = request();
   assert.ok(!JSON.stringify(body).includes('citations'), 'citations were requested');
@@ -99,7 +99,7 @@ test('adaptive thinking is on and effort is high', () => {
   assert.equal(body.output_config.effort, 'high');
 });
 
-test('no sampling parameters are sent — they are rejected on this model', () => {
+test('no sampling parameters are sent – they are rejected on this model', () => {
   const body = request();
   for (const removed of ['temperature', 'top_p', 'top_k']) {
     assert.ok(!(removed in body), `${removed} would be rejected with a 400`);

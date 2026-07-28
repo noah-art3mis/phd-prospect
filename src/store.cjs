@@ -1,4 +1,4 @@
-// SQLite storage — one `opportunity` table, opened from a file path.
+// SQLite storage – one `opportunity` table, opened from a file path.
 //
 // Scalar columns for what is queried or sorted on; JSON columns for the lists that are only
 // ever read with the opportunity. Storing lists-of-objects natively is the specific thing
@@ -152,7 +152,7 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
     },
 
     // Reject. No rejected-history is kept, so resubmitting a rejected link runs the full
-    // call again — accepted as a simplification.
+    // call again – accepted as a simplification.
     deleteOpportunity(id) {
       statements.remove.run(id);
     },

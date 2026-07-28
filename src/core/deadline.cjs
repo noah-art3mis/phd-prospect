@@ -1,7 +1,7 @@
 // Resolving a deadline finding to the instant the app stores.
 //
 // Pure: the zone is an argument, never read from the environment. The spec's rule is that
-// resolution happens *at ingest*, with the zone in force then — so changing TZ later moves
+// resolution happens *at ingest*, with the zone in force then – so changing TZ later moves
 // when reminders arrive without reinterpreting a deadline already approved. Keeping this
 // function free of ambient state is what makes that property hold.
 
@@ -26,7 +26,7 @@ function offsetMinutes(instant, zone) {
 }
 
 // A wall-clock reading in `zone` as a UTC instant. Two passes: guess the offset at the
-// UTC-interpreted instant, correct, then re-check — the second pass fixes readings that sit
+// UTC-interpreted instant, correct, then re-check – the second pass fixes readings that sit
 // on the far side of a daylight-saving change from the guess.
 function fromWallClock({ year, month, day, hour, minute }, zone) {
   const naive = Date.UTC(year, month - 1, day, hour, minute);

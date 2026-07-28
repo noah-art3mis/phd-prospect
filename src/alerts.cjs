@@ -2,7 +2,7 @@
 //
 // Ingest is fire-and-forget and nothing about an in-flight submission is persisted, so the
 // user's only signal is whether a reply arrives. If a failure can be silent then silence
-// means both "working" and "died", and there is no way to tell which — that ambiguity is
+// means both "working" and "died", and there is no way to tell which – that ambiguity is
 // what would make the fire-and-forget design unpleasant to live with.
 //
 // So: one channel, the same chat, a distinct prefix so alerts do not read as ordinary bot
@@ -13,7 +13,7 @@
 const ALERT_PREFIX = '⚠️ PROSPECT ALERT';
 
 function alertText(error, context) {
-  const what = context ? `${ALERT_PREFIX} — ${context}` : ALERT_PREFIX;
+  const what = context ? `${ALERT_PREFIX} – ${context}` : ALERT_PREFIX;
   const detail = (error?.message ?? String(error)).trim();
   return `${what}\n\n${detail}`;
 }
@@ -31,7 +31,7 @@ function createAlerter({ telegram, chatId, log = console.error }) {
     }
   }
 
-  // The synchronous form the callback-shaped `onError` hooks want. Detached deliberately —
+  // The synchronous form the callback-shaped `onError` hooks want. Detached deliberately –
   // callers report and carry on rather than awaiting an alert.
   function report(context) {
     return (error) => {

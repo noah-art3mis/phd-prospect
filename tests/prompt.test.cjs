@@ -1,7 +1,7 @@
 // Contract for the .prompt loader.
 //
 // Prompts are assets, not code: tuning the ingest wording must never mean editing a
-// module. The format is ported from ~/capta/adapta — YAML frontmatter, then a body split
+// module. The format is ported from ~/capta/adapta – YAML frontmatter, then a body split
 // by {{role "name"}} markers, with {{var}} placeholders rendered at call time.
 //
 // The rule worth a test of its own: an unmatched placeholder throws. An unrendered

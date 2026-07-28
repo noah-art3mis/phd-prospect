@@ -5,7 +5,7 @@
 // validate() seam as live ingest, so the seed is not a back door into the database. A row
 // that would fail the deadline evidence rule is rejected rather than written.
 //
-// Idempotent on canonical URL, because there is no migration framework — the schema changes
+// Idempotent on canonical URL, because there is no migration framework – the schema changes
 // by recreating the database and reseeding, and reseeding must not duplicate what is there.
 
 const { validate } = require('./core/validate.cjs');

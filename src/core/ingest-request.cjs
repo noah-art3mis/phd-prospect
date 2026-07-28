@@ -1,4 +1,4 @@
-// Building the ingest request — pure, so what gets sent to the model is assertable without
+// Building the ingest request – pure, so what gets sent to the model is assertable without
 // a network call.
 //
 // One agentic call does the whole job: the model's own server-side web_fetch and web_search
@@ -12,7 +12,7 @@
 const { renderMessages } = require('./prompt.cjs');
 
 // Carried over from the n8n build. max_uses bounds how many pages are fetched;
-// max_content_tokens bounds how large each one is, which is what actually bounds cost —
+// max_content_tokens bounds how large each one is, which is what actually bounds cost –
 // one verbose advert could otherwise run up the bill inside a single permitted fetch.
 const MAX_SEARCHES = 3;
 const MAX_FETCHES = 8;
@@ -111,7 +111,7 @@ function splitRoles(messages) {
   return { system, messages: rest };
 }
 
-// `content` is the user turn's content blocks — text for a URL submission, or a document
+// `content` is the user turn's content blocks – text for a URL submission, or a document
 // block followed by text for a PDF.
 function buildIngestRequest(prompt, { variables, content }) {
   const rendered = renderMessages(prompt, variables);
@@ -132,7 +132,7 @@ function buildIngestRequest(prompt, { variables, content }) {
     output_config: {
       effort: prompt.metadata.effort ?? 'high',
       // A malformed record is not a state this system can reach. The deterministic validator
-      // still runs — it enforces the evidence rule and the state machine, which a schema
+      // still runs – it enforces the evidence rule and the state machine, which a schema
       // cannot express.
       format: { type: 'json_schema', schema: candidateSchema() },
     },

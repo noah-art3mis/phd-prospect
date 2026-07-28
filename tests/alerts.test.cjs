@@ -1,8 +1,8 @@
 // Every failure speaks.
 //
 // Cross-cutting rather than a vertical slice: one discipline applied everywhere, so these
-// tests walk the failure paths — ingest, validation, a scheduled job, an unhandled
-// rejection — and assert each of them reaches the same channel.
+// tests walk the failure paths – ingest, validation, a scheduled job, an unhandled
+// rejection – and assert each of them reaches the same channel.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -70,7 +70,7 @@ test('the alert path failing is logged rather than thrown', async () => {
   assert.ok(logged.some((line) => /could not deliver/.test(line)));
 });
 
-test('an alert carries no markup expectations — a hostile message renders literally', async () => {
+test('an alert carries no markup expectations – a hostile message renders literally', async () => {
   const telegram = fakeTelegram();
   const alerter = createAlerter({ telegram, chatId: ME, log: () => {} });
 

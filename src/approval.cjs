@@ -3,7 +3,7 @@
 // The candidate is saved as an *unconfirmed row in the same table*, marked by its own
 // boolean. Whether a record has been approved is a property of the record, and keeping it a
 // separate column makes "skip unapproved rows" one predicate that the reminder query and
-// every listing apply — rather than a value buried in some other enum where it is possible
+// every listing apply – rather than a value buried in some other enum where it is possible
 // to forget.
 //
 // Reject deletes the row. No rejected-history is kept, so resubmitting a rejected link runs

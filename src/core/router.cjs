@@ -2,7 +2,7 @@
 //
 // The single-user gate lives here, and it is read off the *sender*, never the chat: in a
 // group those differ, and the chat id is the weaker of the two. Anything from anyone else
-// becomes `ignored`, which carries nothing to act on — no reply, no write.
+// becomes `ignored`, which carries nothing to act on – no reply, no write.
 //
 // Everything downstream of this decision is ordinary code that never has to re-check who
 // sent something.
@@ -71,10 +71,10 @@ function classifyUpdate(update, allowedUserId) {
 // controls, and with no parse_mode there is nothing to escape.
 function acknowledgement(decision) {
   if (decision.kind === 'url') {
-    return `Got it — reading ${decision.url}\n\nThis usually takes a minute or two. I'll send the record when it's ready.`;
+    return `Got it – reading ${decision.url}\n\nThis usually takes a minute or two. I'll send the record when it's ready.`;
   }
   if (decision.kind === 'document') {
-    return `Got it — reading ${decision.fileName}\n\nThis usually takes a minute or two. I'll send the record when it's ready.`;
+    return `Got it – reading ${decision.fileName}\n\nThis usually takes a minute or two. I'll send the record when it's ready.`;
   }
   return 'Got it.';
 }

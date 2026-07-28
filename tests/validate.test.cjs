@@ -3,7 +3,7 @@
 // This is the highest-value seam in the app: a candidate record goes in, an accepted
 // record or an InvalidRecord comes out, with no clock, environment or network involved.
 // The golden cases in tests/golden/normalize_opportunity_cases.json are the durable
-// contract — every new validation rule earns a case there.
+// contract – every new validation rule earns a case there.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');

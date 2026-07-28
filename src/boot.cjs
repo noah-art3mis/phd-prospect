@@ -1,6 +1,6 @@
 // Boot: read the configuration, open the database, load the seed.
 //
-// Nothing here connects to Telegram or Anthropic. That ordering is the point of the ticket —
+// Nothing here connects to Telegram or Anthropic. That ordering is the point of the ticket –
 // the app must refuse to start on a bad configuration *before* any network connection, so a
 // missing key surfaces at boot rather than hours later mid-ingest.
 
@@ -15,7 +15,7 @@ const SEED_FILE = path.join(__dirname, '..', 'seed', 'opportunities.json');
 
 function boot({ log = console.log, seedFile = SEED_FILE } = {}) {
   const config = readConfig();
-  log(`config ok — timezone ${config.timezone}, lead times ${config.reminderLeadTimes.join(', ')}`);
+  log(`config ok – timezone ${config.timezone}, lead times ${config.reminderLeadTimes.join(', ')}`);
 
   const store = openStore(config.dbPath);
   log(`database ready at ${config.dbPath}`);

@@ -1,12 +1,12 @@
-// Reading an Anthropic response — pure, driven from recorded fixtures in tests.
+// Reading an Anthropic response – pure, driven from recorded fixtures in tests.
 //
 // Structured outputs make a malformed record unreachable, so the shape is not what this
 // guards. What it guards is the two ways to get an *incomplete* record, both of which arrive
 // as HTTP 200 and both of which look like success if you only read `content`:
 //
-//   pause_turn  — the server-side tool loop hit its iteration limit. The call must be
+//   pause_turn – the server-side tool loop hit its iteration limit. The call must be
 //                 re-sent to resume. Treating it as final yields a truncated candidate.
-//   max_tokens  — the output was cut off. There is nothing to salvage; it is a failure.
+//   max_tokens – the output was cut off. There is nothing to salvage; it is a failure.
 //
 // Every branch returns a status rather than throwing, so the caller's loop reads as a state
 // machine instead of a pile of try/catch.
@@ -75,8 +75,8 @@ function readIngestResponse(response) {
   return { status: 'complete', usage, candidate };
 }
 
-// Whether the model actually managed to read the submitted page. An unreadable page —
-// JS-rendered, paywalled, bot-blocked, dead — comes back as a well-formed record with
+// Whether the model actually managed to read the submitted page. An unreadable page –
+// JS-rendered, paywalled, bot-blocked, dead – comes back as a well-formed record with
 // nothing in it, which would otherwise be presented as a finished opportunity with every
 // field unknown.
 function readEverything(candidate) {

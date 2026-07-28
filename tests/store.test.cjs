@@ -141,7 +141,7 @@ test('a rolling opportunity stores a null deadline rather than a placeholder dat
   });
 });
 
-test('the store survives being reopened — the schema is created if absent, not each boot', () => {
+test('the store survives being reopened – the schema is created if absent, not each boot', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prospect-store-'));
   const file = path.join(dir, 'prospect.db');
   try {

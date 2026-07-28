@@ -1,8 +1,8 @@
 // The backup job.
 //
 // The restore assertions run against real SQLite files, because "the backup restores" is the
-// only property that matters and a mock cannot tell you. The GCS upload is stubbed — it is a
-// thin IO edge — but what is asserted about it is the part that would silently rot: that no
+// only property that matters and a mock cannot tell you. The GCS upload is stubbed – it is a
+// thin IO edge – but what is asserted about it is the part that would silently rot: that no
 // credential file is involved and the instance identity is used.
 
 const test = require('node:test');
@@ -71,7 +71,7 @@ test('a backup uploads to the configured bucket', async () => {
   });
 });
 
-test('no credential file is required — the instance identity is used', async () => {
+test('no credential file is required – the instance identity is used', async () => {
   await withStore(async ({ store, backupDir }) => {
     const bucket = stubBucket();
     await runBackup({ store, directory: backupDir, bucket: 'prospect-backups', fetch: bucket.fetch });

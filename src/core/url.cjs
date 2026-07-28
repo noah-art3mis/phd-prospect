@@ -1,8 +1,8 @@
 // Stable opportunity identity from a link.
 //
 // Pure. Canonicalization strips everything that does not change which page a link points
-// at — scheme, default ports, host case, duplicated and trailing slashes, the fragment,
-// tracking parameters, query order — so the same opportunity shared from two places
+// at – scheme, default ports, host case, duplicated and trailing slashes, the fragment,
+// tracking parameters, query order – so the same opportunity shared from two places
 // collapses to one key. That key is what the re-submission short-circuit looks up.
 //
 // `opportunityFingerprint` from the n8n build is deliberately not ported: reject deletes

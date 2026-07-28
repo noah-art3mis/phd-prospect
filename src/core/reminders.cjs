@@ -1,7 +1,7 @@
 // The reminder decision, as a pure function.
 //
-// Everything ambient in the n8n build — the clock, the timezone, the lead times, the
-// external "already sent" table — is an argument or a field on the row here. That is what
+// Everything ambient in the n8n build – the clock, the timezone, the lead times, the
+// external "already sent" table – is an argument or a field on the row here. That is what
 // makes "each reminder fires at most once per lead time" assertable in-process instead of
 // by waiting a day: run it, feed the output back as state, run it again, get nothing.
 //

@@ -2,7 +2,7 @@
 //
 // Ingest is fire-and-forget. The handler acknowledges and returns; the call runs unawaited
 // and delivers the approval message when it finishes. Nothing about an in-flight submission
-// is persisted, so a restart mid-ingest drops it — acceptable because the user is present
+// is persisted, so a restart mid-ingest drops it – acceptable because the user is present
 // and will notice no reply came.
 //
 // That design only works if failures speak. Every unawaited path reports through onError,
@@ -66,7 +66,7 @@ function createBot({
   return {
     handleUpdate,
     // Waits for detached work to finish. Used by tests and by shutdown, never by the
-    // request path — awaiting it there would defeat the point.
+    // request path – awaiting it there would defeat the point.
     async settle() {
       while (inFlight.size > 0) await Promise.all([...inFlight]);
     },

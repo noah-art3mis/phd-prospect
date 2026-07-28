@@ -1,5 +1,5 @@
 {
-  "_comment": "HTTP 200 with a truncated record. The text block is valid-looking JSON cut off mid-object. This must be reported as a failure — there is no partial record worth persisting, and a JSON.parse that happened to succeed on a prefix would be worse.",
+  "_comment": "HTTP 200 with a truncated record. The text block is valid-looking JSON cut off mid-object. This must be reported as a failure – there is no partial record worth persisting, and a JSON.parse that happened to succeed on a prefix would be worse.",
   "id": "msg_truncated",
   "type": "message",
   "role": "assistant",

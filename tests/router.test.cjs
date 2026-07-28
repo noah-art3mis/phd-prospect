@@ -2,7 +2,7 @@
 //
 // Pure: an update object and the allowed user id go in, a decision comes out. The single-user
 // gate is the security-relevant part, so it is asserted from several directions rather than
-// once — a message from another account must produce no reply and no database write, which
+// once – a message from another account must produce no reply and no database write, which
 // here means the decision is `ignored` and carries nothing to act on.
 
 const test = require('node:test');
@@ -115,7 +115,7 @@ for (const [what, update] of FROM_STRANGERS) {
 }
 
 test('a message whose chat is mine but whose sender is not is ignored', () => {
-  // Guards the gate against being read off the chat rather than the sender — in a group the
+  // Guards the gate against being read off the chat rather than the sender – in a group the
   // two differ, and the chat id is the weaker of the two.
   const update = {
     update_id: 4,

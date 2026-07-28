@@ -1,6 +1,6 @@
 // Daily backup, and the same command by hand.
 //
-// The copy uses SQLite's own backup API, never a filesystem copy of a live database — a
+// The copy uses SQLite's own backup API, never a filesystem copy of a live database – a
 // `cp` of a database mid-write produces a torn file that restores to nothing, and you find
 // out when you need it.
 //
@@ -12,7 +12,7 @@
 // metadata server, so the component most likely to break from an expired key has no key.
 //
 // A failed backup raises the Telegram alert. Silent backup failure is the specific hazard
-// this design defends against — it is why continuous WAL replication was rejected, since
+// this design defends against – it is why continuous WAL replication was rejected, since
 // that fails silently by design.
 
 const fs = require('node:fs');

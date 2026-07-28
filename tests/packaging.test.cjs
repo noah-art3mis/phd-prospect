@@ -71,7 +71,7 @@ test('every command the deploy doc tells you to run exists', () => {
 
 test('the deploy doc records the accepted single-project risk rather than leaving it implicit', () => {
   // Primary and backup share a GCP project, so a billing or account problem takes both. The
-  // mitigation is that a manual off-box copy is trivial — which only works if it is written
+  // mitigation is that a manual off-box copy is trivial – which only works if it is written
   // down where someone will read it.
   assert.match(deployDoc, /same GCP project/i);
   assert.match(deployDoc, /npm run backup/);

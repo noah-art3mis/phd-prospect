@@ -119,7 +119,7 @@ test('the PDF is downloaded from Telegram and passed as a base64 document block'
   });
 });
 
-test('nothing parses the PDF locally — the bytes go to the model untouched', async () => {
+test('nothing parses the PDF locally – the bytes go to the model untouched', async () => {
   await withApp({}, async ({ requests, app }) => {
     await app.bot.handleUpdate(sendPdf());
     await app.bot.settle();
@@ -129,7 +129,7 @@ test('nothing parses the PDF locally — the bytes go to the model untouched', a
   });
 });
 
-test('no Telegram file URL — and no bot token — ever reaches the model request', async () => {
+test('no Telegram file URL – and no bot token – ever reaches the model request', async () => {
   await withApp({}, async ({ requests, app }) => {
     await app.bot.handleUpdate(sendPdf());
     await app.bot.settle();
