@@ -1,0 +1,155 @@
+[
+  {
+    "name": "Leticia Cesarino",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": null,
+    "institution_or_lab": "UFSC",
+    "research_topics": "Digital anthropology",
+    "notes": null
+  },
+  {
+    "name": "Roney Lira de Sales Santos",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "http://lattes.cnpq.br/5238590321324566",
+    "institution_or_lab": "UFBA",
+    "research_topics": "NLP, fake news",
+    "notes": null
+  },
+  {
+    "name": "Thiago A. S. Pardo",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://sites.google.com/icmc.usp.br/taspardo/home",
+    "institution_or_lab": "NILC, USP",
+    "research_topics": "NLP",
+    "notes": null
+  },
+  {
+    "name": "Leonardo Nascimento",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://www.linkedin.com/in/leofn-labhdufba/",
+    "institution_or_lab": "LABHDUFBA, UFBA",
+    "research_topics": "Digital humanities",
+    "notes": "Lab: https://labhdufba.github.io/"
+  },
+  {
+    "name": "Ted",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": null,
+    "institution_or_lab": null,
+    "research_topics": null,
+    "notes": "Name/institution to confirm"
+  },
+  {
+    "name": "TJ",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": null,
+    "institution_or_lab": "University of Edinburgh",
+    "research_topics": null,
+    "notes": "Name to confirm"
+  },
+  {
+    "name": "Pepa Atanasova",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": null,
+    "institution_or_lab": "CopeNLU, University of Copenhagen",
+    "research_topics": null,
+    "notes": null
+  },
+  {
+    "name": "Isabelle Augenstein",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": null,
+    "institution_or_lab": "CopeNLU, University of Copenhagen",
+    "research_topics": "NLP, explainability, fact-checking",
+    "notes": "Group: https://copenlu.github.io/"
+  },
+  {
+    "name": "John-orr Hanna",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://www.linkedin.com/in/john-orr-h-8022912/",
+    "institution_or_lab": null,
+    "research_topics": "Misinformation",
+    "notes": null
+  },
+  {
+    "name": "Emily Sullivan",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://www.eesullivan.com/nps",
+    "institution_or_lab": "Normative Philsci Lab",
+    "research_topics": null,
+    "notes": null
+  },
+  {
+    "name": "Charlotte Sleigh",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://scholar.google.com/citations?user=bLJCmK0AAAAJ&hl=en",
+    "institution_or_lab": "UCL",
+    "research_topics": "Misinformation",
+    "notes": null
+  },
+  {
+    "name": "Emma Pierson",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://people.eecs.berkeley.edu/~emmapierson/group.html",
+    "institution_or_lab": "Pierson Lab, UC Berkeley",
+    "research_topics": "HypotheSEA",
+    "notes": null
+  },
+  {
+    "name": "Rob Procter",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://warwick.ac.uk/fac/sci/dcs/people/rob_procter/",
+    "institution_or_lab": "AI and Human-Centred Computing, University of Warwick",
+    "research_topics": "AI ethics applied in government",
+    "notes": "Lab: https://warwick.ac.uk/fac/sci/dcs/research/aihcc/"
+  },
+  {
+    "name": "Guillaume Cabanac",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://scholar.google.com/citations?user=4dp38PkAAAAJ&hl=en",
+    "institution_or_lab": null,
+    "research_topics": "Academic integrity",
+    "notes": null
+  },
+  {
+    "name": "Maria Liakata",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://maria-liakata-nlp-group.github.io/",
+    "institution_or_lab": "Queen Mary University of London / Alan Turing Institute",
+    "research_topics": "Social media, dementia",
+    "notes": "Also https://www.turing.ac.uk/people/researchers/maria-liakata"
+  },
+  {
+    "name": "Kalina Bontcheva",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://www.sheffield.ac.uk/cs/people/academic/kalina-bontcheva",
+    "institution_or_lab": "NLP Group, University of Sheffield",
+    "research_topics": "Social media, disinformation, NLP for social media, semantic search, GATE, crowdsourcing of NLP corpora, collaborative text annotation",
+    "notes": null
+  },
+  {
+    "name": "Arkaitz Zubiaga",
+    "role": "Supervisor",
+    "email": null,
+    "profile_url": "https://www.zubiaga.org/",
+    "institution_or_lab": "Social Data Science Lab / Centre for Human-Centred Computing, Queen Mary University of London",
+    "research_topics": null,
+    "notes": "Labs: https://sds.eecs.qmul.ac.uk/ , https://www.seresearch.qmul.ac.uk/chcc/people/"
+  }
+]
