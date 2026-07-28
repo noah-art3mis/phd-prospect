@@ -18,12 +18,14 @@ const { scheduleJob } = require('./scheduler.cjs');
 const { runReminderSweep } = require('./jobs/reminders.cjs');
 const { createAlerter, installTopLevelHandlers } = require('./alerts.cjs');
 const { runBackup } = require('./jobs/backup.cjs');
+const { runWeeklyDigest } = require('./jobs/digest.cjs');
 
 const INGEST_PROMPT = path.join(__dirname, '..', 'prompts', 'ingest.prompt');
 
-// Not configuration: nobody needs to tune when a backup runs, and one more required key is
-// one more way for the app to refuse to start.
+// Not configuration: nobody needs to tune when a backup runs or which day the digest
+// arrives, and one more required key is one more way for the app to refuse to start.
 const BACKUP_HOUR = 4;
+const DIGEST_WEEKDAY = 0; // Sunday
 
 // Anthropic accepts requests up to 32 MB, and base64 inflates bytes by about a third.
 // Telegram's own bot API caps downloads at 20 MB, so this is the binding limit either way —
@@ -166,6 +168,16 @@ function scheduleJobs({ config, store, telegram, onError, signal }) {
       name: 'backup',
       hour: BACKUP_HOUR,
       run: () => runBackup({ store, directory: backupDirectory, bucket: config.gcsBackupBucket }),
+    }),
+
+    // Sunday morning. Its absence is the alarm, so it goes out at the same hour reminders
+    // do — a time the user already associates with hearing from the bot.
+    scheduleJob({
+      ...common,
+      name: 'digest',
+      hour: config.reminderSendHour,
+      weekday: DIGEST_WEEKDAY,
+      run: () => runWeeklyDigest({ store, telegram, chatId, zone: config.timezone }),
     }),
   ];
 }

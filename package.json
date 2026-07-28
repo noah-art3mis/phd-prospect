@@ -13,7 +13,8 @@
     "export-notion": "node tools/export-notion.cjs",
     "ingest-url": "node tools/ingest-url.cjs",
     "remind": "node tools/remind.cjs",
-    "backup": "node tools/backup.cjs"
+    "backup": "node tools/backup.cjs",
+    "digest": "node tools/digest.cjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0"
