@@ -17,6 +17,11 @@ const { loadPrompt } = require('./core/prompt.cjs');
 
 const INGEST_PROMPT = path.join(__dirname, '..', 'prompts', 'ingest.prompt');
 
+// Anthropic accepts requests up to 32 MB, and base64 inflates bytes by about a third.
+// Telegram's own bot API caps downloads at 20 MB, so this is the binding limit either way —
+// stated here so the failure names a number rather than surfacing as a request error.
+const MAX_PDF_BYTES = 20 * 1024 * 1024;
+
 function createSubmissionHandler({ store, telegram, ingest, approval, chatId }) {
   return async function handleSubmission(submission) {
     // Before the model call: a link already tracked answers with the deadline on file,
@@ -29,6 +34,10 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId }) 
       }
     }
 
+    if (submission.kind === 'document') {
+      submission = { ...submission, pdfBase64: await fetchPdf(telegram, submission) };
+    }
+
     const result = await ingest(submission);
     if (!result.ok) {
       // Thrown so the alert path reports it — a failed ingest must never be silent, because
@@ -37,6 +46,27 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId }) 
     }
     await approval.present(result.candidate);
   };
+}
+
+// The PDF is downloaded from Telegram's own API and handed to the model as base64 — nothing
+// parses it locally. The Telegram file URL is never given to web_fetch: the bot token is
+// embedded in its path, so passing it to an external service would disclose the token.
+async function fetchPdf(telegram, submission) {
+  if (submission.fileSize && submission.fileSize > MAX_PDF_BYTES) {
+    throw new Error(
+      `${submission.fileName} is too large to send to the model (${Math.round(submission.fileSize / 1048576)} MB; the limit is 20 MB).`
+    );
+  }
+
+  const bytes = await telegram.downloadFile(submission.fileId);
+  if (bytes.length > MAX_PDF_BYTES) {
+    // Telegram does not always report file_size, so the real length is checked too — better
+    // a named failure than a truncated record.
+    throw new Error(
+      `${submission.fileName} is too large to send to the model (${Math.round(bytes.length / 1048576)} MB; the limit is 20 MB).`
+    );
+  }
+  return bytes.toString('base64');
 }
 
 function alreadyTracked(opportunity) {
@@ -84,4 +114,4 @@ function run({ config, store }) {
   return pollUpdates(telegram, { onUpdate: (u) => app.bot.handleUpdate(u), onError });
 }
 
-module.exports = { createApp, createSubmissionHandler, run, alreadyTracked };
+module.exports = { createApp, createSubmissionHandler, run, alreadyTracked, MAX_PDF_BYTES };
