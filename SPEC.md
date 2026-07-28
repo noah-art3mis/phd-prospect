@@ -19,33 +19,46 @@ It runs as a single always-on process in Docker on a free VM, with no n8n, no No
 1. As the sole user, I want the bot to ignore anyone whose Telegram ID is not mine, so that my tracker stays private.
 2. As the user, I want to send a URL to the bot, so that I can capture an opportunity without leaving Telegram.
 3. As the user, I want to send a PDF to the bot, so that I can capture opportunities that only exist as documents.
-4. As the user, I want the bot to acknowledge receipt immediately, so that I know it's working on it.
-5. As the user, I want the app to fetch the linked page's content, so that extraction has something to read.
-6. As the user, I want an AI model to extract a structured Opportunity record (title, source, and **Findings** with **Knowledge states** and **Evidence**), so that I don't have to read the whole page myself.
-7. As the user, I want a bounded, read-only research step to fill fields that are explicitly missing, preferring official sources, so that gaps are closed without inventing facts.
+4. As the user, I want the bot to acknowledge receipt immediately and echo back what it received, so that I know it is working on it and on the right thing.
+5. As the user, I want the page fetched by the model's own server-side tools rather than by my app, so that my box never resolves or connects to a URL a stranger chose.
+6. As the user, I want an AI model to extract a structured **Opportunity** record (title, source, and **Findings** with **Knowledge states** and **Evidence**), so that I don't have to read the whole page myself.
+7. As the user, I want a bounded, read-only research step to fill fields the page did not state, preferring official sources, so that gaps are closed without inventing facts.
 8. As the user, I want research strictly limited in the number of searches and fetched pages, so that it stays cheap and fast.
-9. As the user, I want unknown information to stay unknown, so that the record never contains guessed values.
-10. As the user, I want the **Deadline** to require Evidence before it counts as `found`, so that the one field the app acts on unprompted is one I can trust.
-11. As the user, I want conflicting sources kept visible rather than silently resolved, so that I can judge them myself.
-12. As the user, I want deterministic validation of the record before I ever see it, so that malformed or unsupported values are caught.
-13. As the user, I want the validated record presented on Telegram with Approve / Edit / Reject buttons, so that nothing is stored without my say-so.
-14. As the user, I want to reject a record, so that junk is discarded.
-15. As the user, I want to edit a field before approving, so that I can correct the model.
-16. As the user, I want to approve a record, so that it is saved to the database.
-17. As the user, I want the opportunity's operative **Deadline** stored as a single date (or none, if rolling), so that reminders have something to fire on.
-18. As the user, I want approved records to carry their supervisors, contacts, research topics, findings, evidence, and references, so that the context travels with the opportunity.
-19. As the user, I want a daily job to tell me which deadlines are approaching, so that I act in time.
-20. As the user, I want each **Reminder** to fire at most once per configured lead time, so that repeated daily runs never nag me twice for the same date.
-21. As the user, I want opportunities with no deadline (rolling admission) to be skipped by reminders, so that I'm not reminded about nothing.
-22. As the user, I want to be alerted when a production step fails, so that a silent breakage doesn't cost me a deadline.
-23. As the user, I want a minimal web page listing my opportunities sorted by deadline, so that I can sit and compare them.
-24. As the user, I want to open one opportunity and edit its fields on that page, so that I can maintain records outside Telegram.
-25. As the user, I want the web page reachable only over my private network, so that only I can reach it and it needs no login of its own.
-26. As the user, I want to view an opportunity's findings and evidence as a readable list, so that I can check provenance.
-27. As the user, I want the whole thing to run unattended on an always-on box, so that reminders fire even when my laptop is off.
-28. As the user, I want all times interpreted in my configured local timezone unless a source states otherwise, so that deadlines are consistent as I relocate.
-29. As the user, I want the app's code and database schema in git, so that I can back up, recreate, and reason about the system.
-30. As the user, I want to import my existing Notion data as seed records, so that I don't lose what I've already collected.
+9. As the user, I want each fetched page capped in size, so that one verbose advert cannot run up the bill.
+10. As the user, I want unknown information to stay unknown, so that the record never contains guessed values.
+11. As the user, I want the **Deadline** to require **Evidence** before it counts as `found`, so that the one field the app acts on unprompted is one I can trust.
+12. As the user, I want conflicting sources kept visible rather than silently resolved, so that I can judge them myself.
+13. As the user, I want the model's response constrained to a schema, so that a malformed record is never something I have to deal with.
+14. As the user, I want an ingest call that stops early — whether it paused at the tool-loop limit or hit the output cap — to be resumed or reported, so that a partial record is never presented as a finished one.
+15. As the user, I want deterministic validation of the record before I ever see it, so that unsupported values and broken invariants are caught.
+16. As the user, I want the validated record presented on Telegram with Approve / Edit / Reject buttons, so that nothing is stored without my say-so.
+17. As the user, I want approval messages sent as plain text with no markup parsing, so that text from a page an attacker controls cannot break or hijack the message.
+18. As the user, I want to reject a record, so that junk is discarded.
+19. As the user, I want to edit a field before approving, so that I can correct the model.
+20. As the user, I want to approve a record, so that it is saved to the database.
+21. As the user, I want an unapproved candidate excluded from reminders, listings and counts, so that pending work never behaves like tracked work.
+22. As the user, I want re-submitting a link I have already confirmed to answer with the deadline I already have, so that I neither pay for a second call nor end up with two rows firing duplicate reminders.
+23. As the user, I want the opportunity's operative **Deadline** stored as a single date (or none, if rolling), so that reminders have something to fire on.
+24. As the user, I want approved records to carry their supervisors, contacts, research topics, findings, evidence, and references, so that the context travels with the opportunity.
+25. As the user, I want a daily job to tell me which deadlines are approaching, so that I act in time.
+26. As the user, I want each **Reminder** to fire at most once per configured lead time, so that repeated daily runs never nag me twice for the same date.
+27. As the user, I want opportunities with no deadline (rolling admission) to be skipped by reminders, so that I'm not reminded about nothing.
+28. As the user, I want every failure — unreadable page, model error, failed backup — to send me a message, so that silence means "still working" and nothing else.
+29. As the user, I want a weekly digest of tracked opportunities, upcoming deadlines, backup age and approximate spend, so that a dead app is obvious by its absence rather than discovered through a missed deadline.
+30. As the user, I want the app to refuse to start when its configuration is incomplete, so that a missing key surfaces at boot rather than hours later mid-ingest.
+31. As the user, I want the database backed up off-box daily, so that losing the VM does not lose my records.
+32. As the user, I want to run that same backup by hand and get a file, so that keeping an occasional copy outside the provider is a habit rather than a project.
+33. As the user, I want the ingest prompt kept as a versioned file with its model and token settings alongside it, so that tuning the prompt does not mean editing code.
+34. As the user, I want each record stamped with the hash of the prompt that produced it, so that I can tell whether extraction got better or worse after a change.
+35. As the user, I want a minimal web page listing my opportunities sorted by deadline, so that I can sit and compare them.
+36. As the user, I want to open one opportunity and edit its fields on that page, so that I can maintain records outside Telegram.
+37. As the user, I want the web page reachable only over my private network, so that only I can reach it and it needs no login of its own.
+38. As the user, I want to view an opportunity's findings and evidence as a readable list, so that I can check provenance.
+39. As the user, I want the whole thing to run unattended on an always-on box, so that reminders fire even when my laptop is off.
+40. As the user, I want all times interpreted in my configured local timezone unless a source states otherwise, so that deadlines stay correct as I relocate.
+41. As the user, I want a stored deadline to keep its meaning when I change timezone, so that relocating never silently shifts dates I already approved.
+42. As the user, I want the app's code, schema and prompts in git, so that I can back up, recreate, and reason about the system.
+43. As the user, I want my existing Notion corpus transformed into seed records that obey the same evidence rules as live ingest, so that I start with what I already collected and no ungated data enters the database.
 
 ## Implementation Decisions
 
@@ -69,18 +82,20 @@ It runs as a single always-on process in Docker on a free VM, with no n8n, no No
 - **Web UI:** server-rendered pages in the same app, reading/writing the same SQLite file — a list view sorted by deadline, a detail/edit view, and evidence rendering. Reachable only over Tailscale, so it carries no auth code of its own. **Deferred** until the Telegram + reminder loop is demonstrably reliable.
 - **Timezone:** the local timezone is configuration (`TZ`), currently `America/Mexico_City`; an explicit source timezone wins. A deadline is resolved to a UTC instant at ingest using the zone in force then, so changing `TZ` never reinterprets a stored deadline — it affects only how new ones are read and when reminders fire. The reminder schedule is pinned to the same zone, so a relocation moves *when* reminders arrive rather than silently shifting them by the UTC offset.
 - **Git is the source of truth** for ordinary application code and schema — there is no live instance to reconcile (this is what ADR-0005 becomes once n8n is gone).
-- **Seed migration:** the existing Notion export (already snapshotted locally) is transformed into `opportunity` rows as one-time seed data.
+- **Seed migration:** built. `tools/notion-to-seed.cjs` transforms the local Notion snapshot into `seed/opportunities.json` (7 records, 4 with an evidenced deadline) plus `seed/contacts-unlinked.json` (17 contacts that carry no opportunity relation in the source data). Seeded rows obey the same evidence gate as live ingest.
 
 ## Testing Decisions
 
 - **What a good test is here:** it asserts external behaviour at a stage boundary — given inputs, the record/verdict/reminders produced — not internal wiring. IO edges (Telegram, the AI model, the HTTP fetch, the database) are thin and are stubbed or exercised as focused integration tests, never asserted on for their internal calls.
 - **Primary seam — validation/normalization:** the deterministic `validate` function (candidate record → accepted record or rejection) is the highest-value, purest seam and already has **golden contract cases** as prior art (`node:test` over `tests/golden/*.json`). New rules extend the golden set. This is the one seam to prefer.
 - **Secondary seams:**
-  - Response parsing: given a recorded Anthropic response (fixture), assert the shape and knowledge-states of the produced findings — including a `pause_turn` fixture, asserting the caller resumes rather than accepting a partial candidate as final.
+  - Response parsing: given a recorded Anthropic response (fixture), assert the shape and knowledge-states of the produced findings. Two fixtures pin the HTTP-200-but-incomplete failures: a `pause_turn` response, asserting the caller resumes rather than accepting a partial candidate as final, and a `max_tokens` response, asserting it reports failure rather than persisting a truncated record.
   - `reminders`: given a set of opportunities with `deadline_at`/`reminders_sent` and a fixed "now", assert exactly the due lead-times are returned, that a second run with the updated state returns nothing (idempotency), and that unconfirmed rows are never returned at all.
   - Re-submission: given a confirmed row, assert a URL that canonicalizes to the same value short-circuits without a model call.
 - **The research-merge seam is gone** along with the two-stage pipeline; `merge-research.js` and `build-research-request.js` have no successor.
-- **Prior art:** the existing golden-driven `node:test` suite is the pattern to follow for all of the above; reuse the golden fixtures where the contract is unchanged.
+  - Seed transform: **already built** (`tools/notion-to-seed.cjs`, 14 cases in `tests/notion-seed.test.cjs`) and asserted against the real snapshot, including the blob-truncation rule and the invariant that a `found` deadline always carries evidence.
+- **Deliberately not seams:** Telegram, the Anthropic client, SQLite, and the backup upload. These are thin IO edges — stubbed, or exercised as focused integration tests, never asserted on for their internal calls.
+- **Prior art:** the existing golden-driven `node:test` suite is the pattern to follow for all of the above; reuse the golden fixtures where the contract is unchanged. Note the golden set changes with this spec: `CRITICAL_FINDINGS` drops from four entries to one, so fixtures asserting rejection on funding or eligibility flip to accept.
 
 ## Out of Scope
 
