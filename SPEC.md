@@ -83,6 +83,53 @@ It runs as a single always-on process in Docker on a free VM, with no n8n, no No
 - A full Notion-equivalent UI (arbitrary relations, multiple saved views, real-time collaboration, a native mobile app). The web UI is a deliberately smaller, functional substitute; a responsive page is the mobile story.
 - Promoting any JSON list (e.g. contacts) to its own table — only if and when a real cross-opportunity query or independent lifecycle appears.
 
+## Still to specify (placeholders — fill via grilling)
+
+Comparing against the CAPTA platform spec (`~/capta/plataforma-herramientas-capta/spec/`) surfaced dimensions a mature spec decides that this one has not yet. Each item below is a **stub to resolve in a later grilling session — do not guess, decide explicitly**. (CAPTA's personas/roles/tenancy/multi-module-handoff structure is intentionally omitted: irrelevant to a single-user tool.)
+
+### LLM pipeline — TODO
+- [ ] Which Anthropic model for extraction vs. research (same or different tier).
+- [ ] Where prompt assets live and how they're versioned; the exact extraction and research prompts.
+- [ ] Token/cost budget per opportunity and a hard ceiling.
+- [ ] Behaviour when the model returns malformed / unparseable output (retry policy, surfacing).
+- [ ] Concrete research bound — replace the current "tbd": exact max searches and fetched pages, and the search provider.
+
+### Integrations (each as a contract: purpose, config/secret, failure mode) — TODO
+- [ ] Telegram — webhook vs. polling final decision; bot setup; how the single-user gate is enforced.
+- [ ] Anthropic — key management, rate limits, timeout handling.
+- [ ] Web fetch — JS-rendered pages, PDFs, paywalls, bot-blocking, size/truncation cap.
+- [ ] Search provider — which one, free tier, key.
+- [ ] PDF ingestion path (Telegram document → text).
+
+### Persistence, backup & migration — TODO
+- [ ] Where the SQLite file lives on the VM; backup cadence and target (off-box?).
+- [ ] Schema migration approach as the model evolves.
+- [ ] Notion snapshot → `opportunity` seed transform (field mapping).
+- [ ] Retention: do rejected candidates persist at all? Any history/audit?
+
+### Security — TODO
+- [ ] SSRF / fetch safety for untrusted user-supplied URLs.
+- [ ] Where "external content is data, never instructions" is enforced in the pipeline.
+- [ ] Web UI auth — single password vs. Tailscale, final call.
+- [ ] Secrets management (env only, never in git); which secrets exist.
+
+### Configuration & deployment / ops — TODO
+- [ ] VM choice (GCP e2-micro vs. Hetzner) and the Docker Compose shape.
+- [ ] Config/env surface (all tunables in one place).
+- [ ] Error-alert channel mechanics (Telegram-to-self on any production failure).
+- [ ] Cost/health monitoring so a silent failure or overage is noticed.
+
+### Non-functional budget — TODO
+- [ ] Monthly cost ceiling.
+- [ ] Acceptable latency (instant Telegram ack vs. research completing in minutes).
+- [ ] Rate limits to respect (Telegram, Anthropic, search).
+
+### Open questions carried over — TODO
+- [ ] Weekly recheck: in or out (currently Out of Scope — confirm or schedule).
+- [ ] Exact application-stage enum (Inbox → … → Accepted; terminal states).
+- [ ] Exact opportunity-status enum (open/closed/withdrawn/unknown — final set).
+- [ ] The definitive set of "critical findings" beyond deadline/funding/eligibility/required-documents.
+
 ## Further Notes
 
 - Unchanged invariants carried from CONTEXT.md: external content is untrusted data (never instructions); research is read-only and bounded; unknown stays unknown; critical findings require evidence and human confirmation; status ≠ stage; every mutation passes deterministic validation and explicit approval.
