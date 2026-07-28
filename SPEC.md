@@ -92,7 +92,7 @@ Comparing against the CAPTA platform spec (`~/capta/plataforma-herramientas-capt
 - [ ] Where prompt assets live and how they're versioned; the exact extraction and research prompts.
 - [ ] Token/cost budget per opportunity and a hard ceiling.
 - [ ] Behaviour when the model returns malformed / unparseable output (retry policy, surfacing).
-- [ ] Concrete research bound — replace the current "tbd": exact max searches and fetched pages, and the search provider.
+- [ ] Concrete research bound — replace the current "tbd": exact max searches and fetched pages, and the search provider. Prior art: `n8n/README.md` records the bound the n8n build actually ran with — at most three searches and eight fetched pages per opportunity. Confirm or revise rather than re-deriving.
 
 ### Integrations (each as a contract: purpose, config/secret, failure mode) — TODO
 - [ ] Telegram — webhook vs. polling final decision; bot setup; how the single-user gate is enforced.
@@ -108,7 +108,7 @@ Comparing against the CAPTA platform spec (`~/capta/plataforma-herramientas-capt
 - [ ] Retention: do rejected candidates persist at all? Any history/audit?
 
 ### Security — TODO
-- [ ] SSRF / fetch safety for untrusted user-supplied URLs.
+- [ ] SSRF / fetch safety for untrusted user-supplied URLs. Prior art: ADR-0004 has the threat model and a design (per-hop DNS re-resolution, manual redirect walking, connect-to-validated-IP to close the TOCTOU window). Note the standalone app loses n8n Cloud's managed protection on this hop, so the pre-fetch blocklist inherited from `n8n/code/validate_opportunity.js` is no longer backed by anything.
 - [ ] Where "external content is data, never instructions" is enforced in the pipeline.
 - [ ] Web UI auth — single password vs. Tailscale, final call.
 - [ ] Secrets management (env only, never in git); which secrets exist.
@@ -123,6 +123,17 @@ Comparing against the CAPTA platform spec (`~/capta/plataforma-herramientas-capt
 - [ ] Monthly cost ceiling.
 - [ ] Acceptable latency (instant Telegram ack vs. research completing in minutes).
 - [ ] Rate limits to respect (Telegram, Anthropic, search).
+
+### Domain model & code structure — TODO
+
+Raised by a DDD / functional-core-imperative-shell pass over this spec (2026-07-28). The architecture in *Implementation Decisions* is unaffected; these are about the shape of the code inside it.
+
+- [ ] **A second aggregate is missing.** Storage is specified as "a single `opportunity` table", but stories 13–16 need somewhere durable to hold a candidate between "presented on Telegram" and "you pressed a button" — addressable by callback ID, surviving restart, and expiring if never answered. That is a `Submission` / `PendingReview` with its own lifecycle, not part of `Opportunity`. The n8n build had it as a Data Table with a TTL sweep. Decide the table and its expiry.
+- [ ] Whether the finding invariants become constructor-enforced value objects (`Finding`, `Evidence`, `SourceUrl`, `KnowledgeState`) rather than post-hoc checks in `validate` — making "a critical finding cannot be `found` without evidence" unrepresentable instead of defended against.
+- [ ] Whether `research` inverts to the FCIS shape: a pure core returning *the next action* ("search these terms" / "fetch this URL" / "done") with the shell performing it and feeding results back. This makes the bounded-research rules testable with canned results and no stubs, and it constrains how the research-bound item above gets specified.
+- [ ] Confirm `now`, IDs, and randomness are arguments everywhere, never ambient. `n8n/code/compute-due-reminders.js` calls `new Date()` inline and reads `$input` from scope; story 20's idempotency is untestable if that ports across as-is.
+- [ ] Whether SSRF/private-IP checks move out of domain normalization (they sit inside `n8n/code/validate_opportunity.js` today) and in with `fetch`, where the boundary concern belongs.
+- [ ] Rename ported payloads from pipeline-stage names (`build-opportunity-payload`, `prepare-opportunities`, `diff-and-alert`) to the domain terms already in CONTEXT.md.
 
 ### Open questions carried over — TODO
 - [ ] Weekly recheck: in or out (currently Out of Scope — confirm or schedule).
