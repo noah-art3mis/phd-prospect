@@ -10,7 +10,8 @@
   "scripts": {
     "test": "node --test",
     "notion-to-seed": "node tools/notion-to-seed.cjs",
-    "export-notion": "node tools/export-notion.cjs"
+    "export-notion": "node tools/export-notion.cjs",
+    "ingest-url": "node tools/ingest-url.cjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0"
