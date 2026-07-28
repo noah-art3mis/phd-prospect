@@ -84,7 +84,7 @@ It runs as a single always-on process in Docker on a free VM, with no n8n, no No
 
 ## Out of Scope
 
-- **Weekly recheck** of whether opportunities are still open — deferred until ingestion + reminders are demonstrably reliable. May return as a second scheduled job.
+- **Weekly recheck** of tracked opportunities. Not deferred — dissolved. It existed to maintain opportunity status, which is gone; re-verifying deadlines instead costs a model call per tracked opportunity per week and requires deciding whether a page changed or the model merely read it differently. The weekly digest lists upcoming deadlines; checking the source is a click.
 - CV/opportunity matching, email drafting, automatic application submission, Obsidian sync — and any broadening of the research step's authority beyond read-only.
 - Multi-user support.
 - A full Notion-equivalent UI (arbitrary relations, multiple saved views, real-time collaboration, a native mobile app). The web UI is a deliberately smaller, functional substitute; a responsive page is the mobile story.
@@ -154,7 +154,7 @@ Raised by a DDD / functional-core-imperative-shell pass over this spec (2026-07-
 - [ ] Rename ported payloads from pipeline-stage names (`build-opportunity-payload`, `prepare-opportunities`, `diff-and-alert`) to the domain terms already in CONTEXT.md.
 
 ### Open questions carried over — TODO
-- [ ] Weekly recheck: in or out (currently Out of Scope — confirm or schedule).
+- [x] **Weekly recheck — out, and dissolved rather than deferred.** Its purpose was answering "is this still open?", which meant maintaining opportunity status, a field that no longer exists. What survived was narrower: deadlines move, and a record that still says 15 January fires early, or misses an extension the user would have taken. Rejected anyway — rechecking 40 tracked opportunities is 40 model calls a week, far past the cost envelope, and the diff is the fiddly part: `diff-and-alert.js` carries a guard that it "never rewrites confirmed critical values", which is exactly the hard question of whether the page changed or the model read it differently. Structured outputs with model-authored excerpts make that distinction harder, not easier. The substitute is manual: the weekly digest lists deadlines inside 30 days, and the source link is one click away. Accepted risk: a silent extension is a lost opportunity the user never learns about.
 - [x] **Application stage — cut.** The app records opportunities and deadlines; it does not track progress through an application. No enum, no column, no user story.
 - [x] **Opportunity status — cut**, for the same reason. "Still open?" is a fact about the world that would need hand-maintaining to stay true, and a stale status is worse than no status. Absence of a future deadline carries what the reminder loop actually needs.
 - [x] **Critical findings — deadline only.** The evidence requirement exists to stop the app acting on an unchecked assertion, and after the workflow-state cut there is exactly one field it acts on unattended: `deadline_at` fires a reminder weeks later with nobody watching. Funding, eligibility and required documents are read on screen with the source URL beside them — display, not automation — so gating them produces `needs_confirmation` noise on fields the page stated plainly. Accepted cost: a wrong eligibility claim can waste a week, it just cannot waste it silently.
