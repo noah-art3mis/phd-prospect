@@ -7,7 +7,7 @@
 // writes a confirmed row.
 
 const path = require('node:path');
-const Anthropic = require('@anthropic-ai/sdk');
+const { createAnthropicClient } = require('./anthropic.cjs');
 
 const { createTelegram, pollUpdates } = require('./telegram.cjs');
 const { createBot } = require('./bot.cjs');
@@ -115,7 +115,7 @@ function createApp({ config, store, anthropic, telegram, prompt, onError }) {
 
 function run({ config, store }) {
   const telegram = createTelegram({ token: config.telegramBotToken });
-  const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
+  const anthropic = createAnthropicClient({ apiKey: config.anthropicApiKey });
   const prompt = loadPrompt(INGEST_PROMPT);
 
   // One alert channel, wired into every failure path: the bot's detached work, the polling

@@ -49,7 +49,13 @@ function createIngest({ anthropic, prompt, zone, onUsage = () => {} }) {
     for (let attempt = 0; attempt <= MAX_RESUMES; attempt += 1) {
       // A copy, not the live array: a resume pushes onto `messages`, and a request body that
       // aliased it would keep changing after it was sent.
-      const response = await anthropic.messages.create({ ...request, messages: [...messages] });
+      // Streamed, not awaited whole: a non-streaming call races the SDK's request timeout,
+      // and an advert that takes the model past it fails after being billed in full. The
+      // stream is consumed only for its final message – nothing here renders tokens as they
+      // arrive – so what changes is the timeout, not the shape of the result.
+      const response = await anthropic.messages
+        .stream({ ...request, messages: [...messages] })
+        .finalMessage();
       result = readIngestResponse(response);
       onUsage(result.usage);
 

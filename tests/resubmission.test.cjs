@@ -38,9 +38,9 @@ async function withApp(run) {
   const anthropic = {
     requests,
     messages: {
-      async create(body) {
+      stream(body) {
         requests.push(body);
-        return fixture('complete');
+        return { finalMessage: async () => fixture('complete') };
       },
     },
   };

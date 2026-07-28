@@ -48,9 +48,9 @@ async function withApp({ pdf = PDF_BYTES, response = 'complete' } = {}, run) {
   const anthropic = {
     requests,
     messages: {
-      async create(body) {
+      stream(body) {
         requests.push(body);
-        return fixture(response);
+        return { finalMessage: async () => fixture(response) };
       },
     },
   };

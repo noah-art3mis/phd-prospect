@@ -7,7 +7,7 @@
 //     node tools/ingest-url.cjs https://example.org/phd-position
 
 const path = require('node:path');
-const Anthropic = require('@anthropic-ai/sdk');
+const { createAnthropicClient } = require('../src/anthropic.cjs');
 
 const { loadConfig } = require('../src/config.cjs');
 const { loadPrompt } = require('../src/core/prompt.cjs');
@@ -22,7 +22,7 @@ async function main(url) {
 
   const config = loadConfig(process.env);
   const prompt = loadPrompt(path.join(__dirname, '..', 'prompts', 'ingest.prompt'));
-  const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
+  const anthropic = createAnthropicClient({ apiKey: config.anthropicApiKey });
 
   console.error(`prompt ${prompt.name} (${prompt.contentHash.slice(0, 12)}) on ${prompt.metadata.model}`);
 

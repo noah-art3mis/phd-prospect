@@ -271,14 +271,17 @@ test('token usage is reported on every outcome, including ones that produced not
 
 // --- the loop ---------------------------------------------------------------------------
 
+// Only `stream` is offered, deliberately: a non-streaming ingest races the SDK's ten-minute
+// timeout, and on a heavy advert it loses. Anything reaching for `create` should fail here.
 function fakeAnthropic(responses) {
   const requests = [];
   return {
     requests,
     messages: {
-      async create(body) {
+      stream(body) {
         requests.push(body);
-        return responses[Math.min(requests.length - 1, responses.length - 1)];
+        const response = responses[Math.min(requests.length - 1, responses.length - 1)];
+        return { finalMessage: async () => response };
       },
     },
   };
