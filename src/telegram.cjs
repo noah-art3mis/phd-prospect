@@ -8,11 +8,27 @@
 // controls and are interpolated into the approval card; sending plain text means there is
 // nothing to escape, which removes the whole class of bug rather than handling it.
 
+const { withRetry } = require('./retry.cjs');
+
 const TELEGRAM_API = 'https://api.telegram.org';
 const MAX_MESSAGE_LENGTH = 4096;
 
-function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_API }) {
+// Worth retrying: the connection failed, or Telegram had a bad minute. Not worth retrying:
+// Telegram understood and said no. "Bot was blocked by the user" answers the same way every
+// time, and waiting between identical refusals only delays whatever is queued behind it.
+function isTransientSendFailure(error) {
+  return error.status === undefined || error.status >= 500 || error.status === 429;
+}
+
+function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_API, sleep }) {
+  // Every write goes through this. Reads already recovered - pollUpdates has backed off and
+  // retried since the beginning - while a failed send simply threw, which is how an approval
+  // card that cost a model call to produce was lost to one bad moment on the network.
   async function call(method, body, { timeoutMs = 90000 } = {}) {
+    return withRetry(() => attempt(method, body, timeoutMs), { isTransient: isTransientSendFailure, sleep });
+  }
+
+  async function attempt(method, body, timeoutMs) {
     const response = await fetch(`${apiBase}/bot${token}/${method}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -21,7 +37,10 @@ function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_AP
     });
     const payload = await response.json();
     if (!payload.ok) {
-      throw new Error(`Telegram ${method} failed: ${payload.description ?? response.status}`);
+      const error = new Error(`Telegram ${method} failed: ${payload.description ?? response.status}`);
+      // Carried so the retry policy can read it; a message is for a person, not a predicate.
+      error.status = response.status;
+      throw error;
     }
     return payload.result;
   }
@@ -75,11 +94,14 @@ function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_AP
       return call('answerCallbackQuery', { callback_query_id: callbackQueryId, text });
     },
 
+    // Straight to `attempt`, deliberately: pollUpdates owns the retry policy for reads and
+    // owns it better - it never gives up and resets its own backoff on success. Retrying here
+    // too would absorb the outage that loop is watching for and hide it from the backoff.
     async getUpdates({ offset, timeoutSeconds = 50 }) {
-      return call(
+      return attempt(
         'getUpdates',
         { offset, timeout: timeoutSeconds, allowed_updates: ['message', 'callback_query'] },
-        { timeoutMs: (timeoutSeconds + 20) * 1000 }
+        (timeoutSeconds + 20) * 1000
       );
     },
 

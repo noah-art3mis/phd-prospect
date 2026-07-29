@@ -710,3 +710,93 @@ test('a failure that had nothing to do with fetching carries no addresses', asyn
   assert.equal(result.ok, false);
   assert.equal(result.refusedFetches, undefined);
 });
+
+// --- retrying the model call ------------------------------------------------------------
+//
+// maxRetries is 0 on the client because the SDK retried *timeouts*, and a timeout has already
+// been billed for whatever it generated - that is how one 26-minute advert became three
+// charges. But it also stopped retrying overload, which fails before a single token is
+// produced and costs nothing to try again. A 529 arrived live today.
+
+const overloaded = () => Object.assign(new Error('Overloaded'), { status: 529 });
+
+test('an overloaded API is retried rather than reported as a failed ingest', async () => {
+  let calls = 0;
+  const anthropic = {
+    messages: {
+      stream() {
+        calls += 1;
+        return {
+          finalMessage: async () => {
+            if (calls < 3) throw overloaded();
+            return fixture('complete');
+          },
+        };
+      },
+    },
+  };
+
+  const result = await ingestWith(anthropic, () => {}, { sleep: async () => {} })(SUBMISSION);
+  assert.equal(result.ok, true);
+  assert.equal(calls, 3);
+});
+
+test('a rate limit is retried too', async () => {
+  let calls = 0;
+  const anthropic = {
+    messages: {
+      stream() {
+        calls += 1;
+        return {
+          finalMessage: async () => {
+            if (calls < 2) throw Object.assign(new Error('rate limited'), { status: 429 });
+            return fixture('complete');
+          },
+        };
+      },
+    },
+  };
+
+  assert.equal((await ingestWith(anthropic, () => {}, { sleep: async () => {} })(SUBMISSION)).ok, true);
+  assert.equal(calls, 2);
+});
+
+test('a timed-out call is never retried – it has already been paid for', async () => {
+  // The whole reason maxRetries is 0. Whatever it generated before the clock ran out was
+  // billed, and a retry buys a second bill for the same advert.
+  let calls = 0;
+  const anthropic = {
+    messages: {
+      stream(body, { signal }) {
+        calls += 1;
+        return {
+          finalMessage: () =>
+            new Promise((_resolve, reject) => {
+              const socket = setTimeout(() => {}, 60_000);
+              signal.addEventListener('abort', () => { clearTimeout(socket); reject(new Error('Request was aborted.')); }, { once: true });
+            }),
+        };
+      },
+    },
+  };
+
+  const result = await ingestWith(anthropic, () => {}, { timeBudgetMs: 20, sleep: async () => {} })(SUBMISSION);
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /too long/i);
+  assert.equal(calls, 1, 'a timed-out call was retried');
+});
+
+test('a bad request is not retried – it will be refused identically', async () => {
+  let calls = 0;
+  const anthropic = {
+    messages: {
+      stream() {
+        calls += 1;
+        return { finalMessage: async () => { throw Object.assign(new Error('schema too large'), { status: 400 }); } };
+      },
+    },
+  };
+
+  await assert.rejects(ingestWith(anthropic, () => {}, { sleep: async () => {} })(SUBMISSION), /schema too large/);
+  assert.equal(calls, 1);
+});

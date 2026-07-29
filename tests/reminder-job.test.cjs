@@ -67,10 +67,22 @@ test('a deadline inside the lead window produces a reminder naming it', async ()
   });
 });
 
-test('a deadline outside the lead window produces nothing', async () => {
-  await withJob([opportunity({ deadline_at: '2026-07-11T12:00:00.000Z' })], async ({ telegram, sweep }) => {
+test('a deadline that has reached no lead time yet produces nothing', async () => {
+  // Further out than the widest lead time. Between lead times is no longer silent - a
+  // deadline five days away with nothing sent means a sweep was missed, and it warns.
+  await withJob([opportunity({ deadline_at: '2027-01-11T12:00:00.000Z' })], async ({ telegram, sweep }) => {
     assert.equal((await sweep()).sent, 0);
     assert.deepEqual(telegram.sent, []);
+  });
+});
+
+test('a deadline past a lead time nobody sent is caught up rather than skipped', async () => {
+  // Five days out, nothing sent: the seven-day sweep did not land. One message, and it
+  // closes the thirty-day mark too so that cannot fire afterwards.
+  await withJob([opportunity({ deadline_at: '2026-07-11T12:00:00.000Z' })], async ({ store, telegram, sweep }) => {
+    assert.equal((await sweep()).sent, 1);
+    assert.match(telegram.sent[0].text, /5 days/);
+    assert.deepEqual(store.listConfirmed()[0].reminders_sent, [30, 7]);
   });
 });
 
@@ -84,10 +96,13 @@ test('running the job twice in one day sends each reminder once', async () => {
   });
 });
 
-test('the lead time is recorded on the row, which is what makes the second run silent', async () => {
+test('the lead times it answered are recorded, which is what makes the second run silent', async () => {
+  // Both, not just the one it was named after: the seven-day warning also answers the
+  // thirty-day mark it passed, and leaving that open would send a second message saying the
+  // same thing in looser words.
   await withJob([opportunity({})], async ({ store, sweep }) => {
     await sweep();
-    assert.deepEqual(store.listConfirmed()[0].reminders_sent, [7]);
+    assert.deepEqual(store.listConfirmed()[0].reminders_sent, [30, 7]);
   });
 });
 
@@ -142,7 +157,7 @@ test('one opportunity failing does not stop the others from being reminded', asy
       );
       const rows = store.listConfirmed();
       assert.deepEqual(rows.find((r) => r.title === 'Broken one').reminders_sent, []);
-      assert.deepEqual(rows.find((r) => r.title === 'Fine one').reminders_sent, [7]);
+      assert.deepEqual(rows.find((r) => r.title === 'Fine one').reminders_sent, [30, 7]);
     },
     { failOn: 'Broken one' }
   );
