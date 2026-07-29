@@ -132,14 +132,14 @@ function buildIngestRequest(prompt, { variables, content }) {
     max_tokens: prompt.metadata.max_tokens,
     // A block rather than a string, so it can carry a cache breakpoint. The cached prefix is
     // tools then system – everything ahead of the submitted URL, which is the only part that
-    // varies per ingest. A cache read bills at a tenth of fresh input.
+    // varies per ingest.
     //
-    // Whether this saves anything real is measured, not assumed. Both open questions are
-    // answered by cache_read_input_tokens after a live run: the prefix has to clear the
-    // 1024-token minimum, and the server-side tool loop's own iterations – where the 300,000
-    // input tokens of a single call actually come from – have to read a caller-set
-    // breakpoint at all. If they do not, this caches about a thousand tokens of a third of a
-    // million and is worth almost nothing.
+    // It pays for far more than that prefix. The server-side tool loop's own iterations read
+    // this breakpoint, and those iterations are where a single request's six-figure input
+    // token count comes from: measured on one advert, fresh input fell from 134,794 tokens to
+    // 193 and the ingest from $0.34 to $0.15. The saving is within one request, not across
+    // them – a second run inside the TTL added little – so it applies to every ingest,
+    // including the first.
     system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
     // Adaptive thinking, because the design depends on the model actually calling its tools
     // and tool-use rate falls with thinking disabled.

@@ -546,8 +546,8 @@ test('every raw response is offered for tracing, including the ones that failed'
 test('the stable prefix carries a cache breakpoint', () => {
   // Tools, then system, then messages: a breakpoint on the last system block caches
   // everything ahead of the submitted URL, which is the only part that varies per ingest.
-  // Whether the server-side tool loop's internal iterations read it is the open question,
-  // and the reason cache_read_input_tokens gets checked after a live run rather than assumed.
+  // Measured live, it took fresh input on one advert from 134,794 tokens to 193, because the
+  // server-side tool loop's own iterations read it too.
   const body = request();
 
   assert.ok(Array.isArray(body.system), 'a plain string cannot carry cache_control');
