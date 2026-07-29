@@ -559,3 +559,37 @@ test('the system text is unchanged by being wrapped in a block', () => {
   const body = request();
   assert.match(body.system.at(-1).text, /You extract PhD opportunity records/);
 });
+
+// --- unreadable pages -------------------------------------------------------------------
+//
+// The fetch_blocked fixture is a trimmed live trace: a KU Leuven advert that renders client
+// side, which Anthropic's fetcher saw as `unavailable` and then, on every retry, as
+// `url_not_allowed`. It cost $0.69 to produce an empty record, and the message the user got
+// listed four possible causes without saying which. The response knew.
+
+test('a page whose fetches were all refused is named as such, not guessed at', async () => {
+  const result = await ingestWith(fakeAnthropic([fixture('fetch_blocked')]))(SUBMISSION);
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /could not fetch/i);
+  // The codes the tool actually returned, so the next step is obvious rather than a guess
+  // between JS-rendered, paywalled, blocked and gone.
+  assert.match(result.reason, /unavailable/);
+  assert.match(result.reason, /url_not_allowed/);
+});
+
+test('a page that was fetched fine but yielded nothing keeps the general explanation', () => {
+  // Not every empty record is a blocked fetch. When the fetches succeeded, the cause really
+  // is unknown, and naming a specific one would be worse than admitting it.
+  const { fetchErrors } = require('../src/core/ingest-response.cjs');
+  assert.deepEqual(fetchErrors(fixture('unreadable_page')), []);
+});
+
+test('fetch errors are read off the response, including which page each was for', () => {
+  const { fetchErrors } = require('../src/core/ingest-response.cjs');
+  const errors = fetchErrors(fixture('fetch_blocked'));
+
+  assert.ok(errors.length >= 6);
+  assert.equal(errors[0].code, 'unavailable');
+  assert.match(errors[0].url, /kuleuven\.be/);
+});
