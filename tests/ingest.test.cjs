@@ -542,3 +542,20 @@ test('every raw response is offered for tracing, including the ones that failed'
   // Unaltered: the point of a trace is that it can be dropped straight into the fixtures.
   assert.deepEqual(seen[1], fixture('unreadable_page'));
 });
+
+test('the stable prefix carries a cache breakpoint', () => {
+  // Tools, then system, then messages: a breakpoint on the last system block caches
+  // everything ahead of the submitted URL, which is the only part that varies per ingest.
+  // Whether the server-side tool loop's internal iterations read it is the open question,
+  // and the reason cache_read_input_tokens gets checked after a live run rather than assumed.
+  const body = request();
+
+  assert.ok(Array.isArray(body.system), 'a plain string cannot carry cache_control');
+  assert.deepEqual(body.system.at(-1).cache_control, { type: 'ephemeral' });
+  assert.equal(body.system.at(-1).type, 'text');
+});
+
+test('the system text is unchanged by being wrapped in a block', () => {
+  const body = request();
+  assert.match(body.system.at(-1).text, /You extract PhD opportunity records/);
+});
