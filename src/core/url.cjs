@@ -5,8 +5,8 @@
 // tracking parameters, query order – so the same opportunity shared from two places
 // collapses to one key. That key is what the re-submission short-circuit looks up.
 //
-// `opportunityFingerprint` from the n8n build is deliberately not ported: reject deletes
-// the row, so cross-source identity has no consumer.
+// There is deliberately no fuzzy cross-source identity beyond this: reject deletes the row,
+// so nothing needs to recognise the same opportunity arriving from a different address.
 
 const crypto = require('node:crypto');
 

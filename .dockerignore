@@ -9,7 +9,6 @@ data
 backups
 
 # Real personal data, gitignored and equally unwanted in a build context.
-notion-snapshot
 seeds
 
 .git

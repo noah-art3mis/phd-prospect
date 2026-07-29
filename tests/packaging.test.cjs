@@ -84,7 +84,7 @@ test('the deploy doc covers restart-on-failure and restore', () => {
 
 test('the build ignores what should never enter the image', () => {
   const dockerignore = read('.dockerignore');
-  for (const excluded of ['.env', 'node_modules', 'data', 'notion-snapshot']) {
+  for (const excluded of ['.env', 'node_modules', 'data']) {
     assert.match(dockerignore, new RegExp(`^${excluded.replace('.', '\\.')}`, 'm'), `${excluded} is not ignored`);
   }
 });
