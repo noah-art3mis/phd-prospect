@@ -48,15 +48,15 @@ async function withApp({ pdf = PDF_BYTES, response = 'complete' } = {}, run) {
   const anthropic = {
     requests,
     messages: {
-      async create(body) {
+      stream(body) {
         requests.push(body);
-        return fixture(response);
+        return { finalMessage: async () => fixture(response) };
       },
     },
   };
 
   const errors = [];
-  const app = createApp({ config: CONFIG, store, anthropic, telegram, prompt: PROMPT, onError: (e) => errors.push(e) });
+  const app = createApp({ config: CONFIG, store, anthropic, telegram, prompt: PROMPT, trace: { record() {} }, onError: (e) => errors.push(e) });
   try {
     return await run({ store, telegram, anthropic, app, errors, sent, requests, downloaded });
   } finally {

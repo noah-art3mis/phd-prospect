@@ -19,7 +19,7 @@ Your `.env` already carries `TELEGRAM_ALLOWED_USER_ID` across from the n8n build
     `drop_pending_updates` discards whatever queued up while the old build was down; without it the bot replays that backlog on first poll. Only one consumer can read a bot's updates at a time, so make sure the n8n workflow is deactivated too.
 
   If you would rather start clean, `/newbot` gives a fresh bot – but then re-check `TELEGRAM_ALLOWED_USER_ID`, since you will need to message the new bot before it can see you.
-- [ ] **`ANTHROPIC_API_KEY`** – create a new one at [console.anthropic.com](https://console.anthropic.com) → API keys. The previous project's key is not recoverable: it lived in n8n Cloud's credential store, and Anthropic shows a key once at creation and never again. Ingest costs roughly $0.11 per opportunity, bounded near $0.31 by the content cap, so a small spend limit is reasonable belt-and-braces on top of the caps already in the code.
+- [ ] **`ANTHROPIC_API_KEY`** – create a new one at [console.anthropic.com](https://console.anthropic.com) → API keys. The previous project's key is not recoverable: it lived in n8n Cloud's credential store, and Anthropic shows a key once at creation and never again. Measured ingests cost $0.42 to $1.84 each, and a failed one costs as much as a record (see `docs/findings-live-ingest.md`); the code bounds an ingest at ten minutes and 1M billed input tokens, which is roughly $2.50 at introductory rates. Set a spend limit accordingly – it is the only ceiling that holds when the ones in the code do not.
 
   - [ ] Once the new app is running, revoke the old key in the console so the retired build cannot spend.
 

@@ -44,12 +44,18 @@ CREATE INDEX IF NOT EXISTS opportunity_canonical_url ON opportunity (canonical_u
 CREATE INDEX IF NOT EXISTS opportunity_due ON opportunity (confirmed, deadline_at);
 
 -- Token usage, for the weekly digest's approximate spend. One row per model call.
+--
+-- Three input columns because there are three input prices: fresh input at the base rate, a
+-- cache read at a tenth of it, a cache write at a quarter above it. One summed column would
+-- price a cached week exactly like an uncached one.
 CREATE TABLE IF NOT EXISTS usage_event (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  occurred_at   TEXT    NOT NULL,
-  model         TEXT    NOT NULL,
-  input_tokens  INTEGER NOT NULL DEFAULT 0,
-  output_tokens INTEGER NOT NULL DEFAULT 0
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  occurred_at       TEXT    NOT NULL,
+  model             TEXT    NOT NULL,
+  input_tokens      INTEGER NOT NULL DEFAULT 0,
+  cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+  cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens     INTEGER NOT NULL DEFAULT 0
 );
 
 -- Backup outcomes, so the digest can report the age of the last successful one rather than
@@ -81,6 +87,16 @@ const UPDATABLE_COLUMNS = new Set([
   'reminders_sent',
 ]);
 
+// CREATE TABLE IF NOT EXISTS is silent about a table that exists with the wrong columns, so
+// a database written before a column was added would keep working until the first insert
+// against it. Adding what is missing on open keeps the running instance upgradeable in place.
+function ensureColumns(db, table, columns) {
+  const present = new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name));
+  for (const [name, definition] of Object.entries(columns)) {
+    if (!present.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+  }
+}
+
 function hydrate(row) {
   if (!row) return null;
   const out = { ...row, confirmed: row.confirmed === 1, seeded: row.seeded === 1 };
@@ -94,6 +110,10 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
   db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA foreign_keys = ON');
   db.exec(SCHEMA);
+  ensureColumns(db, 'usage_event', {
+    cache_read_tokens: 'INTEGER NOT NULL DEFAULT 0',
+    cache_write_tokens: 'INTEGER NOT NULL DEFAULT 0',
+  });
 
   const statements = {
     insert: db.prepare(`
@@ -112,12 +132,16 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
       ORDER BY deadline_at IS NULL, deadline_at, id
     `),
     countConfirmed: db.prepare('SELECT COUNT(*) AS n FROM opportunity WHERE confirmed = 1'),
-    recordUsage: db.prepare(
-      'INSERT INTO usage_event (occurred_at, model, input_tokens, output_tokens) VALUES (?, ?, ?, ?)'
-    ),
+    recordUsage: db.prepare(`
+      INSERT INTO usage_event
+        (occurred_at, model, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `),
     usageSince: db.prepare(`
-      SELECT COALESCE(SUM(input_tokens), 0) AS input_tokens,
-             COALESCE(SUM(output_tokens), 0) AS output_tokens,
+      SELECT COALESCE(SUM(input_tokens), 0)       AS input_tokens,
+             COALESCE(SUM(cache_read_tokens), 0)  AS cache_read_tokens,
+             COALESCE(SUM(cache_write_tokens), 0) AS cache_write_tokens,
+             COALESCE(SUM(output_tokens), 0)      AS output_tokens,
              COUNT(*) AS calls
       FROM usage_event WHERE occurred_at >= ?
     `),
@@ -200,8 +224,8 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
       return statements.countConfirmed.get().n;
     },
 
-    recordUsage({ model, inputTokens = 0, outputTokens = 0 }) {
-      statements.recordUsage.run(now(), model, inputTokens, outputTokens);
+    recordUsage({ model, inputTokens = 0, cacheReadTokens = 0, cacheWriteTokens = 0, outputTokens = 0 }) {
+      statements.recordUsage.run(now(), model, inputTokens, cacheReadTokens, cacheWriteTokens, outputTokens);
     },
 
     usageSince(instant) {

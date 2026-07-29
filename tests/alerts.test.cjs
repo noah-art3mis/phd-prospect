@@ -89,13 +89,17 @@ async function withApp(response, run) {
   const alerter = createAlerter({ telegram, chatId: ME, log: () => {} });
   const anthropic = {
     messages: {
-      async create() {
-        if (response instanceof Error) throw response;
-        return fixture(response);
+      stream() {
+        return {
+          finalMessage: async () => {
+            if (response instanceof Error) throw response;
+            return fixture(response);
+          },
+        };
       },
     },
   };
-  const app = createApp({ config: CONFIG, store, anthropic, telegram, prompt: PROMPT, onError: alerter.report() });
+  const app = createApp({ config: CONFIG, store, anthropic, telegram, prompt: PROMPT, trace: { record() {} }, onError: alerter.report() });
   try {
     return await run({ store, telegram, app, alerter });
   } finally {
@@ -139,8 +143,8 @@ test('a validation rejection reports rather than silently discarding the record'
   const store = openStore(path.join(dir, 'prospect.db'));
   const telegram = fakeTelegram();
   const alerter = createAlerter({ telegram, chatId: ME, log: () => {} });
-  const anthropic = { messages: { async create() { return ungated; } } };
-  const app = createApp({ config: CONFIG, store, anthropic, telegram, prompt: PROMPT, onError: alerter.report() });
+  const anthropic = { messages: { stream: () => ({ finalMessage: async () => ungated }) } };
+  const app = createApp({ config: CONFIG, store, anthropic, telegram, prompt: PROMPT, trace: { record() {} }, onError: alerter.report() });
 
   try {
     await app.bot.handleUpdate(link());

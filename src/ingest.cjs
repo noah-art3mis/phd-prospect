@@ -15,6 +15,32 @@ const { resolveDeadline } = require('./core/deadline.cjs');
 // A stuck loop is worse than a reported failure: each resume costs another call.
 const MAX_RESUMES = 6;
 
+// Two bounds on the whole ingest, because nothing in the request bounds it. max_content_tokens
+// bounds one fetched page and max_tokens bounds the output; neither bounds the loop, whose
+// billed input grows with the square of the number of iterations, since every iteration
+// re-sends the entire accumulated conversation.
+//
+// Ten minutes clears the measured successes (135s and 305s) and cuts off the measured
+// failures (1101s and 3758s), which cost as much as the successes did. It is spent across the
+// loop rather than per call: six resumes of nine minutes each would clear any per-call limit
+// and still be an hour of billing.
+const TIME_BUDGET_MS = 600_000;
+
+// The context window. A resume that would carry billed input past it cannot succeed – there
+// is nowhere for the conversation to go – so it can only be charged for.
+const TOKEN_BUDGET = 1_000_000;
+
+// The clock is the only lever there is inside a single request, and it is a blunt one:
+// aborting stops the stream, not the billing for what was already generated. It bounds the
+// worst case rather than making it free.
+function abortedFailure(budgetMs) {
+  return {
+    ok: false,
+    reason: `That one took too long – I stopped it after ${Math.round(budgetMs / 60_000)} minutes rather than let it keep billing.`,
+  };
+}
+
+
 // Findings arrive as lists; `institution` and `deadline_at` are single columns. A field that
 // holds one thing and came back with several is the model disagreeing with the column, and
 // the first entry is the one its own ordering puts first – `conflicting_sources` is how a
@@ -36,7 +62,18 @@ function submissionContent(submission) {
   ];
 }
 
-function createIngest({ anthropic, prompt, zone, onUsage = () => {} }) {
+function createIngest({
+  anthropic,
+  prompt,
+  zone,
+  onUsage = () => {},
+  // The raw response, before anything reads it. Offered for every call the loop made, paused
+  // and failed ones included: those are the calls worth debugging, and a filtered trace is
+  // missing exactly the run somebody went looking for.
+  onResponse = () => {},
+  timeBudgetMs = TIME_BUDGET_MS,
+  tokenBudget = TOKEN_BUDGET,
+}) {
   async function ingest(submission) {
     const request = buildIngestRequest(prompt, {
       variables: { url: submission.url ?? `the attached document (${submission.fileName})` },
@@ -44,16 +81,50 @@ function createIngest({ anthropic, prompt, zone, onUsage = () => {} }) {
     });
 
     const messages = [...request.messages];
+    const deadline = Date.now() + timeBudgetMs;
+    let billedTokens = 0;
     let result;
 
     for (let attempt = 0; attempt <= MAX_RESUMES; attempt += 1) {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) return abortedFailure(timeBudgetMs);
       // A copy, not the live array: a resume pushes onto `messages`, and a request body that
       // aliased it would keep changing after it was sent.
-      const response = await anthropic.messages.create({ ...request, messages: [...messages] });
+      // Streamed, not awaited whole: a non-streaming call races the SDK's request timeout,
+      // and an advert that takes the model past it fails after being billed in full. The
+      // stream is consumed only for its final message – nothing here renders tokens as they
+      // arrive – so what changes is the timeout, not the shape of the result.
+      const signal = AbortSignal.timeout(remainingMs);
+      let response;
+      try {
+        response = await anthropic.messages
+          .stream({ ...request, messages: [...messages] }, { signal })
+          .finalMessage();
+      } catch (error) {
+        // Whether our own signal fired, not what the error looks like. Running out of time is
+        // the deliberate outcome of the budget, so it has to arrive the way every other
+        // ingest failure does – and the SDK wraps an abort in APIUserAbortError, whose `name`
+        // is the inherited 'Error' and whose message is prose, so matching on either would
+        // quietly stop recognising the one outcome this budget exists to produce.
+        if (signal.aborted) return abortedFailure(timeBudgetMs);
+        throw error;
+      }
+
+      onResponse(response, submission);
       result = readIngestResponse(response);
       onUsage(result.usage);
 
       if (result.status !== 'paused') break;
+
+      // Counted across the loop, not per call: what is billed is the sum, and the sum is what
+      // grows quadratically.
+      billedTokens += result.usage.inputTokens + result.usage.cacheReadTokens + result.usage.cacheWriteTokens;
+      if (billedTokens >= tokenBudget) {
+        return {
+          ok: false,
+          reason: `That one used more than ${(tokenBudget / 1e6).toFixed(1)}M tokens without finishing, so I stopped it.`,
+        };
+      }
 
       // Resume: append the paused turn and re-send. No extra user message – the API sees the
       // trailing server_tool_use and picks up where it stopped.
@@ -111,4 +182,4 @@ function createIngest({ anthropic, prompt, zone, onUsage = () => {} }) {
   return { ingest };
 }
 
-module.exports = { createIngest, MAX_RESUMES };
+module.exports = { createIngest, MAX_RESUMES, TIME_BUDGET_MS, TOKEN_BUDGET };

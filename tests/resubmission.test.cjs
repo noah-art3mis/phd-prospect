@@ -38,14 +38,14 @@ async function withApp(run) {
   const anthropic = {
     requests,
     messages: {
-      async create(body) {
+      stream(body) {
         requests.push(body);
-        return fixture('complete');
+        return { finalMessage: async () => fixture('complete') };
       },
     },
   };
   const errors = [];
-  const app = createApp({ config: CONFIG, store, anthropic, telegram, prompt: PROMPT, onError: (e) => errors.push(e) });
+  const app = createApp({ config: CONFIG, store, anthropic, telegram, prompt: PROMPT, trace: { record() {} }, onError: (e) => errors.push(e) });
   try {
     return await run({ store, telegram, anthropic, app, errors, sent, requests });
   } finally {
