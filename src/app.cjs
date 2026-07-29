@@ -21,6 +21,7 @@ const { createAlerter, installTopLevelHandlers } = require('./alerts.cjs');
 const { runBackup } = require('./jobs/backup.cjs');
 const { runWeeklyDigest } = require('./jobs/digest.cjs');
 const { createTraceWriter } = require('./trace.cjs');
+const { fetchPage: fetchPageDefault } = require('./fetch-page.cjs');
 
 const INGEST_PROMPT = path.join(__dirname, '..', 'prompts', 'ingest.prompt');
 
@@ -34,7 +35,24 @@ const DIGEST_WEEKDAY = 0; // Sunday
 // stated here so the failure names a number rather than surfacing as a request error.
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
-function createSubmissionHandler({ store, telegram, ingest, approval, chatId }) {
+// Anthropic's web_fetch refuses some pages that are perfectly readable – a LinkedIn post it
+// answered `url_not_allowed` for served 174 KB to an ordinary client on the first try. The
+// refusal is the tool declining the address, not the site refusing us, so the advert was
+// there the whole time. Rather than tell the user to copy it out by hand, fetch it and hand
+// the text back through the same path a paste takes.
+//
+// Only after web_fetch has already refused, and only the address the user typed: fetches the
+// *model* chooses still happen on Anthropic's infrastructure, which is where a page saying
+// "now fetch the metadata service" would be obeyed. See src/fetch-page.cjs for the guard.
+async function retryFromPage({ submission, failure, ingest, fetchPage }) {
+  const page = await fetchPage(submission.url);
+  // The fallback failing is an implementation detail. What the user needs to hear is why
+  // their advert could not be read, which is the failure that got us here.
+  if (!page.ok) return failure;
+  return ingest({ kind: 'paste', url: submission.url, text: page.text });
+}
+
+function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage }) {
   return async function handleSubmission(submission) {
     // Before the model call: an advert already tracked answers with the deadline on file,
     // costing nothing (#28). Keyed on identity rather than on the kind of submission, so the
@@ -52,7 +70,13 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId }) 
       submission = { ...submission, pdfBase64: await fetchPdf(telegram, submission) };
     }
 
-    const result = await ingest(submission);
+    let result = await ingest(submission);
+
+    // A refused fetch is the one failure the app can do something about itself.
+    if (!result.ok && result.refusedFetches?.length > 0 && submission.url) {
+      result = await retryFromPage({ submission, failure: result, ingest, fetchPage });
+    }
+
     if (!result.ok) {
       // Thrown so the alert path reports it – a failed ingest must never be silent, because
       // silence is the only other thing the user could be seeing.
@@ -96,7 +120,7 @@ function dataDirectory(config) {
   return path.dirname(path.resolve(config.dbPath));
 }
 
-function createApp({ config, store, anthropic, telegram, prompt, trace, onError }) {
+function createApp({ config, store, anthropic, telegram, prompt, trace, fetchPage = fetchPageDefault, onError }) {
   const chatId = config.telegramAllowedUserId;
 
   const { ingest } = createIngest({
@@ -112,7 +136,7 @@ function createApp({ config, store, anthropic, telegram, prompt, trace, onError 
   const bot = createBot({
     telegram,
     allowedUserId: config.telegramAllowedUserId,
-    onSubmission: createSubmissionHandler({ store, telegram, ingest, approval, chatId }),
+    onSubmission: createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage }),
     onCallback: (decision) => approval.handleCallback(decision),
     onText: async (decision) => {
       const handled = await approval.handleText(decision);
