@@ -2,11 +2,34 @@
 
 Short enough to follow from a phone, because that is when you will need it.
 
+## Why Oracle and not GCP
+
+GCP's Always Free tier covers the `e2-micro` and the disk but **not the external IPv4 address**, which has been charged since February 2024 at $0.005/hour – about $3.65 a month, $44 a year. The app dials out and nothing dials in, so it needs no inbound access, but a VM with no external address has no outbound access either unless you add Cloud NAT, which costs ten times more.
+
+Oracle Cloud's Always Free tier includes the address. This project exists because the previous build stopped being free to run; paying $44/year to host a personal reminder bot would have repeated that, so the whole thing runs on Oracle instead. The trade is that Oracle's free ARM capacity is genuinely scarce in popular regions – see below.
+
 ## The box
 
-A GCP "Always Free" `e2-micro` in a free-tier region (`us-west1`, `us-central1` or `us-east1`), with a service account attached that can write to the backup bucket. Nothing else – no domain, no static IP, no firewall rule. Long polling means the app dials out and nothing dials in.
+An Always Free instance, in the home region you chose at signup:
 
-Attach the service account at instance creation, with scope `https://www.googleapis.com/auth/devstorage.read_write`. That is the whole credential story: the app reads a token from the metadata server, so there is no key file to expire, rotate, or leak.
+- **`VM.Standard.A1.Flex`** (Ampere ARM) – up to 4 OCPU and 24 GB across all your free instances. Far more than this app needs, and often answers *"Out of host capacity"*. Retry, or pick a quieter availability domain.
+- **`VM.Standard.E2.1.Micro`** (AMD, 1 OCPU, 1 GB) – two are free, and they are almost always available. This is the fallback, and it is enough: the container is capped at 512 MB.
+
+Ubuntu 22.04 or later. Everything below is identical on either shape; the container image is multi-arch.
+
+Nothing needs to reach the instance, so leave the default security list alone – no ingress rule, no load balancer, no domain, no certificate.
+
+## The backup destination
+
+Object Storage, 20 GB free. Create a **standard bucket** (`prospect-backups`), then issue a **pre-authenticated request** on it:
+
+- Target: *Objects with prefix* — leave the prefix empty
+- Access: **Permit object writes** (not reads – a backup mover has no reason to read)
+- Expiry: pick a date you will renew. Oracle will not warn you.
+
+Copy the URL once, at creation; it is never shown again. It ends in `/o/`. That URL goes in `.env` as `BACKUP_UPLOAD_URL`, and it **is** the credential – anyone holding it can write to that bucket until it expires. Write-only and single-bucket is what limits the damage, not secrecy alone.
+
+**Renewal is a manual job with no reminder.** When the PAR expires the nightly upload starts failing, which raises the Telegram alert and shows as a stale backup in the Sunday digest. That is the signal; act on it rather than waiting for a bill.
 
 ## First deploy
 
@@ -23,6 +46,8 @@ docker compose logs -f                     # expect "config ok", "database ready
 ```
 
 Then send the bot a link from Telegram. An acknowledgement within a second or two means the round trip works.
+
+Ubuntu images on Oracle ship iptables rules that block most outbound ports beyond SSH. Only 443 is needed here and it is open by default, but if the first poll hangs, that is where to look.
 
 ## Deploy a change
 
@@ -57,7 +82,7 @@ docker compose exec prospect npm run backup -- --local # local copy only
 docker compose cp prospect:/data/backups ./backups     # pull them to wherever you are
 ```
 
-**Accepted risk, recorded rather than discovered later:** the instance and the backup bucket live in the same GCP project, so a billing problem or an account suspension takes both. It is mitigated by making a manual off-box copy trivial – the commands above – not by adding a second vendor. Run them occasionally.
+**Accepted risk, recorded rather than discovered later:** the instance and the backup bucket live in the same Oracle tenancy, so a billing problem or an account suspension takes both. Oracle is also known for reclaiming idle Always Free compute. It is mitigated by making a manual off-box copy trivial – the commands above – not by adding a second vendor. Run them occasionally.
 
 To restore: stop the container, drop a backup file at `data/prospect.db`, start it again.
 

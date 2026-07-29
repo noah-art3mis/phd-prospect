@@ -30,7 +30,7 @@ const COMPLETE = {
   TZ: 'America/Mexico_City',
   REMINDER_LEAD_TIMES: '30,7,1',
   REMINDER_SEND_HOUR: '9',
-  GCS_BACKUP_BUCKET: 'prospect-backups',
+  BACKUP_UPLOAD_URL: 'https://objectstorage.us-ashburn-1.oraclecloud.com/p/EXAMPLE-TOKEN/n/mynamespace/b/prospect-backups/o/',
 };
 
 function withTempDir(run) {

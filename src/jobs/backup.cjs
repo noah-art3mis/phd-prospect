@@ -8,8 +8,12 @@
 // the path that has been exercised by hand. Keeping an occasional copy outside the provider
 // should be a habit rather than a project.
 //
-// No credential is needed: the service account attached to the instance is read from the
-// metadata server, so the component most likely to break from an expired key has no key.
+// The destination is a pre-authenticated URL: object storage issues one that grants writes
+// to a single bucket, and it carries its own authority, so the upload sends no credential and
+// there is no SDK, no request signing and no key file to install. The trade is that the URL
+// *is* the credential - it lives in .env and expires on the date it was issued with - so it
+// is write-only, scoped to one bucket, and never allowed into a log, an error or a database
+// row where a leaked backup message would disclose it.
 //
 // A failed backup raises the Telegram alert. Silent backup failure is the specific hazard
 // this design defends against – it is why continuous WAL replication was rejected, since
@@ -19,45 +23,32 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { backup } = require('node:sqlite');
 
-const METADATA_TOKEN_URL =
-  'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token';
-
 function backupName(instant) {
   return `prospect-${instant.toISOString().replace(/[:.]/g, '-')}.db`;
 }
 
-// An access token from the instance's attached service account. No key file exists to
-// expire, be rotated, or be committed by accident.
-async function instanceAccessToken(fetch) {
-  const response = await fetch(METADATA_TOKEN_URL, {
-    headers: { 'Metadata-Flavor': 'Google' },
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!response.ok) {
-    throw new Error(`could not read the instance service account (${response.status})`);
-  }
-  const { access_token: token } = await response.json();
-  if (!token) throw new Error('the metadata server returned no access token');
-  return token;
+// What may be said about the destination out loud. The URL grants writes to whoever holds it,
+// and this string reaches a Telegram alert and a backup_event row, so it names the bucket and
+// stops there.
+function describeDestination(uploadUrl, objectName) {
+  const bucket = /\/b\/([^/]+)\//.exec(String(uploadUrl))?.[1] ?? 'object storage';
+  return `${bucket}/${objectName}`;
 }
 
-async function uploadToBucket({ fetch, bucket, objectName, bytes }) {
-  const token = await instanceAccessToken(fetch);
-  const url =
-    `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o` +
-    `?uploadType=media&name=${encodeURIComponent(objectName)}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/octet-stream' },
+async function uploadBackup({ fetch, uploadUrl, objectName, bytes }) {
+  const response = await fetch(`${uploadUrl}${encodeURIComponent(objectName)}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/octet-stream' },
     body: bytes,
     signal: AbortSignal.timeout(120000),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    throw new Error(`upload to gs://${bucket} failed (${response.status}) ${detail}`.trim());
+    // Deliberately not the URL: a failed upload is reported to Telegram and written to the
+    // database, and neither is a place to put something that grants writes.
+    throw new Error(`upload to ${describeDestination(uploadUrl, objectName)} failed (${response.status}) ${detail}`.trim());
   }
-  return `gs://${bucket}/${objectName}`;
+  return describeDestination(uploadUrl, objectName);
 }
 
 // Keep the last few on the box as well as off it, so recovering from a bad write does not
@@ -75,7 +66,7 @@ function pruneLocal(directory, keep) {
 async function runBackup({
   store,
   directory,
-  bucket,
+  uploadUrl,
   fetch = globalThis.fetch,
   keepLocal = 5,
   now = new Date(),
@@ -90,9 +81,9 @@ async function runBackup({
 
     let destination = localPath;
     if (upload) {
-      destination = await uploadToBucket({
+      destination = await uploadBackup({
         fetch,
-        bucket,
+        uploadUrl,
         objectName: path.basename(localPath),
         bytes: fs.readFileSync(localPath),
       });
@@ -104,7 +95,11 @@ async function runBackup({
   } catch (error) {
     // Recorded as well as raised, so the weekly digest can report a stale backup rather than
     // the failure only existing in the alert that fired at the time.
-    store.recordBackup({ succeeded: false, destination: bucket ? `gs://${bucket}` : null, detail: error.message });
+    store.recordBackup({
+      succeeded: false,
+      destination: uploadUrl ? describeDestination(uploadUrl, '') : null,
+      detail: error.message,
+    });
     throw new Error(`backup failed: ${error.message}`);
   }
 }

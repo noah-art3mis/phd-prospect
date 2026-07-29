@@ -1,7 +1,7 @@
 // The backup job.
 //
 // The restore assertions run against real SQLite files, because "the backup restores" is the
-// only property that matters and a mock cannot tell you. The GCS upload is stubbed – it is a
+// only property that matters and a mock cannot tell you. The upload is stubbed – it is a
 // thin IO edge – but what is asserted about it is the part that would silently rot: that no
 // credential file is involved and the instance identity is used.
 
@@ -12,6 +12,8 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { openStore } = require('../src/store.cjs');
+const PAR = 'https://objectstorage.example/p/tok/n/ns/b/prospect-backups/o/';
+
 const { runBackup } = require('../src/jobs/backup.cjs');
 
 const OPPORTUNITY = {
@@ -26,12 +28,6 @@ function stubBucket({ failOn = null } = {}) {
   const calls = [];
   const fetch = async (url, options = {}) => {
     calls.push({ url, headers: options.headers ?? {}, method: options.method, body: options.body });
-    if (failOn === 'metadata' && url.includes('metadata.google.internal')) {
-      return { ok: false, status: 500, async text() { return 'no metadata server'; } };
-    }
-    if (url.includes('metadata.google.internal')) {
-      return { ok: true, status: 200, async json() { return { access_token: 'ya29.instance-token', expires_in: 3600 }; } };
-    }
     if (failOn === 'upload') {
       return { ok: false, status: 403, async text() { return 'permission denied'; } };
     }
@@ -57,31 +53,49 @@ async function withStore(run) {
   }
 }
 
-test('a backup uploads to the configured bucket', async () => {
+test('a backup is uploaded to the pre-authenticated URL, named after the copy', async () => {
   await withStore(async ({ store, backupDir }) => {
     const bucket = stubBucket();
-    const result = await runBackup({ store, directory: backupDir, bucket: 'prospect-backups', fetch: bucket.fetch });
+    const result = await runBackup({
+      store,
+      directory: backupDir,
+      uploadUrl: PAR,
+      fetch: bucket.fetch,
+    });
 
     assert.equal(result.ok, true);
-    assert.match(result.destination, /^gs:\/\/prospect-backups\/prospect-.*\.db$/);
-
-    const upload = bucket.calls.find((c) => c.url.includes('storage.googleapis.com'));
-    assert.equal(upload.method, 'POST');
-    assert.match(upload.url, /\/b\/prospect-backups\/o\?uploadType=media/);
+    const upload = bucket.calls.at(-1);
+    // PUT to the URL with the object name appended: the URL carries its own authority, which
+    // is why nothing here sends a credential.
+    assert.equal(upload.method, 'PUT');
+    assert.match(upload.url, /^https:\/\/objectstorage\.example\/p\/tok\/n\/ns\/b\/prospect-backups\/o\/prospect-/);
+    assert.ok(!('authorization' in (upload.headers ?? {})), 'a pre-authenticated URL needs no credential');
+    assert.match(result.destination, /prospect-/);
   });
 });
 
-test('no credential file is required – the instance identity is used', async () => {
+test('the upload URL is never put in the failure message', async () => {
+  // It is the credential. A failed backup is reported to Telegram and written to
+  // backup_event, and a URL that grants writes must not travel into either.
   await withStore(async ({ store, backupDir }) => {
-    const bucket = stubBucket();
-    await runBackup({ store, directory: backupDir, bucket: 'prospect-backups', fetch: bucket.fetch });
-
-    const metadata = bucket.calls.find((c) => c.url.includes('metadata.google.internal'));
-    assert.ok(metadata, 'the token must come from the metadata server');
-    assert.equal(metadata.headers['Metadata-Flavor'], 'Google');
-
-    const upload = bucket.calls.find((c) => c.url.includes('storage.googleapis.com'));
-    assert.equal(upload.headers.authorization, 'Bearer ya29.instance-token');
+    const bucket = stubBucket({ failOn: 'upload' });
+    await assert.rejects(
+      runBackup({
+        store,
+        directory: backupDir,
+        uploadUrl: 'https://objectstorage.example/p/SECRET-TOKEN/n/ns/b/prospect-backups/o/',
+        fetch: bucket.fetch,
+      }),
+      (error) => {
+        assert.ok(!error.message.includes('SECRET-TOKEN'), 'the credential leaked into the error');
+        return true;
+      }
+    );
+    const recorded = store.handle.prepare('SELECT destination, detail FROM backup_event').all();
+    for (const row of recorded) {
+      assert.ok(!String(row.destination ?? '').includes('SECRET-TOKEN'), 'the credential was stored');
+      assert.ok(!String(row.detail ?? '').includes('SECRET-TOKEN'), 'the credential was stored');
+    }
   });
 });
 
@@ -147,7 +161,7 @@ test('recent backups are retained on the box as well as uploaded', async () => {
       await runBackup({
         store,
         directory: backupDir,
-        bucket: 'b',
+        uploadUrl: 'https://objectstorage.example/p/t/n/ns/b/b/o/',
         fetch: bucket.fetch,
         keepLocal: 3,
         now: new Date(Date.UTC(2026, 6, 1 + i)),
@@ -165,27 +179,17 @@ test('a bucket that cannot be reached raises rather than reporting success', asy
     const bucket = stubBucket({ failOn: 'upload' });
 
     await assert.rejects(
-      () => runBackup({ store, directory: backupDir, bucket: 'prospect-backups', fetch: bucket.fetch }),
+      () => runBackup({ store, directory: backupDir, uploadUrl: PAR, fetch: bucket.fetch }),
       /backup failed.*permission denied/s
     );
   });
 });
 
-test('a missing metadata server raises rather than reporting success', async () => {
-  await withStore(async ({ store, backupDir }) => {
-    const bucket = stubBucket({ failOn: 'metadata' });
-
-    await assert.rejects(
-      () => runBackup({ store, directory: backupDir, bucket: 'b', fetch: bucket.fetch }),
-      /backup failed.*service account/s
-    );
-  });
-});
 
 test('a failed backup is recorded as well as raised, so the digest can report it', async () => {
   await withStore(async ({ store, backupDir }) => {
     const bucket = stubBucket({ failOn: 'upload' });
-    await assert.rejects(() => runBackup({ store, directory: backupDir, bucket: 'b', fetch: bucket.fetch }));
+    await assert.rejects(() => runBackup({ store, directory: backupDir, uploadUrl: PAR, fetch: bucket.fetch }));
 
     // Nothing successful on record: the digest must show a stale backup, not a fresh one.
     assert.equal(store.lastSuccessfulBackup(), null);
@@ -195,10 +199,12 @@ test('a failed backup is recorded as well as raised, so the digest can report it
 test('a successful backup is recorded with where it went', async () => {
   await withStore(async ({ store, backupDir }) => {
     const bucket = stubBucket();
-    await runBackup({ store, directory: backupDir, bucket: 'prospect-backups', fetch: bucket.fetch });
+    await runBackup({ store, directory: backupDir, uploadUrl: PAR, fetch: bucket.fetch });
 
     const last = store.lastSuccessfulBackup();
     assert.equal(last.succeeded, 1);
-    assert.match(last.destination, /^gs:\/\/prospect-backups\//);
+    // The bucket and the object, never the URL that would let someone write to it.
+    assert.match(last.destination, /^prospect-backups\/prospect-/);
+    assert.ok(!last.destination.includes('/p/'), 'the pre-authenticated path was recorded');
   });
 });

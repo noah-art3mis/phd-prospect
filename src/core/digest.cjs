@@ -3,9 +3,9 @@
 // It is a dead-man's switch that carries useful information, so it gets read rather than
 // ignored. The daily sweep only speaks when something is due, so its silence is ambiguous –
 // no message means either nothing is due or the app is dead. Long polling hides a broken app
-// from outside, GCP restarts instances for maintenance, and a post-deploy crash loop is
-// silent. That ambiguity would otherwise surface as a missed deadline, the one outcome this
-// project exists to prevent.
+// from outside, a free-tier host reclaims or reboots instances without warning, and a
+// post-deploy crash loop is silent. That ambiguity would otherwise surface as a missed
+// deadline, the one outcome this project exists to prevent.
 //
 // Which is why it sends even when there is nothing to report. An empty digest is the point.
 

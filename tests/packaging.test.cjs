@@ -51,7 +51,7 @@ test('the image runs as a non-root user', () => {
 
 test('the image pins a Node version that has node:sqlite', () => {
   // The app uses node:sqlite rather than a native dependency, precisely so there is nothing
-  // to compile on a shared-core e2-micro. An older base image would break at require time.
+  // to compile on a small shared-core instance. An older base image would break at require time.
   const [, major] = dockerfile.match(/^FROM node:(\d+)/m);
   assert.ok(Number(major) >= 22, `node:${major} predates node:sqlite`);
   const { engines } = JSON.parse(read('package.json'));
@@ -70,10 +70,10 @@ test('every command the deploy doc tells you to run exists', () => {
 });
 
 test('the deploy doc records the accepted single-project risk rather than leaving it implicit', () => {
-  // Primary and backup share a GCP project, so a billing or account problem takes both. The
+  // Primary and backup share one tenancy, so a billing or account problem takes both. The
   // mitigation is that a manual off-box copy is trivial – which only works if it is written
   // down where someone will read it.
-  assert.match(deployDoc, /same GCP project/i);
+  assert.match(deployDoc, /same Oracle tenancy/i);
   assert.match(deployDoc, /npm run backup/);
 });
 

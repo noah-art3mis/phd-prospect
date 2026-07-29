@@ -6,7 +6,7 @@ Prospect is a personal tool for sending a PhD opportunity to a Telegram bot – 
 
 ## Implementation status
 
-The application runs end to end: Telegram bot, ingest, human approval, SQLite storage, reminders, backups, and the weekly digest. It has been exercised against the live Anthropic API but **not yet against a live Telegram bot** – that round trip is the largest untested surface. Deployment to the GCP instance is not done.
+The application runs end to end: Telegram bot, ingest, human approval, SQLite storage, reminders, backups, and the weekly digest. It has been exercised against the live Anthropic API but **not yet against a live Telegram bot** – that round trip is the largest untested surface. Deployment to the Oracle instance is not done.
 
 Earlier versions of this project ran on n8n Cloud with Notion storage. Both were removed in ADR-0006; the ADRs are kept as a record of why.
 ## Why this exists
@@ -159,7 +159,7 @@ Reminders are idempotent through `reminders_sent` on the row, a list of the lead
 ├── SPEC.md                     What the app does and the decisions behind it
 ├── docs/adr/                   Architecture decisions, superseded ones included
 ├── docs/setup.md               First-run checklist
-├── docs/deploy.md              Deploying to the GCP instance
+├── docs/deploy.md              Deploying to the Oracle Cloud instance
 ├── prompts/ingest.prompt       The ingest prompt, with its model and bounds in frontmatter
 ├── src/core/                   Pure domain logic – no clock, no network, no environment
 ├── src/                        The IO shell: Telegram, Anthropic, SQLite, scheduled jobs

@@ -17,7 +17,7 @@ const CONFIG_KEYS = [
   'TZ',
   'REMINDER_LEAD_TIMES',
   'REMINDER_SEND_HOUR',
-  'GCS_BACKUP_BUCKET',
+  'BACKUP_UPLOAD_URL',
   'DB_PATH',
 ];
 
@@ -87,7 +87,7 @@ function loadConfig(env) {
     timezone: present.TZ,
     reminderLeadTimes: leadTimes,
     reminderSendHour: sendHour,
-    gcsBackupBucket: present.GCS_BACKUP_BUCKET,
+    backupUploadUrl: present.BACKUP_UPLOAD_URL,
     dbPath: present.DB_PATH,
   };
 
