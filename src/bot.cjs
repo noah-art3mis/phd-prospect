@@ -38,6 +38,7 @@ function createBot({
 
       case 'url':
       case 'document':
+      case 'paste':
         // Ack first, then detach. The reply must not sit behind a two-minute model call.
         await telegram.sendMessage(decision.chatId, acknowledgement(decision));
         detach(onSubmission(decision));

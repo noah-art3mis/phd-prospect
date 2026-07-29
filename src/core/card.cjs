@@ -96,6 +96,13 @@ function approvalButtons(opportunityId) {
 const EDITABLE_FIELDS = ['title', 'institution', 'deadline'];
 const EDIT_PATTERN = /^(\d+)\s+([a-z_]+)\s*=\s*(.+)$/i;
 
+// Whether text is shaped like a correction at all, without needing a zone to find out. The
+// router asks this to tell a correction from a pasted advert; parseEdit answers what the
+// correction says. One pattern, so the two can never disagree about what an edit looks like.
+function looksLikeEdit(text) {
+  return EDIT_PATTERN.test(String(text).trim());
+}
+
 function parseEdit(text, { zone }) {
   const match = String(text).trim().match(EDIT_PATTERN);
   if (!match) return null;
@@ -123,4 +130,4 @@ function parseEdit(text, { zone }) {
   return { opportunityId: Number(rawId), changes: { [field]: value } };
 }
 
-module.exports = { approvalCard, approvalButtons, parseEdit, EDITABLE_FIELDS };
+module.exports = { approvalCard, approvalButtons, parseEdit, looksLikeEdit, EDITABLE_FIELDS };

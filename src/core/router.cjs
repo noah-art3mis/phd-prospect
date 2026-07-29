@@ -11,6 +11,17 @@
 // a balanced closing bracket is only kept when the URL opened one.
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/i;
 
+const { looksLikeEdit } = require('./card.cjs');
+
+// An advert is a document: it runs to paragraphs and it spans lines. A note does neither, and
+// the cost of getting this wrong is asymmetric – a stray message read as an advert spends a
+// model call, an advert read as a note gets "send me a link or a PDF".
+const DOCUMENT_MIN_CHARS = 200;
+
+function isDocument(text) {
+  return text.length >= DOCUMENT_MIN_CHARS && text.includes('\n');
+}
+
 function trimTrailingPunctuation(url) {
   let trimmed = url.replace(/[.,;:!?]+$/, '');
   while (/[)\]}]$/.test(trimmed)) {
@@ -55,11 +66,34 @@ function classifyUpdate(update, allowedUserId) {
     return { ...common, kind: 'document', fileId, fileName: fileName ?? 'document.pdf', fileSize };
   }
 
-  const text = message.text ?? message.caption ?? '';
+  const text = (message.text ?? message.caption ?? '').trim();
   const match = text.match(URL_PATTERN);
+
+  // A correction first, because it is the one thing here with a grammar. Asked of the same
+  // pattern parseEdit uses, so the two cannot disagree about what an edit looks like – and
+  // since that grammar is a single anchored line, a wordy correction stays a correction and
+  // a pasted advert never becomes one.
+  if (!looksLikeEdit(text)) {
+    if (isDocument(text)) {
+      // The link is not always readable: a page that renders in the browser gives the
+      // fetcher nothing, and the advert the user is looking at never reaches the model.
+      // Pasting it is the way through.
+      if (!match) {
+        return {
+          ...common,
+          kind: 'unsupported',
+          reason:
+            'Send the link along with the text – I store the record under it, use it to ' +
+            'recognise the same advert later, and it is the way back to the original.',
+        };
+      }
+      return { ...common, kind: 'paste', url: trimTrailingPunctuation(match[0]), text };
+    }
+  }
+
   if (match) return { ...common, kind: 'url', url: trimTrailingPunctuation(match[0]) };
 
-  if (text.trim()) return { ...common, kind: 'text', text: text.trim() };
+  if (text) return { ...common, kind: 'text', text };
 
   return { ...common, kind: 'unsupported', reason: 'Send me a link or a PDF.' };
 }
@@ -75,6 +109,11 @@ function acknowledgement(decision) {
   }
   if (decision.kind === 'document') {
     return `Got it – reading ${decision.fileName}\n\nThis usually takes a minute or two. I'll send the record when it's ready.`;
+  }
+  if (decision.kind === 'paste') {
+    // Named as text, not as the link, so it is obvious the pasted version is what gets read
+    // – the user is here because the link did not work.
+    return `Got it – reading the text you sent, filed under ${decision.url}\n\nThis usually takes a minute or two. I'll send the record when it's ready.`;
   }
   return 'Got it.';
 }

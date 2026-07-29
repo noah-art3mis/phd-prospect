@@ -71,7 +71,9 @@ function scalarValue(finding) {
 
 // PDFs are handed to the model as base64 document blocks – nothing parses them locally, and
 // the Telegram file URL is never given to web_fetch, because the bot token is in its path.
+// Pasted text goes the same way: as content to read, never as an address to resolve.
 function submissionContent(submission) {
+  if (submission.kind === 'paste') return [{ type: 'text', text: submission.text }];
   if (submission.kind !== 'document') return null;
   return [
     {
@@ -79,6 +81,17 @@ function submissionContent(submission) {
       source: { type: 'base64', media_type: 'application/pdf', data: submission.pdfBase64 },
     },
   ];
+}
+
+// Where the advert is, in words the prompt can put in a sentence. A paste says the link is
+// unfetchable as well as what it is: the user pasted because the fetch failed, and a URL
+// offered without that invites the model to spend an attempt discovering it again.
+function describeSource(submission) {
+  if (submission.kind === 'paste') {
+    return `the advert text below, which the user pasted because ${submission.url} could not be fetched – do not try to fetch it`;
+  }
+  if (submission.kind === 'document') return `the attached document (${submission.fileName})`;
+  return submission.url;
 }
 
 function createIngest({
@@ -95,7 +108,7 @@ function createIngest({
 }) {
   async function ingest(submission) {
     const request = buildIngestRequest(prompt, {
-      variables: { url: submission.url ?? `the attached document (${submission.fileName})` },
+      variables: { source: describeSource(submission) },
       content: submissionContent(submission),
     });
 

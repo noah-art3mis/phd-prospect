@@ -36,8 +36,9 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;
 function createSubmissionHandler({ store, telegram, ingest, approval, chatId }) {
   return async function handleSubmission(submission) {
     // Before the model call: a link already tracked answers with the deadline on file,
-    // costing nothing (#28).
-    if (submission.kind === 'url') {
+    // costing nothing (#28). Keyed on the URL rather than the kind, so pasting the text of
+    // an advert already on file is short-circuited too - the paste carries the same link.
+    if (submission.url) {
       const existing = store.findConfirmedByUrl(submission.url);
       if (existing) {
         await telegram.sendMessage(chatId, alreadyTracked(existing));

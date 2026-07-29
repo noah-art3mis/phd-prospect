@@ -30,7 +30,7 @@ const fixture = (name) =>
 const ZONE = 'America/Mexico_City';
 const SUBMISSION = { kind: 'url', url: 'https://uni.example/phd' };
 
-const request = () => buildIngestRequest(PROMPT, { variables: { url: SUBMISSION.url }, content: null });
+const request = () => buildIngestRequest(PROMPT, { variables: { source: SUBMISSION.url }, content: null });
 
 // --- the request ------------------------------------------------------------------------
 
@@ -38,7 +38,7 @@ test('the submitted URL is rendered into the prompt, not left as a placeholder',
   const body = request();
   const userText = JSON.stringify(body.messages.at(-1).content);
   assert.match(userText, /https:\/\/uni\.example\/phd/);
-  assert.ok(!userText.includes('{{url}}'), 'an unrendered placeholder reached the model');
+  assert.ok(!userText.includes('{{source}}'), 'an unrendered placeholder reached the model');
 });
 
 test('the model and token budget come from the prompt file', () => {
@@ -147,7 +147,7 @@ test('no sampling parameters are sent – they are rejected on this model', () =
 
 test('a PDF submission carries a base64 document block, never a Telegram file URL', () => {
   const body = buildIngestRequest(PROMPT, {
-    variables: { url: 'the attached document (advert.pdf)' },
+    variables: { source: 'the attached document (advert.pdf)' },
     content: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0=' } }],
   });
   const content = body.messages.at(-1).content;
@@ -612,4 +612,44 @@ test('a malformed record with no fetch trouble still names what was wrong with i
   const result = readIngestResponse(fixture('fetch_blocked_malformed'));
   assert.equal(result.status, 'failed');
   assert.match(result.reason, /research_topics/);
+});
+
+// --- pasted adverts ---------------------------------------------------------------------
+
+const PASTE = {
+  kind: 'paste',
+  url: 'https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl',
+  text: 'Finding structure in multi-modal food data\nApply no later than August 14, 2026.',
+};
+
+test('pasted text is sent as the advert itself, not as something to fetch', () => {
+  const body = buildIngestRequest(PROMPT, {
+    variables: { source: 'the advert text below' },
+    content: [{ type: 'text', text: PASTE.text }],
+  });
+  const content = body.messages.at(-1).content;
+
+  assert.equal(content[0].type, 'text');
+  assert.match(content[0].text, /multi-modal food data/);
+});
+
+test('a paste tells the model the link is unfetchable, so it does not spend the attempt', async () => {
+  // The user pastes because the fetch failed. Handing over the URL without saying that
+  // invites the model to try it, which is the $0.69 that produced nothing.
+  const anthropic = fakeAnthropic([fixture('complete')]);
+  await ingestWith(anthropic)(PASTE);
+
+  const sent = JSON.stringify(anthropic.requests[0].messages);
+  assert.match(sent, /could not be fetched/i);
+  assert.match(sent, /multi-modal food data/);
+});
+
+test('a pasted record is stored under the link that came with it', async () => {
+  // source_url is the record's identity and what the re-submission short-circuit looks up.
+  // A paste has no page of its own, so the link the user sent is the only honest answer.
+  const result = await ingestWith(fakeAnthropic([fixture('complete')]))(PASTE);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.candidate.source_url, PASTE.url);
+  assert.equal(result.candidate.canonical_url, 'https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl');
 });

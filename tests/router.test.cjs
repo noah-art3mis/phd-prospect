@@ -152,3 +152,66 @@ test('an acknowledgement of an attacker-controlled name is plain text with nothi
   const text = acknowledgement({ kind: 'document', fileName: '*_[bold](http://evil)`.pdf' });
   assert.ok(text.includes('*_[bold](http://evil)`.pdf'), 'the filename was altered');
 });
+
+// --- pasted adverts ---------------------------------------------------------------------
+//
+// The link is not always readable. A KU Leuven advert renders in the browser, so Anthropic's
+// fetcher saw nothing and the ingest cost $0.69 to produce an empty record – while the page
+// sat perfectly legible in front of the user. Pasting it is the way through, and it is a lot
+// of university job boards, not one page.
+//
+// A paste is told apart from a correction by shape rather than by guessing: the edit grammar
+// is a single anchored line, so anything spanning lines cannot be one.
+
+const ADVERT = [
+  'Finding structure in multi-modal food data with visual analytics',
+  '(ref. BAP-2026-443)',
+  'The PhD candidate will join the AIDA research group at KU Leuven.',
+  'You can apply for this job no later than August 14, 2026 via the online application tool.',
+  'Source: https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl',
+].join('\n');
+
+test('a pasted advert with its link is a submission, not a correction', () => {
+  const decision = classifyUpdate(message({ text: ADVERT }), ME);
+  assert.equal(decision.kind, 'paste');
+  assert.equal(decision.url, 'https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl');
+  assert.match(decision.text, /BAP-2026-443/);
+});
+
+test('a pasted advert without a link is refused, and says why', () => {
+  // source_url is not decoration: it is the identity a record is stored under, what the
+  // re-submission short-circuit looks up, and the only way back to the advert later. A paste
+  // arrives because a link failed, so the user has the link.
+  const decision = classifyUpdate(message({ text: ADVERT.replace(/^Source:.*$/m, '') }), ME);
+  assert.equal(decision.kind, 'unsupported');
+  assert.match(decision.reason, /link/i);
+});
+
+test('a correction is still a correction, however it is worded', () => {
+  const decision = classifyUpdate(message({ text: '7 title = Finding structure in multi-modal food data' }), ME);
+  assert.equal(decision.kind, 'text');
+});
+
+test('a long single-line correction is not mistaken for an advert', () => {
+  // The discriminator is the edit grammar, not length: an edit is one anchored line, so a
+  // wordy title correction stays an edit no matter how long it runs.
+  const long = `7 title = ${'a very long corrected title '.repeat(20)}`;
+  assert.ok(long.length > 400);
+  assert.equal(classifyUpdate(message({ text: long }), ME).kind, 'text');
+});
+
+test('a short multi-line note is not an advert', () => {
+  // An advert is a document. Two lines of chat is not, and treating it as one would spend a
+  // model call on it.
+  assert.equal(classifyUpdate(message({ text: 'hey\nthanks' }), ME).kind, 'text');
+});
+
+test('a bare link is still fetched rather than treated as pasted text', () => {
+  const decision = classifyUpdate(message({ text: 'https://uni.example/phd' }), ME);
+  assert.equal(decision.kind, 'url');
+});
+
+test('a pasted advert is acknowledged as text, not as a link to fetch', () => {
+  const decision = classifyUpdate(message({ text: ADVERT }), ME);
+  assert.match(acknowledgement(decision), /text/i);
+});

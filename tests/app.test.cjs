@@ -211,3 +211,62 @@ test('the approval card renders markup from the page literally', async () => {
     assert.ok(!('parse_mode' in (card.options ?? {})), 'parse_mode must never be set');
   });
 });
+
+// --- pasted adverts ---------------------------------------------------------------------
+
+const PASTED_ADVERT = [
+  'PhD in Trustworthy Artificial Intelligence',
+  '(ref. BAP-2026-443)',
+  'The candidate will join the research group and work on explainable AI methods.',
+  'Applications close on 1 December 2026 via the online application tool.',
+  'Source: https://uni.example/phd',
+].join('\n');
+
+const pasteFrom = (text = PASTED_ADVERT) => ({
+  update_id: 3,
+  message: { message_id: 12, chat: { id: ME }, from: { id: ME }, text },
+});
+
+test('a pasted advert becomes an approval card without anything being fetched', async () => {
+  // The whole point: the page could not be read, the user could. This is the path that turns
+  // a $0.69 empty record into a tracked deadline.
+  await withApp([fixture('complete')], async ({ store, telegram, app, anthropic }) => {
+    await app.bot.handleUpdate(pasteFrom());
+    await app.bot.settle();
+
+    assert.equal(telegram.sent.length, 2);
+    assert.match(telegram.sent[0].text, /reading the text you sent/);
+    assert.match(telegram.sent[1].text, /PhD in Trustworthy Artificial Intelligence/);
+
+    // The advert reached the model as content, and the link went with it as unfetchable.
+    const sent = JSON.stringify(anthropic.requests[0].messages);
+    assert.match(sent, /BAP-2026-443/);
+    assert.match(sent, /could not be fetched/i);
+
+    const id = Number(telegram.sent[1].options.replyMarkup.inline_keyboard[0][0].callback_data.split(':')[1]);
+    await app.bot.handleUpdate(press('approve', id));
+    await app.bot.settle();
+
+    assert.equal(store.countConfirmed(), 1);
+    assert.equal(store.listConfirmed()[0].deadline_at, '2026-12-01T23:59:00.000Z');
+  });
+});
+
+test('pasting an advert already on file costs nothing', async () => {
+  // The short-circuit is keyed on the link, and a paste carries the same link, so the
+  // expensive path is skipped whichever way the same advert arrives twice.
+  await withApp([fixture('complete')], async ({ telegram, app, anthropic }) => {
+    await app.bot.handleUpdate(linkFrom());
+    await app.bot.settle();
+    const id = Number(telegram.sent[1].options.replyMarkup.inline_keyboard[0][0].callback_data.split(':')[1]);
+    await app.bot.handleUpdate(press('approve', id));
+    await app.bot.settle();
+
+    const callsBefore = anthropic.requests.length;
+    await app.bot.handleUpdate(pasteFrom());
+    await app.bot.settle();
+
+    assert.equal(anthropic.requests.length, callsBefore, 'a second model call was made');
+    assert.match(telegram.sent.at(-1).text, /Already tracking/);
+  });
+});
