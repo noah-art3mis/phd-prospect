@@ -73,14 +73,18 @@ Related: `usageOf` in `src/core/ingest-response.cjs` sums `input_tokens`, `cache
 
 ## What follows
 
-Ordered by value, not effort.
+Ordered by value, not effort. Items 2, 4 and 5 are done, and a fourth – keeping the raw response – was added because it is what makes the rest measurable.
 
-1. **Add prompt caching and measure `cache_read_input_tokens`.** Largest single saving available; the current figure is zero.
-2. **Bound the whole ingest, not each fetch.** A token budget or wall-clock ceiling that aborts and reports, so no single advert can cost $1.84 or run 18 minutes. The `task_budget` parameter exists for exactly this and is supported on Sonnet 5.
-3. **Fail cheap on unreadable pages.** Detect early that fetches are returning nothing and stop, rather than burning the full loop before `readEverything` refuses the result.
-4. **Split the three token classes** in `usageOf`, `usage_event`, and `approximateSpend`, and log usage from the CLI path too.
-5. **Correct the cost claim in `docs/setup.md`** before it informs a spend limit.
+1. **Add prompt caching and measure `cache_read_input_tokens`.** Largest single saving available; the current figure is zero. On the volume measured here it takes the batch from $3.36 to about $1.22.
+2. ~~**Bound the whole ingest, not each fetch.**~~ Done: ten minutes across the loop and 1M cumulative billed input tokens, both in `src/ingest.cjs`. Both are blunt. Aborting stops the stream, not the billing for what was already generated, and the token ceiling only lands at a resume boundary, so neither bounds a single runaway call to zero. `task_budget` is the lever that would, but it is advisory rather than enforced, it is beta, and picking a value that does not degrade the 805K-token run that *succeeded* needs more measurements than exist. Traces are how those measurements arrive.
+3. **Fail cheap on unreadable pages.** Detect early that fetches are returning nothing and stop, rather than burning the full loop before `readEverything` refuses the result. The KU Leuven trace is the evidence needed to write this.
+4. ~~**Split the three token classes**~~ in `usageOf`, `usage_event` and `approximateSpend`. Done.
+5. ~~**Correct the cost claim in `docs/setup.md`**~~. Done.
 6. **Re-tune `effort` and `MAX_FETCHES` against measurements** rather than intuition, now that there is a baseline to compare against.
+
+**Keep the raw response.** Every fixture under `tests/fixtures/ingest` is a recorded API response, so a trace and a regression fixture are the same artifact – which is why this is capture rather than a dashboard. The response carries the whole server-side tool loop, each `server_tool_use` with the URL it fetched and each `web_fetch_tool_result` with what came back, alongside the exact `usage`. Both schema ceilings and the retry bug cost money to find because none of it was kept. Now written gzipped to `data/traces`, pruned at 30 days, and outside the backup because `runBackup` copies the database and nothing else.
+
+The CLI logs no `usage_event` rows, and no longer needs to: its traces carry the exact usage per call, which is more than the summed table would have held.
 
 ## The thing that stopped the run
 
