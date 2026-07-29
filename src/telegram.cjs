@@ -54,7 +54,10 @@ function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_AP
       const chunks = chunk(String(text));
       let last;
       for (const [index, part] of chunks.entries()) {
-        const body = { chat_id: chatId, text: part };
+        // Previews off, always. Every message here is either a record or a note about one,
+        // and a preview card pushes the thing being read down the screen to show a picture of
+        // a page that in the acknowledgement's case nothing has even fetched yet.
+        const body = { chat_id: chatId, text: part, link_preview_options: { is_disabled: true } };
         if (replyMarkup && index === chunks.length - 1) body.reply_markup = replyMarkup;
         last = await call('sendMessage', body);
       }
