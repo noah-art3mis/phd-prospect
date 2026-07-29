@@ -19,7 +19,7 @@ const {
   FINDING_FIELDS,
 } = require('../src/core/ingest-request.cjs');
 const { readIngestResponse } = require('../src/core/ingest-response.cjs');
-const { createIngest, MAX_RESUMES } = require('../src/ingest.cjs');
+const { createIngest, MAX_RESUMES, TIME_BUDGET_MS, TOKEN_BUDGET } = require('../src/ingest.cjs');
 const { loadPrompt } = require('../src/core/prompt.cjs');
 const { validate } = require('../src/core/validate.cjs');
 
@@ -302,22 +302,30 @@ test('a response with no caching reports zero, not absent, for the cache classes
 
 // Only `stream` is offered, deliberately: a non-streaming ingest races the SDK's ten-minute
 // timeout, and on a heavy advert it loses. Anything reaching for `create` should fail here.
-function fakeAnthropic(responses) {
+function fakeAnthropic(responses, { delayMs = 0 } = {}) {
   const requests = [];
+  const options = [];
   return {
     requests,
+    options,
     messages: {
-      stream(body) {
+      stream(body, requestOptions) {
         requests.push(body);
+        options.push(requestOptions);
         const response = responses[Math.min(requests.length - 1, responses.length - 1)];
-        return { finalMessage: async () => response };
+        return {
+          finalMessage: async () => {
+            if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+            return response;
+          },
+        };
       },
     },
   };
 }
 
-const ingestWith = (anthropic, onUsage = () => {}) =>
-  createIngest({ anthropic, prompt: PROMPT, zone: ZONE, onUsage }).ingest;
+const ingestWith = (anthropic, onUsage = () => {}, bounds = {}) =>
+  createIngest({ anthropic, prompt: PROMPT, zone: ZONE, onUsage, ...bounds }).ingest;
 
 test('a URL becomes a validated candidate in a single call', async () => {
   const anthropic = fakeAnthropic([fixture('complete')]);
@@ -411,4 +419,94 @@ test('a candidate that fails validation is reported, not stored', async () => {
   const result = await ingestWith(fakeAnthropic([ungated]))(SUBMISSION);
   assert.equal(result.ok, false);
   assert.match(result.reason, /critical finding 'deadline' requires evidence/);
+});
+
+// --- the bounds -------------------------------------------------------------------------
+//
+// Measured: a successful ingest took 135s and 305s; the failures took 1101s and 3758s and
+// cost as much as the successes. Nothing in the request bounds any of that. max_content_tokens
+// bounds one fetched page, and max_tokens bounds the output; neither bounds the loop, whose
+// input grows with the square of the number of iterations because every iteration re-sends
+// the whole accumulated conversation.
+//
+// Two bounds, because they catch different runaways. The clock covers a single call that
+// never comes back, which is the only lever there is inside one request. The token ceiling
+// covers a resume loop, which the clock would let run as six separate quick calls.
+
+test('every call carries an abort signal, so one that never returns is not waited on forever', async () => {
+  const anthropic = fakeAnthropic([fixture('complete')]);
+  await ingestWith(anthropic)(SUBMISSION);
+
+  assert.ok(anthropic.options[0]?.signal instanceof AbortSignal, 'the call was unbounded');
+});
+
+test('an aborted call is reported as a failure rather than thrown at the caller', async () => {
+  // Aborting is the deliberate outcome of running past the budget, so it has to arrive the
+  // way every other ingest failure does: as a reason the bot can send.
+  const anthropic = {
+    messages: {
+      stream(body, { signal }) {
+        return {
+          finalMessage: () =>
+            new Promise((_resolve, reject) => {
+              // The keep-alive stands in for the open socket a real call would be waiting on.
+              // AbortSignal.timeout's own timer is unref'd, so with nothing else pending the
+              // event loop would drain before it ever fired.
+              const socket = setTimeout(() => {}, 60_000);
+              signal.addEventListener(
+                'abort',
+                () => {
+                  clearTimeout(socket);
+                  reject(signal.reason);
+                },
+                { once: true }
+              );
+            }),
+        };
+      },
+    },
+  };
+
+  const result = await ingestWith(anthropic, () => {}, { timeBudgetMs: 20 })(SUBMISSION);
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /too long/i);
+});
+
+test('the clock bounds the whole ingest, not each call, so resumes cannot outlast it', async () => {
+  // Six resumes of nine minutes each is under any per-call limit and still an hour of
+  // billing. The budget is spent once, across the loop.
+  const anthropic = fakeAnthropic([fixture('pause_turn')], { delayMs: 30 });
+  const result = await ingestWith(anthropic, () => {}, { timeBudgetMs: 10 })(SUBMISSION);
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /too long/i);
+  assert.equal(anthropic.requests.length, 1, 'the loop resumed after its budget was gone');
+});
+
+test('a resume that would push billed input past the ceiling is abandoned instead', async () => {
+  // Each resume re-sends everything before it, so cumulative billed input climbs far faster
+  // than the conversation grows. Past the context window a resume cannot succeed anyway –
+  // it can only be charged for.
+  const heavy = structuredClone(fixture('pause_turn'));
+  heavy.usage = { input_tokens: 600_000, output_tokens: 1000 };
+
+  const anthropic = fakeAnthropic([heavy]);
+  const result = await ingestWith(anthropic, () => {}, { tokenBudget: 1_000_000 })(SUBMISSION);
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /tokens/i);
+  assert.equal(anthropic.requests.length, 2, 'the second call was already over the ceiling');
+});
+
+test('the default bounds are the ones the measurements justify', async () => {
+  // Pinned rather than left to drift: 10 minutes clears the 135s and 305s successes and cuts
+  // off the 1101s and 3758s failures, and 1M tokens is the context window, past which a
+  // resume has nowhere to go.
+  assert.equal(TIME_BUDGET_MS, 600_000);
+  assert.equal(TOKEN_BUDGET, 1_000_000);
+});
+
+test('a bounded ingest that finishes in time is unaffected', async () => {
+  const result = await ingestWith(fakeAnthropic([fixture('complete')]))(SUBMISSION);
+  assert.equal(result.ok, true);
 });
