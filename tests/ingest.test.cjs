@@ -593,3 +593,23 @@ test('fetch errors are read off the response, including which page each was for'
   assert.equal(errors[0].code, 'unavailable');
   assert.match(errors[0].url, /kuleuven\.be/);
 });
+
+test('a refused fetch is reported as the cause even when the record came back malformed', async () => {
+  // Live: two refused fetches, then eighteen findings for sixteen fields. The duplicate-field
+  // guard fired first and the user was told 'research_topics more than once', which is a fact
+  // about the symptom. Nobody read the page; that is the thing worth saying.
+  const result = await ingestWith(fakeAnthropic([fixture('fetch_blocked_malformed')]))(SUBMISSION);
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /could not fetch/i);
+  assert.ok(!/research_topics/.test(result.reason), 'the symptom was reported instead of the cause');
+});
+
+test('a malformed record with no fetch trouble still names what was wrong with it', () => {
+  // The guard itself stays: a field returned twice is how a contradicted deadline would
+  // vanish. Only its precedence changes, and only when the fetches were refused.
+  const { readIngestResponse } = require('../src/core/ingest-response.cjs');
+  const result = readIngestResponse(fixture('fetch_blocked_malformed'));
+  assert.equal(result.status, 'failed');
+  assert.match(result.reason, /research_topics/);
+});

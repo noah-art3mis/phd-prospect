@@ -160,7 +160,11 @@ function createIngest({
       };
     }
     if (result.status === 'failed') {
-      return { ok: false, reason: result.reason };
+      // Cause before symptom. A run whose fetches were refused never read the page, so
+      // whatever is wrong with the record it assembled anyway is downstream of that – and
+      // 'research_topics more than once' tells nobody what to do next.
+      const refused = fetchErrors(lastResponse).length > 0;
+      return { ok: false, reason: refused ? unreadableReason(lastResponse) : result.reason };
     }
 
     const candidate = result.candidate;
