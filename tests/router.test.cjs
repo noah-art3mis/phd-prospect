@@ -178,13 +178,14 @@ test('a pasted advert with its link is a submission, not a correction', () => {
   assert.match(decision.text, /BAP-2026-443/);
 });
 
-test('a pasted advert without a link is refused, and says why', () => {
-  // source_url is not decoration: it is the identity a record is stored under, what the
-  // re-submission short-circuit looks up, and the only way back to the advert later. A paste
-  // arrives because a link failed, so the user has the link.
+test('a pasted advert with no link at all is still a submission', () => {
+  // The link is what a record is normally filed under, but it is not always to hand - the
+  // advert may have been forwarded, or copied out of a portal that has no stable address.
+  // Pasted text carries its own identity instead, derived from the text.
   const decision = classifyUpdate(message({ text: ADVERT.replace(/^Source:.*$/m, '') }), ME);
-  assert.equal(decision.kind, 'unsupported');
-  assert.match(decision.reason, /link/i);
+  assert.equal(decision.kind, 'paste');
+  assert.equal(decision.url, undefined, 'there was no link to carry');
+  assert.match(decision.text, /BAP-2026-443/);
 });
 
 test('a correction is still a correction, however it is worded', () => {

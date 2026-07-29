@@ -163,7 +163,7 @@
     {
       "name": "non_http_source_url",
       "expect": {
-        "invalid": "opportunity requires an http or https source_url"
+        "invalid": "opportunity requires an http or https source_url, or a paste reference"
       },
       "input": {
         "title": "PhD position",
@@ -588,6 +588,40 @@
             "evidence": []
           }
         }
+      }
+    },
+    {
+      "name": "pasted_source_ref_is_accepted",
+      "expect": "ok",
+      "input": {
+        "title": "PhD position",
+        "source_url": "paste:0f1e2d3c4b5a6978",
+        "findings": {
+          "deadline": {
+            "state": "found",
+            "value": [
+              "2026-08-14T23:59:00+02:00"
+            ],
+            "evidence": [
+              {
+                "url": "paste:0f1e2d3c4b5a6978",
+                "retrieved_at": "2026-07-29T10:00:00Z",
+                "excerpt": "no later than August 14, 2026"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "malformed_paste_ref_is_rejected",
+      "expect": {
+        "invalid": "opportunity requires an http or https source_url, or a paste reference"
+      },
+      "input": {
+        "title": "PhD position",
+        "source_url": "paste:notahexdigest",
+        "findings": {}
       }
     }
   ]

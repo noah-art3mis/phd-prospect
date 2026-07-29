@@ -77,16 +77,12 @@ function classifyUpdate(update, allowedUserId) {
   // nothing, and the advert the user is looking at never reaches the model. Pasting it is the
   // way through.
   if (isDocument(text) && !looksLikeEdit(text)) {
-    if (!match) {
-      return {
-        ...common,
-        kind: 'unsupported',
-        reason:
-          'Send the link along with the text – I store the record under it, use it to ' +
-          'recognise the same advert later, and it is the way back to the original.',
-      };
-    }
-    return { ...common, kind: 'paste', url: trimTrailingPunctuation(match[0]), text };
+    // The link comes along when there is one - it is the better identity, and it is what
+    // makes the same advert recognisable however it arrives. Without one the text supplies
+    // its own identity, so a forwarded advert with no address is still trackable.
+    return match
+      ? { ...common, kind: 'paste', url: trimTrailingPunctuation(match[0]), text }
+      : { ...common, kind: 'paste', text };
   }
 
   if (match) return { ...common, kind: 'url', url: trimTrailingPunctuation(match[0]) };

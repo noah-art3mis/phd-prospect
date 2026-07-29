@@ -26,7 +26,9 @@ The value is always a list of strings, even where only one thing was found: a si
 
 Unknown stays unknown. Completeness never justifies invention. If a page does not state the funding, `not_stated` is the correct answer and a plausible guess is a wrong one – the person reading this record will act on it.
 
-Never upgrade a state to make a record look better. Never write an evidence excerpt you did not read; every excerpt must be text that appears verbatim in the page you fetched.
+Never upgrade a state to make a record look better. Never write an evidence excerpt you did not read; every excerpt must be text that appears verbatim in the source you were given – the page you fetched, the document attached, or the text pasted in.
+
+When the source is pasted text it has no address, so you will be told the reference to cite for it. Use that reference as the evidence url, with the excerpt quoted from the text. It is a real source: the person reading the record has the same text in front of them and can check the quote.
 
 ## The deadline
 

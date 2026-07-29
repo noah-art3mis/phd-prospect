@@ -25,10 +25,26 @@ function isEmptyValue(value) {
 }
 
 // The app never resolves or connects to a user-submitted URL – the model's server-side
-// web_fetch does (ADR-0007) – so there is no SSRF surface here to defend and the private
-// address checks of the n8n build are not ported. A URL only has to be a web link.
+// web_fetch does (ADR-0007) – so there is no SSRF surface here to defend and no private
+// address checks are needed. A URL only has to be a web link.
 function isHttpUrl(value) {
   return /^https?:\/\/\S+$/i.test(String(value == null ? '' : value).trim());
+}
+
+// Where a claim came from: a web link, or the text the user pasted. Both are checkable,
+// which is the whole point of the evidence rule – you can go and read the source and see
+// whether the excerpt is really there.
+//
+// A paste has to count, or the arithmetic goes wrong in a way that is worse than laxness:
+// the deadline may only be `found` with evidence, so an http-only rule would push every
+// pasted deadline to needs_confirmation, and a record with no `found` deadline is stored,
+// listed, and silently never reminds. Nothing dereferences either form, so admitting the
+// second opens no surface; the excerpt rule still does the real work.
+const PASTE_REF = /^paste:[0-9a-f]{16}$/;
+
+function isSourceRef(value) {
+  const text = String(value == null ? '' : value).trim();
+  return isHttpUrl(text) || PASTE_REF.test(text);
 }
 
 // Strict ISO-8601 instant, rejecting impossible calendar dates a bare regex would pass.
@@ -52,7 +68,7 @@ function parseIsoInstant(value) {
 
 function validateEvidence(name, evidence) {
   if (!isPlainObject(evidence)) throw InvalidRecord(`finding '${name}' has malformed evidence`);
-  if (!isHttpUrl(evidence.url)) throw InvalidRecord(`finding '${name}' has evidence with an invalid url`);
+  if (!isSourceRef(evidence.url)) throw InvalidRecord(`finding '${name}' has evidence with an invalid url`);
   const parsed = parseIsoInstant(evidence.retrieved_at);
   if (!parsed.valid) throw InvalidRecord(`finding '${name}' has evidence with an invalid retrieved_at`);
   if (!parsed.hasOffset) throw InvalidRecord(`finding '${name}' retrieved_at must include a UTC offset`);
@@ -67,8 +83,8 @@ function validate(candidate) {
   if (!String(accepted.title == null ? '' : accepted.title).trim()) {
     throw InvalidRecord('opportunity requires a title');
   }
-  if (!isHttpUrl(accepted.source_url)) {
-    throw InvalidRecord('opportunity requires an http or https source_url');
+  if (!isSourceRef(accepted.source_url)) {
+    throw InvalidRecord('opportunity requires an http or https source_url, or a paste reference');
   }
   const findings = accepted.findings || {};
   if (!isPlainObject(findings)) throw InvalidRecord('opportunity findings must be an object');

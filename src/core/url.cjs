@@ -8,6 +8,8 @@
 // `opportunityFingerprint` from the n8n build is deliberately not ported: reject deletes
 // the row, so cross-source identity has no consumer.
 
+const crypto = require('node:crypto');
+
 const TRACKING_PARAMETERS = new Set(['fbclid', 'gclid', 'mc_cid', 'mc_eid', 'igshid', 'ref_src']);
 
 function isTracking(key) {
@@ -39,4 +41,27 @@ function canonicalizeUrl(url) {
   return 'https://' + host + path + (query ? '?' + query : '');
 }
 
-module.exports = { canonicalizeUrl };
+// A record with no link still needs an identity: it is the primary key of the row, what the
+// re-submission short-circuit looks up, and what evidence points at. Pasted text has no
+// address, so its identity is derived from the text – the same advert pasted twice is one
+// record, and two different adverts are two.
+//
+// Deliberately not URL-shaped. `paste:` says plainly that there is no page behind this and
+// nothing will ever fetch it, where a plausible-looking https address would invite both.
+//
+// Whitespace is normalised first because a copy-paste rarely repeats byte for byte – a
+// trailing newline, a rewrapped line – and identity that moved with those would file the
+// same advert twice.
+function pasteIdentity(text) {
+  const normalized = String(text ?? '').trim().replace(/\s+/g, ' ');
+  return 'paste:' + crypto.createHash('sha256').update(normalized, 'utf8').digest('hex').slice(0, 16);
+}
+
+// What a submission is filed under. One definition, because the duplicate check and the
+// stored source_url have to agree: if they disagreed, a record would be saved under a key
+// nothing later looks up.
+function submissionIdentity(submission) {
+  return submission.url ?? pasteIdentity(submission.text);
+}
+
+module.exports = { canonicalizeUrl, pasteIdentity, submissionIdentity };
