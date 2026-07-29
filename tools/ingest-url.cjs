@@ -38,7 +38,7 @@ async function main(url) {
     anthropic,
     prompt,
     zone: config.timezone,
-    onResponse: (response, submission) => trace.record(response, { url: submission.url }),
+    onResponse: (response, submission) => trace.record(response, { url: submission.url ?? submission.fileName }),
     onUsage: (u) =>
       console.error(
         `  call: ${u.inputTokens} in, ${u.cacheReadTokens} cached, ${u.cacheWriteTokens} written, ${u.outputTokens} out`

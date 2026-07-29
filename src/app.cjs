@@ -101,7 +101,7 @@ function createApp({ config, store, anthropic, telegram, prompt, trace, onError 
     prompt,
     zone: config.timezone,
     onUsage: (usage) => store.recordUsage(usage),
-    onResponse: (response, submission) => trace.record(response, { url: submission.url }),
+    onResponse: (response, submission) => trace.record(response, { url: submission.url ?? submission.fileName }),
   });
 
   const approval = createApproval({ store, telegram, zone: config.timezone, chatId });

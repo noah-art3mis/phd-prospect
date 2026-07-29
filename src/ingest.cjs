@@ -40,9 +40,6 @@ function abortedFailure(budgetMs) {
   };
 }
 
-function isAbort(error) {
-  return error?.name === 'AbortError' || error?.name === 'TimeoutError';
-}
 
 // Findings arrive as lists; `institution` and `deadline_at` are single columns. A field that
 // holds one thing and came back with several is the model disagreeing with the column, and
@@ -97,16 +94,19 @@ function createIngest({
       // and an advert that takes the model past it fails after being billed in full. The
       // stream is consumed only for its final message – nothing here renders tokens as they
       // arrive – so what changes is the timeout, not the shape of the result.
+      const signal = AbortSignal.timeout(remainingMs);
       let response;
       try {
         response = await anthropic.messages
-          .stream({ ...request, messages: [...messages] }, { signal: AbortSignal.timeout(remainingMs) })
+          .stream({ ...request, messages: [...messages] }, { signal })
           .finalMessage();
       } catch (error) {
-        // Running out of time is the deliberate outcome of the budget, so it arrives the way
-        // every other ingest failure does rather than as an exception the caller must know
-        // to expect.
-        if (isAbort(error)) return abortedFailure(timeBudgetMs);
+        // Whether our own signal fired, not what the error looks like. Running out of time is
+        // the deliberate outcome of the budget, so it has to arrive the way every other
+        // ingest failure does – and the SDK wraps an abort in APIUserAbortError, whose `name`
+        // is the inherited 'Error' and whose message is prose, so matching on either would
+        // quietly stop recognising the one outcome this budget exists to produce.
+        if (signal.aborted) return abortedFailure(timeBudgetMs);
         throw error;
       }
 

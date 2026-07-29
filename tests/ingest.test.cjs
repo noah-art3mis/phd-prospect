@@ -443,6 +443,17 @@ test('every call carries an abort signal, so one that never returns is not waite
 test('an aborted call is reported as a failure rather than thrown at the caller', async () => {
   // Aborting is the deliberate outcome of running past the budget, so it has to arrive the
   // way every other ingest failure does: as a reason the bot can send.
+  //
+  // The rejection here is shaped like the SDK's, deliberately. Anthropic wraps an abort in
+  // APIUserAbortError, which extends APIError and so inherits `name: 'Error'` and carries
+  // prose in `message`. Nothing about it says "abort", so recognising it by name or message
+  // would pass against a well-behaved stub and fail against the only client that matters.
+  class APIUserAbortError extends Error {
+    constructor() {
+      super('Request was aborted.');
+    }
+  }
+
   const anthropic = {
     messages: {
       stream(body, { signal }) {
@@ -457,7 +468,7 @@ test('an aborted call is reported as a failure rather than thrown at the caller'
                 'abort',
                 () => {
                   clearTimeout(socket);
-                  reject(signal.reason);
+                  reject(new APIUserAbortError());
                 },
                 { once: true }
               );
