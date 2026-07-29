@@ -185,3 +185,15 @@ test('a handler that throws does not stop the loop or lose the offset', async ()
   assert.deepEqual(logged, [], 'a handler failure is not a poll failure');
   assert.equal(calls[1].body.offset, 301, 'a failing update must not be retried forever');
 });
+
+test('link previews are never requested – the record matters, not the page', () => {
+  // The approval card carries the source URL and the acknowledgement names the page. Telegram
+  // renders a preview card for each, which pushes the record itself down the screen and, for a
+  // link nothing has read yet, shows a picture nobody has checked.
+  const { fetch, calls } = stubFetch(() => ({ message_id: 1 }));
+  const telegram = createTelegram({ token: 'T', fetch });
+
+  return telegram.sendMessage(42, 'Got it – reading https://uni.example/phd').then(() => {
+    assert.deepEqual(calls[0].body.link_preview_options, { is_disabled: true });
+  });
+});

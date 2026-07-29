@@ -1,0 +1,62 @@
+{
+  "_comment": "Trimmed from the first live Telegram round trip (2026-07-29). The advert had been taken down: the URL returns a genuine 404 while the site root is fine, and web_fetch reported url_not_accessible twice before stopping. The companion to fetch_blocked, where the page was alive and the fetcher was refused - the same shape of response for opposite causes, which is why the failure message must not assert one.",
+  "id": "msg_011CdWsK4RF8S3J6ZGMcjeBT",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 267,
+    "cache_creation_input_tokens": 8754,
+    "cache_read_input_tokens": 16122,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 7772,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1337,
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 2
+    }
+  },
+  "content": [
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_01PPcjkJH4NdjwkkgQQdotS5",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://www.linkedin.com/posts/nielsvberkel_phd-opportunity-we-are-looking-for-a-talented-share-7485936693326520320-5qiy/?utm_source=social_share_send&utm_medium=android_app&rcm=ACoAAESb8WQBaI1UOXZtCeDdgyhRlxFAa61ptg0&utm_campaign=copy_link"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_01PPcjkJH4NdjwkkgQQdotS5",
+      "content": {
+        "type": "web_fetch_tool_result_error",
+        "error_code": "url_not_allowed"
+      }
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_013vBWXsuri5yZ4e2bDcJ6nU",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://www.linkedin.com/posts/nielsvberkel_phd-opportunity-we-are-looking-for-a-talented-share-7485936693326520320-5qiy/?utm_source=social_share_send&utm_medium=android_app&rcm=ACoAAESb8WQBaI1UOXZtCeDdgyhRlxFAa61ptg0&utm_campaign=copy_link"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_013vBWXsuri5yZ4e2bDcJ6nU",
+      "content": {
+        "type": "web_fetch_tool_result_error",
+        "error_code": "url_not_allowed"
+      }
+    },
+    {
+      "type": "text",
+      "text": "{\"title\": \"PhD Opportunity (LinkedIn post - unable to retrieve)\", \"source_url\": \"https://www.linkedin.com/posts/nielsvberkel_phd-opportunity-we-are-looking-for-a-talented-share-7485936693326520320-5qiy/?utm_source=social_share_send&utm_medium=android_app&rcm=ACoAAESb8WQBaI1UOXZtCeDdgyhRlxFAa61ptg0&utm_campaign=copy_link\", \"findings\": [{\"field\": \"institution\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"department_or_lab\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"opportunity_type\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"programme\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"country\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"city\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"summary\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"research_topics\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"supervisors\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"funding\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"eligibility\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"required_documents\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"duration\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"start_date\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"application_url\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"deadline\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}, {\"field\": \"research_topics\", \"state\": \"not_stated\", \"value\": [], \"evidence\": []}],\"contacts\": [], \"references\": []}"
+    }
+  ]
+}

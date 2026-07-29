@@ -567,15 +567,30 @@ test('the system text is unchanged by being wrapped in a block', () => {
 // `url_not_allowed`. It cost $0.69 to produce an empty record, and the message the user got
 // listed four possible causes without saying which. The response knew.
 
-test('a page whose fetches were all refused is named as such, not guessed at', async () => {
+test('a page whose fetches were all refused reports the codes it actually got', async () => {
   const result = await ingestWith(fakeAnthropic([fixture('fetch_blocked')]))(SUBMISSION);
 
   assert.equal(result.ok, false);
   assert.match(result.reason, /could not fetch/i);
-  // The codes the tool actually returned, so the next step is obvious rather than a guess
-  // between JS-rendered, paywalled, blocked and gone.
   assert.match(result.reason, /unavailable/);
   assert.match(result.reason, /url_not_allowed/);
+});
+
+test('the failure does not assert a cause it cannot tell apart', async () => {
+  // Two live traces, the same shape of response, opposite causes: memories.ai had been taken
+  // down (a real 404), LinkedIn was alive and refusing an unauthenticated fetcher. The message
+  // used to assert the second, which for the first was wrong in every clause - it blamed
+  // browser rendering and told the user to send text they do not have.
+  for (const name of ['fetch_gone', 'fetch_blocked']) {
+    const { reason } = await ingestWith(fakeAnthropic([fixture(name)]))(SUBMISSION);
+
+    assert.ok(!/usually means/i.test(reason), `${name}: still asserts a cause`);
+    // Both live possibilities, so whichever it is the user has something to do.
+    assert.match(reason, /taken down|no longer there|gone/i, name);
+    assert.match(reason, /send me the text|paste/i, name);
+    // And the one action that tells them which: look at it themselves.
+    assert.match(reason, /open the link|opens? in your browser/i, name);
+  }
 });
 
 test('a page that was fetched fine but yielded nothing keeps the general explanation', () => {

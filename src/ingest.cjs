@@ -40,10 +40,10 @@ function abortedFailure(budgetMs) {
   };
 }
 
-// Why an empty record came back. The generic version of this message listed four possible
-// causes and committed to none, which left the one useful next step – paste the text yourself
-// – looking like a guess. The response already knows: every fetch the tool refused is in
-// `content` with the URL it was for and the code it failed with.
+// Why an empty record came back. The response knows more than the record does: every fetch
+// the tool refused is in `content` with the URL it was for and the code it failed with, so
+// "the fetches were refused" and "the fetches worked and the page said nothing" are two
+// different failures that used to arrive as one message.
 function unreadableReason(response) {
   const errors = fetchErrors(response);
   if (errors.length === 0) {
@@ -53,10 +53,15 @@ function unreadableReason(response) {
   }
 
   const codes = [...new Set(errors.map((error) => error.code))].join(', ');
+  // Two causes, and the response cannot tell them apart. Both have been seen live behind the
+  // same shape of failure: an advert taken down (a real 404) and an advert alive behind a
+  // login. So the message names neither and gives the one action that distinguishes them –
+  // the user opens the link and already knows which world they are in.
   return (
     `I could not fetch that page – every attempt was refused (${codes}). ` +
-    'That usually means the advert is rendered in the browser rather than served, so there is ' +
-    'nothing there to read. Sending me the text or a PDF works where the link does not.'
+    'Either the advert has been taken down, or it is there but will not open for anything ' +
+    'but a browser. Open the link: if it loads, send me the text and I will work from that; ' +
+    'if it is gone, so is the opportunity.'
   );
 }
 
