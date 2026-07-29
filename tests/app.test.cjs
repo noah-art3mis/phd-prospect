@@ -53,7 +53,7 @@ function fakeAnthropic(responses) {
   };
 }
 
-async function withApp(responses, run) {
+async function withApp(responses, run, { fetchPage, onError } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prospect-app-'));
   const store = openStore(path.join(dir, 'prospect.db'));
   const telegram = fakeTelegram();
@@ -66,7 +66,12 @@ async function withApp(responses, run) {
     telegram,
     prompt: PROMPT,
     trace: { record() {} },
-    onError: (e) => errors.push(e),
+    // Refuses by default, so a test that does not opt in cannot quietly reach the network.
+    fetchPage: fetchPage ?? (async () => ({ ok: false, reason: 'no fetcher in this test' })),
+    onError: (e) => {
+      errors.push(e);
+      if (onError) onError(e);
+    },
   });
   try {
     return await run({ store, telegram, anthropic, app, errors });
@@ -289,4 +294,67 @@ test('pasting the same link-less advert twice does not pay for it twice', async 
     assert.equal(anthropic.requests.length, callsBefore, 'the same advert was ingested twice');
     assert.match(telegram.sent.at(-1).text, /Already tracking/);
   });
+});
+
+// --- the fallback fetch -----------------------------------------------------------------
+//
+// Live: Anthropic's web_fetch answered `url_not_allowed` for a LinkedIn post that plain curl
+// with a browser user-agent fetched at 200 with 174 KB. The refusal was the tool declining
+// the address, not the site refusing us, so the advert was readable the whole time and the
+// only thing missing was someone to go and read it.
+
+test('a page the model was refused is fetched by the app and ingested from its text', async () => {
+  const fetched = [];
+  const page = async (url) => {
+    fetched.push(url);
+    return { ok: true, text: 'PhD in creativity support in generative AI at Aalborg University.', url };
+  };
+
+  await withApp([fixture('fetch_blocked_linkedin'), fixture('complete')], async ({ store, telegram, app, anthropic }) => {
+    await app.bot.handleUpdate(linkFrom(ME, 'https://www.linkedin.com/posts/x/'));
+    await app.bot.settle();
+
+    assert.deepEqual(fetched, ['https://www.linkedin.com/posts/x/'], 'the refused page was not fetched');
+    assert.equal(anthropic.requests.length, 2, 'the second ingest did not run');
+
+    // The retry sends the text, and tells the model not to go back to the address that failed.
+    const retry = JSON.stringify(anthropic.requests[1].messages);
+    assert.match(retry, /creativity support/);
+    assert.match(retry, /could not be fetched/i);
+
+    // And it ends where any successful ingest ends: a card to approve.
+    assert.match(telegram.sent.at(-1).text, /PhD in Trustworthy Artificial Intelligence/);
+    assert.equal(store.countConfirmed(), 0, 'nothing is tracked before approval');
+  }, { fetchPage: page });
+});
+
+test('the record is still filed under the link, not under the text that was fetched', async () => {
+  // The fallback changes how the advert was read, not what it is. Filing it under a paste
+  // identity would make the same advert unrecognisable the next time the link is sent.
+  const page = async (url) => ({ ok: true, text: 'An advert with a deadline.', url });
+
+  await withApp([fixture('fetch_blocked_linkedin'), fixture('complete')], async ({ store, telegram, app }) => {
+    await app.bot.handleUpdate(linkFrom(ME, 'https://www.linkedin.com/posts/x/'));
+    await app.bot.settle();
+    const id = Number(telegram.sent.at(-1).options.replyMarkup.inline_keyboard[0][0].callback_data.split(':')[1]);
+    await app.bot.handleUpdate(press('approve', id));
+    await app.bot.settle();
+
+    assert.equal(store.listConfirmed()[0].source_url, 'https://www.linkedin.com/posts/x/');
+  }, { fetchPage: page });
+});
+
+test('when the app cannot fetch it either, the original failure is what the user hears', async () => {
+  // Two failures, one of them an implementation detail. Reporting "I will not fetch that
+  // address" would describe the fallback rather than the advert.
+  const page = async () => ({ ok: false, reason: 'that page answered 403.' });
+  const errors = [];
+
+  await withApp([fixture('fetch_blocked_linkedin')], async ({ app, anthropic }) => {
+    await app.bot.handleUpdate(linkFrom(ME, 'https://www.linkedin.com/posts/x/'));
+    await app.bot.settle();
+
+    assert.equal(anthropic.requests.length, 1, 'a second ingest was paid for with no new text');
+    assert.match(errors.at(-1).message, /could not fetch that page/i);
+  }, { fetchPage: page, onError: (e) => errors.push(e) });
 });

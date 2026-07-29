@@ -188,8 +188,10 @@ function createIngest({
       // Cause before symptom. A run whose fetches were refused never read the page, so
       // whatever is wrong with the record it assembled anyway is downstream of that – and
       // 'research_topics more than once' tells nobody what to do next.
-      const refused = fetchErrors(lastResponse).length > 0;
-      return { ok: false, reason: refused ? unreadableReason(lastResponse) : result.reason };
+      const refused = fetchErrors(lastResponse);
+      return refused.length > 0
+        ? { ok: false, reason: unreadableReason(lastResponse), refusedFetches: refused }
+        : { ok: false, reason: result.reason };
     }
 
     const candidate = result.candidate;
@@ -198,7 +200,12 @@ function createIngest({
     // a success, which is the trap: presenting it as a finished opportunity with every field
     // unknown is worse than saying so.
     if (!readEverything(candidate)) {
-      return { ok: false, reason: unreadableReason(lastResponse) };
+      // The refused addresses travel alongside the sentence: a caller that can fetch the page
+      // itself needs the fact, and matching the prose would break every time it improved.
+      const refused = fetchErrors(lastResponse);
+      return refused.length > 0
+        ? { ok: false, reason: unreadableReason(lastResponse), refusedFetches: refused }
+        : { ok: false, reason: unreadableReason(lastResponse) };
     }
 
     // Deterministic validation. Structured outputs guarantee the shape; this enforces the

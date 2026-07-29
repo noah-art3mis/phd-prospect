@@ -692,3 +692,21 @@ test('a link-less paste tells the model what to cite, so its deadline can be fou
 
   assert.match(JSON.stringify(anthropic.requests[0].messages), new RegExp(pasteIdentity(bare.text)));
 });
+
+test('a refused-fetch failure carries the addresses, so a caller can retry them', async () => {
+  // The reason is prose for a person. A caller deciding whether to fetch the page itself
+  // needs the fact, not the sentence – matching on wording would break the moment the
+  // wording improved, and it has already changed twice.
+  const result = await ingestWith(fakeAnthropic([fixture('fetch_blocked_linkedin')]))(SUBMISSION);
+
+  assert.equal(result.ok, false);
+  assert.ok(Array.isArray(result.refusedFetches));
+  assert.match(result.refusedFetches[0].url, /linkedin\.com/);
+  assert.equal(result.refusedFetches[0].code, 'url_not_allowed');
+});
+
+test('a failure that had nothing to do with fetching carries no addresses', async () => {
+  const result = await ingestWith(fakeAnthropic([fixture('max_tokens')]))(SUBMISSION);
+  assert.equal(result.ok, false);
+  assert.equal(result.refusedFetches, undefined);
+});
