@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for the initial experiment
+Superseded by ADR-0006 (2026-07-20): storage moved from Notion to a local SQLite database in the standalone app. Originally "Accepted for the initial experiment".
 
 ## Decision
 

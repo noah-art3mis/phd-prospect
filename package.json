@@ -5,14 +5,18 @@
   "private": true,
   "type": "commonjs",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "test": "node --test",
-    "build-workflows": "node tools/build-workflows.cjs",
-    "compare-workflows": "node tools/compare-workflows.cjs",
-    "bootstrap-notion": "node tools/bootstrap-notion.cjs",
-    "seed-contacts": "node tools/seed-notion.cjs",
-    "validate": "node tools/validate.cjs"
+    "notion-to-seed": "node tools/notion-to-seed.cjs",
+    "export-notion": "node tools/export-notion.cjs",
+    "ingest-url": "node tools/ingest-url.cjs",
+    "remind": "node tools/remind.cjs",
+    "backup": "node tools/backup.cjs",
+    "digest": "node tools/digest.cjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0"
   }
 }

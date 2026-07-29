@@ -18,16 +18,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Test
         run: npm test
 
-      - name: Build workflows is deterministic
-        run: |
-          printf 'TELEGRAM_ALLOWED_USER_ID=123456789\n' > .env
-          printf '{\n  "opportunities": "ds-opportunities-0000",\n  "deadlines": "ds-deadlines-0000"\n}\n' > notion-data-sources.json
-          npm run build-workflows
-          sha256sum n8n/import/*.json > first.txt
-          npm run build-workflows
-          sha256sum n8n/import/*.json > second.txt
-          diff first.txt second.txt
+      # The same check the container healthcheck runs: configuration is complete and the
+      # database opens. Catches a boot break that the unit tests would not, since they
+      # exercise the modules rather than the entry point.
+      - name: Boot
+        run: node src/index.cjs --check
+        env:
+          TELEGRAM_BOT_TOKEN: ci-not-a-real-token
+          TELEGRAM_ALLOWED_USER_ID: "1"
+          ANTHROPIC_API_KEY: ci-not-a-real-key
+          TZ: America/Mexico_City
+          REMINDER_LEAD_TIMES: 30,7,1
+          REMINDER_SEND_HOUR: "9"
+          GCS_BACKUP_BUCKET: ci-not-a-real-bucket
+          DB_PATH: ${{ runner.temp }}/prospect.db

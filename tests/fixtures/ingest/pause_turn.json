@@ -1,0 +1,44 @@
+{
+  "_comment": "HTTP 200, and NOT an answer. Anthropic’s server-side tool loop stopped at its iteration limit. The call must be re-sent with this turn appended so the server resumes; accepting it as final yields a truncated candidate that looks successful. Note content carries no text block at all – code that reads content[0].text would produce an empty record here.",
+  "id": "msg_paused",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5",
+  "stop_reason": "pause_turn",
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 18420,
+    "output_tokens": 1180,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "content": [
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_a",
+      "name": "web_search",
+      "input": {
+        "query": "Example University trustworthy AI PhD deadline"
+      }
+    },
+    {
+      "type": "web_search_tool_result",
+      "tool_use_id": "srvtoolu_a",
+      "content": [
+        {
+          "type": "web_search_result",
+          "url": "https://uni.example/phd",
+          "title": "PhD in Trustworthy AI"
+        }
+      ]
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_b",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://uni.example/phd"
+      }
+    }
+  ]
+}

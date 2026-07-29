@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env.example
 node_modules/
 .DS_Store
 n8n_data/
@@ -9,3 +11,13 @@ seeds/*.json
 
 # Import-ready workflows with personal IDs substituted
 n8n/import/
+
+# Local Notion data snapshot (real personal data, never commit)
+notion-snapshot/
+
+# Python bytecode left by the retired package
+__pycache__/
+.pytest_cache/
+
+# Local database and its backups – runtime state, not source
+data/

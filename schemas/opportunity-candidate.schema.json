@@ -38,7 +38,7 @@
             "needs_confirmation"
           ]
         },
-        "value": {},
+        "value": {"type": "array", "items": {"type": "string"}},
         "evidence": {
           "type": "array",
           "items": {"$ref": "#/$defs/evidence"}

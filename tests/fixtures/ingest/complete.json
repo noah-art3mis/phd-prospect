@@ -1,0 +1,46 @@
+{
+  "_comment": "A finished ingest: the server-side tool loop ran to completion and the structured record came back whole. stop_reason end_turn is the only case where content is an answer.",
+  "id": "msg_complete",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5",
+  "stop_reason": "end_turn",
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 18420,
+    "output_tokens": 2140,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "content": [
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_1",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://uni.example/phd"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_1",
+      "content": {
+        "type": "web_fetch_result",
+        "url": "https://uni.example/phd",
+        "retrieved_at": "2026-07-06T10:00:00Z",
+        "document": {
+          "type": "document",
+          "source": {
+            "type": "text",
+            "media_type": "text/plain",
+            "data": "Example University invites applications for a PhD in Trustworthy AI. Applications close at 23:59 GMT on 1 December 2026."
+          }
+        }
+      }
+    },
+    {
+      "type": "text",
+      "text": "{\n  \"title\": \"PhD in Trustworthy Artificial Intelligence\",\n  \"source_url\": \"https://uni.example/phd\",\n  \"findings\": [\n    {\n      \"field\": \"institution\",\n      \"state\": \"found\",\n      \"value\": [\n        \"Example University\"\n      ],\n      \"evidence\": [\n        {\n          \"url\": \"https://uni.example/phd\",\n          \"retrieved_at\": \"2026-07-06T10:00:00+00:00\",\n          \"excerpt\": \"Example University invites applications\"\n        }\n      ]\n    },\n    {\n      \"field\": \"department_or_lab\",\n      \"state\": \"not_stated\",\n      \"value\": [],\n      \"evidence\": []\n    },\n    {\n      \"field\": \"opportunity_type\",\n      \"state\": \"found\",\n      \"value\": [\n        \"PhD studentship\"\n      ],\n      \"evidence\": [\n        {\n          \"url\": \"https://uni.example/phd\",\n          \"retrieved_at\": \"2026-07-06T10:00:00+00:00\",\n          \"excerpt\": \"Fully funded PhD studentship\"\n        }\n      ]\n    },\n    {\n      \"field\": \"programme\",\n      \"state\": \"not_stated\",\n      \"value\": [],\n      \"evidence\": []\n    },\n    {\n      \"field\": \"country\",\n      \"state\": \"found\",\n      \"value\": [\n        \"United Kingdom\"\n      ],\n      \"evidence\": [\n        {\n          \"url\": \"https://uni.example/phd\",\n          \"retrieved_at\": \"2026-07-06T10:00:00+00:00\",\n          \"excerpt\": \"Location: Manchester, United Kingdom\"\n        }\n      ]\n    },\n    {\n      \"field\": \"city\",\n      \"state\": \"not_stated\",\n      \"value\": [],\n      \"evidence\": []\n    },\n    {\n      \"field\": \"summary\",\n      \"state\": \"found\",\n      \"value\": [\n        \"A PhD on evaluating the trustworthiness of language models.\"\n      ],\n      \"evidence\": [\n        {\n          \"url\": \"https://uni.example/phd\",\n          \"retrieved_at\": \"2026-07-06T10:00:00+00:00\",\n          \"excerpt\": \"The project investigates how to evaluate language-model trustworthiness.\"\n        }\n      ]\n    },\n    {\n      \"field\": \"research_topics\",\n      \"state\": \"found\",\n      \"value\": [\n        \"Trustworthy AI\",\n        \"Model evaluation\"\n      ],\n      \"evidence\": [\n        {\n          \"url\": \"https://uni.example/phd\",\n          \"retrieved_at\": \"2026-07-06T10:00:00+00:00\",\n          \"excerpt\": \"Research areas: trustworthy AI, model evaluation\"\n        }\n      ]\n    },\n    {\n      \"field\": \"supervisors\",\n      \"state\": \"not_stated\",\n      \"value\": [],\n      \"evidence\": []\n    },\n    {\n      \"field\": \"funding\",\n      \"state\": \"found\",\n      \"value\": [\n        \"Fully funded, 4 years\"\n      ],\n      \"evidence\": [\n        {\n          \"url\": \"https://uni.example/phd\",\n          \"retrieved_at\": \"2026-07-06T10:00:00+00:00\",\n          \"excerpt\": \"The studentship covers fees and a stipend for four years\"\n        }\n      ]\n    },\n    {\n      \"field\": \"eligibility\",\n      \"state\": \"not_stated\",\n      \"value\": [],\n      \"evidence\": []\n    },\n    {\n      \"field\": \"required_documents\",\n      \"state\": \"not_stated\",\n      \"value\": [],\n      \"evidence\": []\n    },\n    {\n      \"field\": \"duration\",\n      \"state\": \"not_stated\",\n      \"value\": [],\n      \"evidence\": []\n    },\n    {\n      \"field\": \"start_date\",\n      \"state\": \"not_stated\",\n      \"value\": [],\n      \"evidence\": []\n    },\n    {\n      \"field\": \"application_url\",\n      \"state\": \"not_stated\",\n      \"value\": [],\n      \"evidence\": []\n    },\n    {\n      \"field\": \"deadline\",\n      \"state\": \"found\",\n      \"value\": [\n        \"2026-12-01T23:59:00+00:00\"\n      ],\n      \"evidence\": [\n        {\n          \"url\": \"https://uni.example/phd\",\n          \"retrieved_at\": \"2026-07-06T10:00:00+00:00\",\n          \"excerpt\": \"Applications close at 23:59 GMT on 1 December 2026.\"\n        }\n      ]\n    }\n  ],\n  \"contacts\": [\n    {\n      \"name\": \"Dr Ada Example\",\n      \"role\": \"supervisor\",\n      \"email\": \"ada@uni.example\"\n    }\n  ],\n  \"references\": [\n    \"https://uni.example/phd#apply\"\n  ]\n}"
+    }
+  ]
+}
