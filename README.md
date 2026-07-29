@@ -26,13 +26,13 @@ Prospect borrows useful patterns from job trackers such as Huntr, Teal, Simplify
 ## System overview
 
 ```text
-Telegram link or PDF
+Telegram link, PDF, or pasted text
         |
         v
 Authorize sender and capture a pending item
         |
         v
-Fetch page/PDF and perform initial extraction
+Read the page, PDF, or pasted text and extract
         |
         v
 Identify missing, uncertain, or conflicting findings

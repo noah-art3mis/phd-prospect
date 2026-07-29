@@ -7,11 +7,11 @@
 // Everything downstream of this decision is ordinary code that never has to re-check who
 // sent something.
 
+const { looksLikeEdit } = require('./card.cjs');
+
 // Trailing punctuation is almost always sentence punctuation rather than part of the link;
 // a balanced closing bracket is only kept when the URL opened one.
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/i;
-
-const { looksLikeEdit } = require('./card.cjs');
 
 // An advert is a document: it runs to paragraphs and it spans lines. A note does neither, and
 // the cost of getting this wrong is asymmetric – a stray message read as an advert spends a
@@ -73,22 +73,20 @@ function classifyUpdate(update, allowedUserId) {
   // pattern parseEdit uses, so the two cannot disagree about what an edit looks like – and
   // since that grammar is a single anchored line, a wordy correction stays a correction and
   // a pasted advert never becomes one.
-  if (!looksLikeEdit(text)) {
-    if (isDocument(text)) {
-      // The link is not always readable: a page that renders in the browser gives the
-      // fetcher nothing, and the advert the user is looking at never reaches the model.
-      // Pasting it is the way through.
-      if (!match) {
-        return {
-          ...common,
-          kind: 'unsupported',
-          reason:
-            'Send the link along with the text – I store the record under it, use it to ' +
-            'recognise the same advert later, and it is the way back to the original.',
-        };
-      }
-      return { ...common, kind: 'paste', url: trimTrailingPunctuation(match[0]), text };
+  // The link is not always readable: a page that renders in the browser gives the fetcher
+  // nothing, and the advert the user is looking at never reaches the model. Pasting it is the
+  // way through.
+  if (isDocument(text) && !looksLikeEdit(text)) {
+    if (!match) {
+      return {
+        ...common,
+        kind: 'unsupported',
+        reason:
+          'Send the link along with the text – I store the record under it, use it to ' +
+          'recognise the same advert later, and it is the way back to the original.',
+      };
     }
+    return { ...common, kind: 'paste', url: trimTrailingPunctuation(match[0]), text };
   }
 
   if (match) return { ...common, kind: 'url', url: trimTrailingPunctuation(match[0]) };
