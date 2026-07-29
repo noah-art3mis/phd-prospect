@@ -288,3 +288,21 @@ test('parseEdit ignores text that is not a correction', () => {
   assert.equal(parseEdit('hello there', { zone: ZONE }), null);
   assert.equal(parseEdit('7 = something', { zone: ZONE }), null);
 });
+
+test('a record with no source page says so rather than showing its internal key', () => {
+  // source_url is a paste reference when the advert arrived as text. Printing it raw shows
+  // the user a hash where they expect a link.
+  const card = approvalCard(
+    {
+      id: 1,
+      title: 'PhD in food data',
+      source_url: 'paste:0f1e2d3c4b5a6978',
+      deadline_at: null,
+      findings: {},
+    },
+    { zone: 'Europe/Brussels' }
+  );
+
+  assert.match(card, /pasted text/i);
+  assert.ok(!card.includes('0f1e2d3c4b5a6978'), 'the internal key was shown to the user');
+});

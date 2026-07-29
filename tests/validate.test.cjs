@@ -63,3 +63,43 @@ test('validate never upgrades a knowledge state', () => {
   });
   assert.equal(accepted.findings.deadline.state, 'needs_confirmation');
 });
+
+// --- pasted adverts ---------------------------------------------------------------------
+
+const MINIMAL = {
+  title: 'PhD position',
+  source_url: 'https://uni.example/phd',
+  findings: { institution: { state: 'found', value: 'Example University', evidence: [] } },
+};
+
+test('a record from pasted text is filed under its paste identity', () => {
+  const { pasteIdentity } = require('../src/core/url.cjs');
+  const record = { ...MINIMAL, source_url: pasteIdentity('an advert') };
+  assert.doesNotThrow(() => validate(record));
+});
+
+test('the pasted text is citable, so a deadline from it can be found rather than unconfirmed', () => {
+  // The deadline is the field that fires reminders, and it may only be `found` with evidence.
+  // With no link anywhere, an http-only evidence rule would force every pasted deadline to
+  // needs_confirmation - stored, shown, and silently never acting. The excerpt rule still
+  // does the real work: it has to be text that appears in what the user sent.
+  const id = require('../src/core/url.cjs').pasteIdentity('an advert');
+  const record = {
+    ...MINIMAL,
+    source_url: id,
+    findings: {
+      deadline: {
+        state: 'found',
+        value: ['2026-08-14T23:59:00+02:00'],
+        evidence: [{ url: id, retrieved_at: '2026-07-29T10:00:00Z', excerpt: 'no later than August 14, 2026' }],
+      },
+    },
+  };
+  assert.doesNotThrow(() => validate(record));
+});
+
+test('a source reference is still either a web link or a paste, never anything else', () => {
+  for (const bad of ['paste:', 'paste:nothex', 'file:///etc/passwd', 'javascript:alert(1)', 'ftp://x/y']) {
+    assert.throws(() => validate({ ...MINIMAL, source_url: bad }), /source_url/, bad);
+  }
+});

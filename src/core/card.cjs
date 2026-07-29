@@ -48,8 +48,14 @@ function renderFinding(finding) {
   return value ? `${value}  (${label})` : label;
 }
 
+// A record filed under a paste reference has no page to link to, and the reference is an
+// internal key. Showing it would put a hash where the reader looks for a source.
+function describeSourceUrl(sourceUrl) {
+  return /^paste:/.test(String(sourceUrl ?? '')) ? 'from pasted text – no source page' : sourceUrl;
+}
+
 function approvalCard(opportunity, { zone }) {
-  const lines = [opportunity.title, opportunity.source_url, ''];
+  const lines = [opportunity.title, describeSourceUrl(opportunity.source_url), ''];
 
   lines.push(
     opportunity.deadline_at

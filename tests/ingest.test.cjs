@@ -653,3 +653,27 @@ test('a pasted record is stored under the link that came with it', async () => {
   assert.equal(result.candidate.source_url, PASTE.url);
   assert.equal(result.candidate.canonical_url, 'https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl');
 });
+
+test('a paste with no link is filed under the identity of its text', async () => {
+  const { pasteIdentity } = require('../src/core/url.cjs');
+  const bare = { kind: 'paste', text: 'PhD in food data\nApplications close 14 August 2026.' };
+
+  const result = await ingestWith(fakeAnthropic([fixture('complete')]))(bare);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.candidate.source_url, pasteIdentity(bare.text));
+  assert.equal(result.candidate.canonical_url, pasteIdentity(bare.text));
+});
+
+test('a link-less paste tells the model what to cite, so its deadline can be found', async () => {
+  // The deadline may only be `found` with evidence, and there is no URL anywhere. Without a
+  // reference to quote, every pasted deadline would land as needs_confirmation - stored,
+  // listed, and silently never reminding.
+  const { pasteIdentity } = require('../src/core/url.cjs');
+  const bare = { kind: 'paste', text: 'PhD in food data\nApplications close 14 August 2026.' };
+
+  const anthropic = fakeAnthropic([fixture('complete')]);
+  await ingestWith(anthropic)(bare);
+
+  assert.match(JSON.stringify(anthropic.requests[0].messages), new RegExp(pasteIdentity(bare.text)));
+});

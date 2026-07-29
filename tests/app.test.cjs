@@ -270,3 +270,23 @@ test('pasting an advert already on file costs nothing', async () => {
     assert.match(telegram.sent.at(-1).text, /Already tracking/);
   });
 });
+
+test('pasting the same link-less advert twice does not pay for it twice', async () => {
+  // Identity comes from the text, so the short-circuit works with no address involved.
+  const bare = PASTED_ADVERT.replace(/^Source:.*$/m, '').trim();
+  await withApp([fixture('complete')], async ({ telegram, app, anthropic }) => {
+    await app.bot.handleUpdate(pasteFrom(bare));
+    await app.bot.settle();
+    const id = Number(telegram.sent[1].options.replyMarkup.inline_keyboard[0][0].callback_data.split(':')[1]);
+    await app.bot.handleUpdate(press('approve', id));
+    await app.bot.settle();
+
+    const callsBefore = anthropic.requests.length;
+    // Re-pasted with the whitespace a second copy-paste would change.
+    await app.bot.handleUpdate(pasteFrom('  ' + bare.replace(/\n/g, '\n\n') + '\n'));
+    await app.bot.settle();
+
+    assert.equal(anthropic.requests.length, callsBefore, 'the same advert was ingested twice');
+    assert.match(telegram.sent.at(-1).text, /Already tracking/);
+  });
+});

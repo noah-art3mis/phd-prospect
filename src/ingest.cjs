@@ -9,7 +9,7 @@
 const { buildIngestRequest } = require('./core/ingest-request.cjs');
 const { readIngestResponse, readEverything, fetchErrors } = require('./core/ingest-response.cjs');
 const { validate } = require('./core/validate.cjs');
-const { canonicalizeUrl } = require('./core/url.cjs');
+const { canonicalizeUrl, submissionIdentity } = require('./core/url.cjs');
 const { resolveDeadline } = require('./core/deadline.cjs');
 
 // A stuck loop is worse than a reported failure: each resume costs another call.
@@ -88,7 +88,10 @@ function submissionContent(submission) {
 // offered without that invites the model to spend an attempt discovering it again.
 function describeSource(submission) {
   if (submission.kind === 'paste') {
-    return `the advert text below, which the user pasted because ${submission.url} could not be fetched – do not try to fetch it`;
+    const cite = `Cite it as ${submissionIdentity(submission)} in evidence, with an excerpt quoted from it.`;
+    return submission.url
+      ? `the advert text below, which the user pasted because ${submission.url} could not be fetched – do not try to fetch it. ${cite}`
+      : `the advert text below, which the user pasted and which has no source page. ${cite}`;
   }
   if (submission.kind === 'document') return `the attached document (${submission.fileName})`;
   return submission.url;
@@ -111,6 +114,10 @@ function createIngest({
       variables: { source: describeSource(submission) },
       content: submissionContent(submission),
     });
+
+    // Computed once and used for both the stored key and what the model is told to cite,
+    // so the two cannot disagree.
+    const identity = submission.kind === 'paste' ? submissionIdentity(submission) : submission.url;
 
     const messages = [...request.messages];
     const deadline = Date.now() + timeBudgetMs;
@@ -193,7 +200,9 @@ function createIngest({
     // evidence rule and the state machine, which a schema cannot express.
     let accepted;
     try {
-      accepted = validate({ ...candidate, source_url: submission.url ?? candidate.source_url });
+      // The record is filed under what the user sent, never under an address the model
+      // decided on: a link the model preferred would key a row nothing later looks up.
+      accepted = validate({ ...candidate, source_url: identity ?? candidate.source_url });
     } catch (error) {
       if (error.name !== 'InvalidRecord') throw error;
       return { ok: false, reason: `The record did not pass validation: ${error.message}` };

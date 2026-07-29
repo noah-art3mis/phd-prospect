@@ -49,3 +49,49 @@ test('a meaningful query parameter is kept, and its order does not matter', () =
     canonicalizeUrl('https://uni.example/jobs?id=43')
   );
 });
+
+// --- pasted adverts ---------------------------------------------------------------------
+
+test('pasted text gets a stable identity of its own', () => {
+  const { pasteIdentity } = require('../src/core/url.cjs');
+  const text = 'PhD in something\nCloses 14 August 2026.';
+
+  assert.match(pasteIdentity(text), /^paste:[0-9a-f]{16}$/);
+  assert.equal(pasteIdentity(text), pasteIdentity(text), 'the same text must key the same record');
+});
+
+test('the identity survives the whitespace a copy-paste changes', () => {
+  // Pasting the same advert twice rarely produces the same bytes – a trailing newline, a
+  // wrapped line. Identity that changed with those would file two records for one advert.
+  const { pasteIdentity } = require('../src/core/url.cjs');
+  assert.equal(
+    pasteIdentity('PhD in something\n\nCloses 14 August 2026.  '),
+    pasteIdentity('  PhD in something\nCloses   14 August 2026.')
+  );
+});
+
+test('different adverts get different identities', () => {
+  const { pasteIdentity } = require('../src/core/url.cjs');
+  assert.notEqual(pasteIdentity('PhD in food data'), pasteIdentity('PhD in something else'));
+});
+
+test('a paste identity is left alone by canonicalization', () => {
+  // canonicalizeUrl folds http and https and strips tracking parameters. A paste identity is
+  // not an address and has nothing to fold.
+  const { pasteIdentity } = require('../src/core/url.cjs');
+  const id = pasteIdentity('some advert');
+  assert.equal(canonicalizeUrl(id), id);
+});
+
+test('a submission is identified by its link when it has one, and by its text when it does not', () => {
+  const { submissionIdentity, pasteIdentity } = require('../src/core/url.cjs');
+
+  assert.equal(
+    submissionIdentity({ kind: 'paste', url: 'https://uni.example/phd', text: 'anything' }),
+    'https://uni.example/phd'
+  );
+  assert.equal(
+    submissionIdentity({ kind: 'paste', text: 'an advert with no link' }),
+    pasteIdentity('an advert with no link')
+  );
+});
