@@ -309,3 +309,64 @@ test('a database written before the cache columns existed gains them on open', (
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('one canonical url means one row, enforced by the database', () => {
+  // The invariant, made unrepresentable rather than defended: two rows for one advert would
+  // both fire reminders for the same deadline, and no amount of checking before the insert
+  // closes the window between two submissions arriving together.
+  withStore((store) => {
+    store.insertCandidate({ ...CANDIDATE, confirmed: true });
+    assert.throws(
+      () => store.insertCandidate({ ...CANDIDATE, title: 'The same advert, submitted twice' }),
+      /UNIQUE|constraint/i
+    );
+    assert.equal(store.countConfirmed(), 1);
+  });
+});
+
+test('the same advert under a different link is still one row', () => {
+  // Canonicalization is what makes this true: tracking parameters and a trailing slash do
+  // not make a second opportunity.
+  withStore((store) => {
+    store.insertCandidate({ ...CANDIDATE, confirmed: true });
+    assert.throws(
+      () => store.insertCandidate({ ...CANDIDATE, source_url: 'https://uni.example/phd/?utm_source=x' }),
+      /UNIQUE|constraint/i
+    );
+  });
+});
+
+test('a row is found by its url whether or not it has been approved', () => {
+  // The re-submission check needs to see pending work too, or the same advert is paid for
+  // twice while the first candidate sits waiting for a button press.
+  withStore((store) => {
+    const id = store.insertCandidate({ ...CANDIDATE });
+    const found = store.findByUrl(CANDIDATE.source_url);
+    assert.equal(found.id, id);
+    assert.equal(found.confirmed, false);
+    assert.equal(store.findConfirmedByUrl(CANDIDATE.source_url), null, 'pending is not tracked');
+  });
+});
+
+test('a database with the old non-unique index gains the constraint on open', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prospect-store-idx-'));
+  const dbPath = path.join(dir, 'prospect.db');
+  try {
+    const first = openStore(dbPath);
+    first.insertCandidate({ ...CANDIDATE, confirmed: true });
+    first.close();
+
+    // Put the old, permissive index back exactly as an older build left it.
+    const { DatabaseSync } = require('node:sqlite');
+    const raw = new DatabaseSync(dbPath);
+    raw.exec('DROP INDEX IF EXISTS opportunity_canonical_url');
+    raw.exec('CREATE INDEX opportunity_canonical_url ON opportunity (canonical_url)');
+    raw.close();
+
+    const reopened = openStore(dbPath);
+    assert.throws(() => reopened.insertCandidate({ ...CANDIDATE }), /UNIQUE|constraint/i);
+    reopened.close();
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
