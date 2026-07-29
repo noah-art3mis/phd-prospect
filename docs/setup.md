@@ -38,8 +38,9 @@ Do this before touching the VM – it exercises everything except the container.
 
 ## The VM
 
-Follow `docs/deploy.md`. In order:
+Follow `docs/deploy.md` – *Provisioning, in order* covers the account, the region, the key and the bucket. In short:
 
+- [ ] Sign up at Oracle Cloud and pick a home region (permanent)
 - [ ] Create an Always Free instance – `VM.Standard.A1.Flex` if capacity allows, otherwise `VM.Standard.E2.1.Micro`, which is nearly always available and enough
 - [ ] `git clone`, `cp .env.example .env`, fill in the same three credentials
 - [ ] `docker compose up -d --build`

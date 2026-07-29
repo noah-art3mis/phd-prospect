@@ -8,6 +8,36 @@ GCP's Always Free tier covers the `e2-micro` and the disk but **not the external
 
 Oracle Cloud's Always Free tier includes the address. This project exists because the previous build stopped being free to run; paying $44/year to host a personal reminder bot would have repeated that, so the whole thing runs on Oracle instead. The trade is that Oracle's free ARM capacity is genuinely scarce in popular regions – see below.
 
+## Provisioning, in order
+
+Five things only an account holder can do. Do them in this order – region and shape are the two that are awkward to change afterwards.
+
+1. **Sign up** at [cloud.oracle.com](https://cloud.oracle.com). Identity verification wants a card; Always Free does not charge it. **Pick the home region carefully: it cannot be changed later**, and every free resource must live in it. Nearest to Mexico City are `us-ashburn-1` and `sa-saopaulo-1`.
+
+2. **Create the instance** – shape and image below. Paste the public half of the deploy key when the form asks:
+
+   ```sh
+   cat ~/.ssh/prospect_oracle.pub
+   ```
+
+   The private half stays on the laptop at `~/.ssh/prospect_oracle`, has no passphrase so `ssh` and `scp` work unattended, and is used for nothing else. Add a passphrase with `ssh-keygen -p -f ~/.ssh/prospect_oracle` if you would rather type one.
+
+3. **Create the bucket** – Object Storage → Create Bucket → `prospect-backups`, standard tier, defaults otherwise.
+
+4. **Issue the pre-authenticated request** on that bucket – see *The backup destination* below. Copy the URL immediately; it is shown once.
+
+5. **Note the public IP** from the instance page, then:
+
+   ```sh
+   ssh -i ~/.ssh/prospect_oracle ubuntu@<public-ip>      # 'opc@' on Oracle Linux images
+   ```
+
+   `.env` is copied across rather than retyped, so the secrets never pass through a terminal history:
+
+   ```sh
+   scp -i ~/.ssh/prospect_oracle .env ubuntu@<public-ip>:~/phd-prospect/.env
+   ```
+
 ## The box
 
 An Always Free instance, in the home region you chose at signup:
@@ -30,6 +60,22 @@ Object Storage, 20 GB free. Create a **standard bucket** (`prospect-backups`), t
 Copy the URL once, at creation; it is never shown again. It ends in `/o/`. That URL goes in `.env` as `BACKUP_UPLOAD_URL`, and it **is** the credential – anyone holding it can write to that bucket until it expires. Write-only and single-bucket is what limits the damage, not secrecy alone.
 
 **Renewal is a manual job with no reminder.** When the PAR expires the nightly upload starts failing, which raises the Telegram alert and shows as a stale backup in the Sunday digest. That is the signal; act on it rather than waiting for a bill.
+
+## What this costs, and what could still bill
+
+Nothing, if it stays inside the Always Free allowances, which this workload does not come close to filling:
+
+| Resource        | Always Free                      | This app                          |
+| --------------- | -------------------------------- | --------------------------------- |
+| Compute         | 4 OCPU / 24 GB Ampere, or 2 × E2.1.Micro | one instance, container capped at 512 MB |
+| Block storage   | 200 GB                           | the boot volume                   |
+| Object Storage  | 20 GB                            | one SQLite file per night         |
+| Outbound data   | 10 TB/month                      | Telegram polling and API calls    |
+| External IP     | included                         | one, ephemeral                    |
+
+The bill that *is* real is Anthropic: measured ingests cost $0.03 to $1.84 each, and the weekly digest reports the running total. That is the number to watch, not the host.
+
+Two things that are not costs but are the real risks: **Oracle reclaims Always Free compute it judges idle** – continuous long polling should count as activity, but it is their call and there is no warning – and **the tenancy holds both the instance and its backups**, so an account problem takes both. The mitigation for both is the same: take a manual off-box copy occasionally.
 
 ## First deploy
 
