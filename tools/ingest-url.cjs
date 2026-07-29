@@ -12,6 +12,7 @@ const { createAnthropicClient } = require('../src/anthropic.cjs');
 const { loadConfig } = require('../src/config.cjs');
 const { loadPrompt } = require('../src/core/prompt.cjs');
 const { createIngest } = require('../src/ingest.cjs');
+const { createTraceWriter } = require('../src/trace.cjs');
 
 async function main(url) {
   if (!url) {
@@ -26,10 +27,18 @@ async function main(url) {
 
   console.error(`prompt ${prompt.name} (${prompt.contentHash.slice(0, 12)}) on ${prompt.metadata.model}`);
 
+  // This tool is where live runs actually happen – a shakedown, a prompt change, a page that
+  // will not read – so it is the path whose responses are most worth keeping. It writes no
+  // database, but a trace is a file, and the same file is a fixture.
+  const trace = createTraceWriter({
+    directory: path.join(path.dirname(path.resolve(config.dbPath)), 'traces'),
+  });
+
   const { ingest } = createIngest({
     anthropic,
     prompt,
     zone: config.timezone,
+    onResponse: (response, submission) => trace.record(response, { url: submission.url }),
     onUsage: (u) =>
       console.error(
         `  call: ${u.inputTokens} in, ${u.cacheReadTokens} cached, ${u.cacheWriteTokens} written, ${u.outputTokens} out`

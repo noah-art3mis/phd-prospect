@@ -19,6 +19,7 @@ const { runReminderSweep } = require('./jobs/reminders.cjs');
 const { createAlerter, installTopLevelHandlers } = require('./alerts.cjs');
 const { runBackup } = require('./jobs/backup.cjs');
 const { runWeeklyDigest } = require('./jobs/digest.cjs');
+const { createTraceWriter } = require('./trace.cjs');
 
 const INGEST_PROMPT = path.join(__dirname, '..', 'prompts', 'ingest.prompt');
 
@@ -86,7 +87,13 @@ function alreadyTracked(opportunity) {
   return `Already tracking that one.\n\n${opportunity.title}\n${deadline}`;
 }
 
-function createApp({ config, store, anthropic, telegram, prompt, onError }) {
+// The directory the database lives in. Backups and traces are its neighbours, so all three
+// share the one mounted volume and a restore brings back everything that was on the box.
+function dataDirectory(config) {
+  return path.dirname(path.resolve(config.dbPath));
+}
+
+function createApp({ config, store, anthropic, telegram, prompt, trace, onError }) {
   const chatId = config.telegramAllowedUserId;
 
   const { ingest } = createIngest({
@@ -94,6 +101,7 @@ function createApp({ config, store, anthropic, telegram, prompt, onError }) {
     prompt,
     zone: config.timezone,
     onUsage: (usage) => store.recordUsage(usage),
+    onResponse: (response, submission) => trace.record(response, { url: submission.url }),
   });
 
   const approval = createApproval({ store, telegram, zone: config.timezone, chatId });
@@ -118,12 +126,17 @@ function run({ config, store }) {
   const anthropic = createAnthropicClient({ apiKey: config.anthropicApiKey });
   const prompt = loadPrompt(INGEST_PROMPT);
 
+  // Beside the database and the backups, on the mounted volume: a trace is only useful if it
+  // survives the container it was written in. The backup job copies the database and nothing
+  // else, so traces stay on the box rather than inflating what leaves it.
+  const trace = createTraceWriter({ directory: path.join(dataDirectory(config), 'traces') });
+
   // One alert channel, wired into every failure path: the bot's detached work, the polling
   // loop, the scheduled jobs, and anything unhandled at top level.
   const alerter = createAlerter({ telegram, chatId: config.telegramAllowedUserId });
   installTopLevelHandlers({ alerter });
 
-  const app = createApp({ config, store, anthropic, telegram, prompt, onError: alerter.report() });
+  const app = createApp({ config, store, anthropic, telegram, prompt, trace, onError: alerter.report() });
 
   const jobs = scheduleJobs({ config, store, telegram, onError: alerter.report(), signal: undefined });
 
@@ -146,7 +159,7 @@ function run({ config, store }) {
 function scheduleJobs({ config, store, telegram, onError, signal }) {
   const chatId = config.telegramAllowedUserId;
   const common = { zone: config.timezone, onError, signal };
-  const backupDirectory = path.join(path.dirname(path.resolve(config.dbPath)), 'backups');
+  const backupDirectory = path.join(dataDirectory(config), 'backups');
 
   return [
     scheduleJob({

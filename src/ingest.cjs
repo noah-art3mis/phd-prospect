@@ -70,6 +70,10 @@ function createIngest({
   prompt,
   zone,
   onUsage = () => {},
+  // The raw response, before anything reads it. Offered for every call the loop made, paused
+  // and failed ones included: those are the calls worth debugging, and a filtered trace is
+  // missing exactly the run somebody went looking for.
+  onResponse = () => {},
   timeBudgetMs = TIME_BUDGET_MS,
   tokenBudget = TOKEN_BUDGET,
 }) {
@@ -106,6 +110,7 @@ function createIngest({
         throw error;
       }
 
+      onResponse(response, submission);
       result = readIngestResponse(response);
       onUsage(result.usage);
 

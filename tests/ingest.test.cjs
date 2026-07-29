@@ -510,3 +510,24 @@ test('a bounded ingest that finishes in time is unaffected', async () => {
   const result = await ingestWith(fakeAnthropic([fixture('complete')]))(SUBMISSION);
   assert.equal(result.ok, true);
 });
+
+test('every raw response is offered for tracing, including the ones that failed', async () => {
+  // A trace is only worth keeping if it covers the calls worth debugging. The paused call is
+  // where a resume loop goes wrong and the failed call is the one that cost money for
+  // nothing, so neither can be filtered out here.
+  const seen = [];
+  const anthropic = fakeAnthropic([fixture('pause_turn'), fixture('unreadable_page')]);
+
+  const { ingest } = createIngest({
+    anthropic,
+    prompt: PROMPT,
+    zone: ZONE,
+    onResponse: (response) => seen.push(response),
+  });
+  await ingest(SUBMISSION);
+
+  assert.equal(seen.length, 2);
+  assert.equal(seen[0].stop_reason, 'pause_turn');
+  // Unaltered: the point of a trace is that it can be dropped straight into the fixtures.
+  assert.deepEqual(seen[1], fixture('unreadable_page'));
+});

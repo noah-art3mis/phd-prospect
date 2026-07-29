@@ -65,6 +65,7 @@ async function withApp(responses, run) {
     anthropic,
     telegram,
     prompt: PROMPT,
+    trace: { record() {} },
     onError: (e) => errors.push(e),
   });
   try {
