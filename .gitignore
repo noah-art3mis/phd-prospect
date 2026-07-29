@@ -6,3 +6,6 @@ node_modules/
 
 # Local database and its backups – runtime state, not source
 data/
+
+# Identifiers for the retired Notion workspace – kept locally, never committed
+notion-data-sources.json
