@@ -18,36 +18,18 @@ Getting Prospect from a fresh checkout to a bot that answers. `docs/deploy.md` c
 
 - [x] **`ANTHROPIC_API_KEY`** – set and working. Measured ingests cost $0.03 to $1.84 each, and a failed one can cost as much as a record (see `docs/findings-live-ingest.md`); the code bounds an ingest at ten minutes and 1M billed input tokens, which is roughly $2.50 at introductory rates. Set a spend limit in the console anyway – it is the only ceiling that holds when the ones in the code do not.
 
-- [ ] **`GCS_BACKUP_BUCKET`** – create a bucket in the same GCP project as the VM. The name alone goes in `.env`; there is no key to store, because the instance's own service account is used. Bucket names are globally unique across all of GCS, so prefix with something of yours:
+- [ ] **`BACKUP_UPLOAD_URL`** – Oracle Object Storage, 20 GB free. Create a standard bucket (`prospect-backups`), then issue a **pre-authenticated request** on it: target *objects with prefix* and an empty prefix, access **permit object writes** only, and an expiry date you will renew.
 
-  ```bash
-  gcloud config set project <your-project-id>
-  gcloud storage buckets create gs://<you>-prospect-backups \
-    --location=us-central1 \
-    --uniform-bucket-level-access \
-    --public-access-prevention
-  ```
+  The URL is shown once, at creation, and never again. It ends in `/o/`. Paste it into `.env`.
 
-  Then grant the VM's service account write access to that bucket only – not project-wide storage admin, which would let a compromised box reach every bucket you own:
-
-  ```bash
-  gcloud storage buckets add-iam-policy-binding gs://<you>-prospect-backups \
-    --member=serviceAccount:<sa-name>@<project-id>.iam.gserviceaccount.com \
-    --role=roles/storage.objectCreator
-  ```
-
-  `objectCreator` lets the job write a new backup but not read or delete existing ones, so a bad actor on the box cannot quietly wipe the backup history. Use `objectAdmin` instead if you want the retention pruning to happen bucket-side later. Consider a lifecycle rule to expire objects after 90 days; the free tier is 5 GB and a backup of this database is small, but it grows forever otherwise.
-
-  A bucket is only needed for the VM. Locally, `npm run backup -- --local` skips the upload entirely.
-
-Check them with `node src/index.cjs --check`, which names anything still missing and exits non-zero.
+  It is write-only and scoped to one bucket, which is what limits the damage – but it *is* a credential, so treat it like a password. When it expires the nightly upload starts failing, which raises the Telegram alert and shows as a stale backup in the Sunday digest. Nothing else will remind you.
 
 ## Local shakedown
 
 Do this before touching the VM – it exercises everything except the container.
 
 - [ ] `npm ci`
-- [ ] `node src/index.cjs --check` – expect "config ok", "database ready", "tracking 7 opportunities" (the Notion seed)
+- [x] `node src/index.cjs --check` – expect "config ok", "database ready", "tracking N opportunities"
 - [ ] `npm run ingest-url -- <a real PhD advert URL>` – one live model call, prints the validated record, writes nothing. The cheapest way to see whether the prompt does what you want before any of it is wired to Telegram.
 - [ ] `node src/index.cjs` in one terminal, then send that same link to the bot. Expect an acknowledgement within a second or two, then a card a minute or two later. Press Approve.
 - [ ] `npm run remind -- --dry` – lists what is due without sending
@@ -58,8 +40,7 @@ Do this before touching the VM – it exercises everything except the container.
 
 Follow `docs/deploy.md`. In order:
 
-- [ ] Create the `e2-micro` in a free-tier region (`us-west1`, `us-central1`, `us-east1`)
-- [ ] Attach a service account with `devstorage.read_write` **at creation time** – adding it later means recreating the instance
+- [ ] Create an Always Free instance – `VM.Standard.A1.Flex` if capacity allows, otherwise `VM.Standard.E2.1.Micro`, which is nearly always available and enough
 - [ ] `git clone`, `cp .env.example .env`, fill in the same three credentials
 - [ ] `docker compose up -d --build`
 - [ ] Send a link from Telegram and confirm the round trip works on the box
@@ -71,10 +52,10 @@ Follow `docs/deploy.md`. In order:
 Carried forward from the rebuild so it does not get lost. Each is a stub that has never met the real thing:
 
 - [ ] **The container has never been built.** Docker was unavailable in the environment this was written in, so the first `docker compose up --build` is genuinely the first one.
-- [ ] **The GCS upload has only run against a stub.** The metadata-server token fetch and the bucket write are untested against the real API.
-- [ ] **The Telegram round trip has only run against a stub.** Long polling, `getFile`, and inline buttons are unexercised against the live API.
+- [ ] **The backup upload has only run against a stub.** The pre-authenticated PUT is untested against real object storage.
+- [x] **The Telegram round trip.** Done: long polling, the acknowledgement, an ingest, the approval card and the alert path have all run against the live API. `getFile` (PDF submissions) and the inline buttons under load are still unexercised.
 
 ## Then
 
 - [ ] Watch for the first Sunday digest. Its arrival is the signal the whole alerting design rests on – if it does not come, something is wrong regardless of how healthy the container looks.
-- [ ] Take one manual off-box backup (`npm run backup -- --local`, then copy it somewhere that is not GCP). Primary and backup share a project, so a billing problem takes both; this is the mitigation, and it only works as a habit.
+- [ ] Take one manual off-box backup (`npm run backup -- --local`, then copy it somewhere that is not Oracle). Primary and backup share a tenancy, so a billing problem takes both, and Oracle reclaims idle free compute; this is the mitigation, and it only works as a habit.

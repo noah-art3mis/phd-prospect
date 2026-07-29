@@ -18,9 +18,10 @@ services:
     environment:
       - DB_PATH=/data/prospect.db
 
-    # A shared-core e2-micro has 1 GB of RAM and no swap by default. Capping the heap keeps a
-    # runaway from taking the instance down with it, which would look like the app dying
-    # silently – the thing the whole alerting design exists to prevent.
+    # The smallest free instance has 1 GB of RAM and no swap by default. Capping the heap
+    # keeps a runaway from taking the instance down with it, which would look like the app
+    # dying silently – the thing the whole alerting design exists to prevent. Harmless on a
+    # larger Ampere instance, where it simply never binds.
     mem_limit: 512m
     init: true
 

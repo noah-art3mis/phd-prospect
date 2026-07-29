@@ -2,11 +2,12 @@
 # build, restart.
 #
 # Node 22 is the floor because the app uses node:sqlite, which lands the SQLite backup API
-# without a native dependency to compile on a shared-core e2-micro.
+# without a native dependency to compile on a small shared-core instance. The base image is
+# multi-arch, so this builds unchanged on the Ampere ARM cores Oracle gives away.
 FROM node:22-slim
 
 # Long polling means nothing dials in, so the container needs no ports and no reverse proxy –
-# but it does need CA certificates to dial out to Telegram, Anthropic and GCS.
+# but it does need CA certificates to dial out to Telegram, Anthropic and object storage.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*

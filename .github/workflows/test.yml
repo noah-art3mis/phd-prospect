@@ -38,5 +38,5 @@ jobs:
           TZ: America/Mexico_City
           REMINDER_LEAD_TIMES: 30,7,1
           REMINDER_SEND_HOUR: "9"
-          GCS_BACKUP_BUCKET: ci-not-a-real-bucket
+          BACKUP_UPLOAD_URL: https://objectstorage.example/p/ci-not-a-real-token/n/ns/b/ci/o/
           DB_PATH: ${{ runner.temp }}/prospect.db

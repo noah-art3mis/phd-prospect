@@ -19,7 +19,7 @@ const COMPLETE = {
   TZ: 'America/Mexico_City',
   REMINDER_LEAD_TIMES: '30,7,1',
   REMINDER_SEND_HOUR: '9',
-  GCS_BACKUP_BUCKET: 'prospect-backups',
+  BACKUP_UPLOAD_URL: 'https://objectstorage.us-ashburn-1.oraclecloud.com/p/EXAMPLE-TOKEN/n/mynamespace/b/prospect-backups/o/',
   DB_PATH: '/data/prospect.db',
 };
 
@@ -32,7 +32,7 @@ test('a complete environment loads into typed values', () => {
   assert.equal(config.timezone, 'America/Mexico_City');
   assert.deepEqual(config.reminderLeadTimes, [30, 7, 1]);
   assert.equal(config.reminderSendHour, 9);
-  assert.equal(config.gcsBackupBucket, 'prospect-backups');
+  assert.equal(config.backupUploadUrl, 'https://objectstorage.us-ashburn-1.oraclecloud.com/p/EXAMPLE-TOKEN/n/mynamespace/b/prospect-backups/o/');
   assert.equal(config.dbPath, '/data/prospect.db');
 });
 
@@ -87,8 +87,8 @@ test('the error names every offending key at once, not just the first', () => {
   // Fixing a missing key only to be told about the next one is a bad boot loop.
   const env = { ...COMPLETE };
   delete env.TELEGRAM_BOT_TOKEN;
-  delete env.GCS_BACKUP_BUCKET;
-  assert.throws(() => loadConfig(env), /TELEGRAM_BOT_TOKEN[\s\S]*GCS_BACKUP_BUCKET/);
+  delete env.BACKUP_UPLOAD_URL;
+  assert.throws(() => loadConfig(env), /TELEGRAM_BOT_TOKEN[\s\S]*BACKUP_UPLOAD_URL/);
 });
 
 test('lead times are sorted descending and de-duplicated', () => {
