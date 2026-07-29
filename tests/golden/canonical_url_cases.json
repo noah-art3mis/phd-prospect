@@ -1,5 +1,5 @@
 {
-  "_comment": "Golden contract for src/core/url.cjs::canonicalizeUrl – the stored key the re-submission short-circuit looks up (issue #28). Canonicalization drops what does not change which page a link points at: scheme, default ports, case, duplicated and trailing slashes, fragments, tracking parameters, and query order. It keeps everything that does. The fingerprint cases of the n8n build are gone with `opportunityFingerprint`: reject deletes the row, so cross-source identity has no consumer.",
+  "_comment": "Golden contract for src/core/url.cjs::canonicalizeUrl – the stored key the re-submission short-circuit looks up (issue #28). Canonicalization drops what does not change which page a link points at: scheme, default ports, case, duplicated and trailing slashes, fragments, tracking parameters, and query order. It keeps everything that does. There are deliberately no fuzzy-identity cases: reject deletes the row, so nothing needs to recognise the same opportunity arriving from a different address.",
   "cases": [
     {
       "name": "tracking_and_case",

@@ -1,0 +1,328 @@
+{
+  "connections": {
+    "Compute TTL cutoff": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Sweep expired pending",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Compute due reminders": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Filter unsent",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Daily at 09:00": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Query verified deadlines",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Compute TTL cutoff",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Filter unsent": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Send reminder",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Query verified deadlines": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Compute due reminders",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Send reminder": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Record sent",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Sweep expired pending": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Notify expired pending",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "name": "Prospect – Deadline reminders",
+  "nodes": [
+    {
+      "name": "Daily at 09:00",
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "position": [
+        -208,
+        400
+      ],
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Query verified deadlines",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2026-03-11"
+            }
+          ]
+        },
+        "jsonBody": "{\"filter\":{\"and\":[{\"property\":\"Verified\",\"checkbox\":{\"equals\":true}},{\"property\":\"Rolling\",\"checkbox\":{\"equals\":false}}]},\"page_size\":100}",
+        "method": "POST",
+        "nodeCredentialType": "notionApi",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "https://api.notion.com/v1/data_sources/92a41edf-914c-41d1-a59d-9663548c80c4/query"
+      },
+      "position": [
+        80,
+        400
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "name": "Compute TTL cutoff",
+      "parameters": {
+        "jsCode": "// Code node: \"Compute TTL cutoff\" — runOnceForAllItems\n// Pending approvals older than TTL_DAYS expire; the downstream sweep deletes them and\n// notifies once per deleted row (zero deleted rows means the notify node never runs).\nconst TTL_DAYS = 7;\nconst cutoff = new Date(Date.now() - TTL_DAYS * 86400000).toISOString();\nreturn [{ json: { cutoff: cutoff, ttl_days: TTL_DAYS } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "position": [
+        80,
+        560
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Sweep expired pending",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "XNcSfdGRkMAqWQKq"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "lt",
+              "keyName": "created_at",
+              "keyValue": "={{ $json.cutoff }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "deleteRows",
+        "resource": "row"
+      },
+      "position": [
+        320,
+        560
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "name": "Notify expired pending",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        },
+        "chatId": "1235080762",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "=⌛ Pending approval expired after {{ String($('Compute TTL cutoff').item.json.ttl_days ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }} days without a decision and was discarded:\n{{ String($json.source_url ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}\nRe-send the URL to ingest it again."
+      },
+      "position": [
+        560,
+        560
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Compute due reminders",
+      "parameters": {
+        "jsCode": "// Code node: \"Compute due reminders\" — runOnceForAllItems\n// Port of src/prospect/reminders.due_reminders. Emits every reminder DUE today (verified,\n// non-rolling deadline whose days-remaining matches an offset). Idempotency is enforced\n// downstream by the \"Prospect sent reminders\" Data Table (rowNotExists filter, then insert),\n// so this node no longer reads/writes sent keys itself.\n// Key format: opportunity_id:deadline_id:version:offset (offset = days remaining).\nconst TZ = 'Europe/London';\nconst ALLOWED_CHAT_ID = 1235080762;\n\n// \"Today\" in the workflow timezone as YYYY-MM-DD (Code node has no $today/luxon).\nconst todayStr = new Date().toLocaleDateString('en-CA', { timeZone: TZ });\nfunction dayNumber(ymd) { const p = String(ymd).slice(0, 10).split('-').map(Number); return Date.UTC(p[0], p[1] - 1, p[2]) / 86400000; }\nconst today = dayNumber(todayStr);\n\nfunction text(prop) {\n  const rt = (prop && prop.rich_text) || (prop && prop.title) || [];\n  return rt.map(function (t) { return t.plain_text || (t.text && t.text.content) || ''; }).join('');\n}\n\nconst pages = (($input.first() && $input.first().json && $input.first().json.results) || []);\nconst out = [];\nfor (const page of pages) {\n  const p = page.properties || {};\n  const verified = !!(p['Verified'] && p['Verified'].checkbox);\n  const rolling = !!(p['Rolling'] && p['Rolling'].checkbox);\n  if (!verified || rolling) continue;\n  const due = p['Due'] && p['Due'].date && p['Due'].date.start;\n  if (!due) continue;\n  const version = (p['Version'] && typeof p['Version'].number === 'number') ? p['Version'].number : 1;\n  const offsets = ((p['Reminder offsets'] && p['Reminder offsets'].multi_select) || [])\n    .map(function (o) { return parseInt(o.name, 10); }).filter(function (n) { return !isNaN(n); });\n  const oppId = (p['Opportunity'] && p['Opportunity'].relation && p['Opportunity'].relation[0] && p['Opportunity'].relation[0].id) || '';\n  const deadlineId = page.id;\n  const daysRemaining = dayNumber(due) - today;\n  if (offsets.indexOf(daysRemaining) === -1) continue;\n  const key = oppId + ':' + deadlineId + ':' + version + ':' + daysRemaining;\n  const name = text(p['Name']) || 'a deadline';\n  out.push({ json: {\n    chat_id: ALLOWED_CHAT_ID,\n    key: key,\n    deadline_id: deadlineId,\n    opportunity_id: oppId,\n    version: version,\n    days_remaining: daysRemaining,\n    due_at: due,\n    sent_at: new Date().toISOString(),\n    reminder_text: '⏰ ' + daysRemaining + ' day(s) until ' + name + ' (' + String(due).slice(0, 10) + ').'\n  } });\n}\nreturn out;",
+        "mode": "runOnceForAllItems"
+      },
+      "position": [
+        320,
+        400
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "name": "Send reminder",
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        },
+        "chatId": "={{ $json.chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "={{ String($json.reminder_text ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }}"
+      },
+      "position": [
+        560,
+        400
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2
+    },
+    {
+      "name": "Filter unsent",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "132FXPAohVWMXdHq"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "eq",
+              "keyName": "key",
+              "keyValue": "={{ $json.key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "rowNotExists",
+        "resource": "row"
+      },
+      "position": [
+        500,
+        400
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "name": "Record sent",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "key",
+              "id": "key",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "opportunity_id",
+              "id": "opportunity_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "deadline_id",
+              "id": "deadline_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "sent_at",
+              "id": "sent_at",
+              "required": false,
+              "type": "date"
+            }
+          ],
+          "value": {
+            "deadline_id": "={{ $('Compute due reminders').item.json.deadline_id }}",
+            "key": "={{ $('Compute due reminders').item.json.key }}",
+            "opportunity_id": "={{ $('Compute due reminders').item.json.opportunity_id }}",
+            "sent_at": "={{ $('Compute due reminders').item.json.sent_at }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "132FXPAohVWMXdHq"
+        },
+        "operation": "insert",
+        "resource": "row"
+      },
+      "position": [
+        800,
+        400
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    }
+  ],
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1",
+    "timezone": "Europe/London"
+  }
+}

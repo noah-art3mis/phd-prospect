@@ -2,12 +2,13 @@
 
 Research, compare, and track PhD opportunities from Telegram.
 
-Prospect is a personal workflow for sending a PhD opportunity link to a Telegram bot, extracting a structured record, researching missing information, confirming critical facts, storing the result in Notion, and receiving deadline reminders. It uses n8n for orchestration and a bounded read-only AI researcher for the parts that cannot be expressed as deterministic parsing.
+Prospect is a personal tool for sending a PhD opportunity to a Telegram bot – as a link, a PDF, or pasted text – extracting a structured record, researching missing information, confirming critical facts, storing the result, and receiving deadline reminders. It is a single always-on Node process with a bounded read-only AI researcher for the parts that cannot be expressed as deterministic parsing.
 
 ## Implementation status
 
-The deterministic domain boundary, Notion schema/bootstrap, Docker deployment, prompts, extraction schema, fixtures, and inactive n8n orchestration scaffolds are implemented. The credential-backed n8n nodes must be completed after restarting Codex and authorizing the configured n8n MCP server. This separation avoids committing credential identifiers or guessing schemas from a different n8n instance. See `docs/setup.md` and `n8n/README.md`.
+The application runs end to end: Telegram bot, ingest, human approval, SQLite storage, reminders, backups, and the weekly digest. It has been exercised against the live Anthropic API but **not yet against a live Telegram bot** – that round trip is the largest untested surface. Deployment to the GCP instance is not done.
 
+Earlier versions of this project ran on n8n Cloud with Notion storage. Both were removed in ADR-0006; the ADRs are kept as a record of why.
 ## Why this exists
 
 PhD opportunities are scattered across university pages, research-group sites, EURAXESS, FindAPhD, application portals, PDFs, and social posts. The relevant information is inconsistent, funding and admission deadlines may differ, and listings often disappear. Ordinary job trackers cover pipelines, contacts, documents, and interviews but do not adequately model supervisors, research fit, funding arrangements, references, or multiple deadline types.
@@ -19,9 +20,9 @@ Prospect borrows useful patterns from job trackers such as Huntr, Teal, Simplify
 - **Bounded agent, deterministic system**: AI may search and read, but deterministic code validates, persists, and sends reminders.
 - **Evidence before completeness**: Unknown information remains unknown. A complete-looking hallucination is worse than an explicit gap.
 - **Human confirmation for consequential facts**: Deadlines, funding, eligibility, and required documents must be sourced and reviewed.
-- **One source of truth**: The initial experiment uses Notion. Obsidian becomes a migration target, not a second editable database.
-- **Local portability**: Workflows, schemas, prompts, and setup live in this repository, which is the source of truth; the n8n Cloud instance is a deploy target.
-- **Least authority**: External pages are untrusted input. The research agent has read-only tools and cannot write to Notion, Telegram, or the filesystem.
+- **One source of truth**: One SQLite file holds every record. Nothing is mirrored to a second editable store.
+- **Local portability**: Code, prompts, schema, and setup live in this repository. The database is a single file that can be copied off the host and opened anywhere.
+- **Least authority**: External pages are untrusted input. The model has read-only tools and cannot write records, send messages, run shell, or read credentials – it holds nothing else in its tool list.
 
 ## System overview
 
@@ -47,17 +48,20 @@ Normalize and validate findings against the Prospect schema
 Telegram preview: confirm, edit, research again, save incomplete, reject
         |
         v
-Notion data sources: opportunities, deadlines, contacts, activities, documents
+One SQLite table: the opportunity, its findings, contacts, and references
         |
         v
 Daily reminder workflow and periodic source recheck
 ```
 
-The implementation is split into three workflows:
+One process owns all of it: the Telegram bot, the ingest call, the approval gate, and the scheduled jobs.
 
-1. **Ingestion** receives Telegram messages, extracts the submitted URL, gathers candidate information, invokes research for explicit gaps, asks for confirmation, and persists the result.
-2. **Reminders** runs daily, calculates due reminders for confirmed deadlines, sends Telegram messages, and records idempotency keys.
-3. **Recheck** periodically revisits active sources and alerts on deadline, funding, eligibility, document, closure, or disappearance changes.
+1. **Ingest** takes a link, a PDF, or pasted text, and produces a validated candidate in a single bounded model call.
+2. **Approval** presents the candidate with buttons. Nothing is tracked until it is approved.
+3. **Reminders** run daily against confirmed deadlines and record what they sent, so each lead time fires once.
+4. **Backup** copies the database nightly; the **weekly digest** reports what is tracked, what is due, backup age, and spend – and is sent even when there is nothing to report, so its silence is the alarm.
+
+Periodic rechecking of live adverts is not implemented.
 
 ## Why not a general-purpose agent?
 
@@ -69,7 +73,7 @@ General agent capabilities may be added later for optional tasks such as compari
 
 ## Storage model
 
-Prospect uses related records instead of one enormous table.
+**Intended, not built.** What exists today is one `opportunity` table: the scalar columns that are queried or sorted on, with findings, contacts and references as JSON alongside them. The sections below are the data model this is meant to grow into, kept because they are what the fields are for – not a description of the current schema.
 
 ### Opportunities
 
@@ -214,60 +218,48 @@ Reminder keys combine opportunity ID, deadline ID, reminder offset, and deadline
 | Obsidian Bases    | Local Markdown and long-term portability                     | Remote writes and synchronization add early experiment risk   |
 | Custom web app    | Maximum control                                               | Premature before validating the workflow                      |
 
-## n8n licensing and deployment
-
-n8n Cloud is a paid hosted service with a time-limited trial. n8n is source-available under its Sustainable Use License rather than OSI open source; restrictions are relevant when reselling, white-labeling, or exposing n8n as a hosted product.
-
-The project is committed to n8n Cloud for now: Telegram webhooks receive a public HTTPS endpoint automatically, and the repository remains the source of truth for the workflows regardless of where they run. The hosting question is tracked separately.
 
 ## Repository layout
 
 ```text
 .
 ├── CONTEXT.md                  Domain language and invariants
-├── docs/adr/                   Architecture decisions
-├── docs/setup.md               Credential and deployment setup
-├── n8n/workflows/              Tracked workflow templates (sentinels + placeholders)
-├── n8n/code/                   Code-node JS payloads
-├── n8n/prompts/                Anthropic system prompts
-├── n8n/import/                 Git-ignored deployable workflows (built)
-├── tools/                      Node tooling: workflow build/compare, Notion bootstrap, seed
-├── schemas/                    Structured extraction contract
-└── tests/                      Behavioral tests (node:test) + golden contract cases
+├── SPEC.md                     What the app does and the decisions behind it
+├── docs/adr/                   Architecture decisions, superseded ones included
+├── docs/setup.md               First-run checklist
+├── docs/deploy.md              Deploying to the GCP instance
+├── prompts/ingest.prompt       The ingest prompt, with its model and bounds in frontmatter
+├── src/core/                   Pure domain logic – no clock, no network, no environment
+├── src/                        The IO shell: Telegram, Anthropic, SQLite, scheduled jobs
+├── src/jobs/                   Reminders, backup, weekly digest
+├── tools/                      One-off commands: ingest a URL, run a backup, send a digest
+├── seed/                       Records carried over from the previous build
+└── tests/                      node:test, plus golden contract cases and recorded API responses
 ```
-
 ## Manual prerequisites
 
-Most setup is code-driven. Three credential handoffs remain manual:
+Two credentials, neither committed. `docs/setup.md` is the checklist.
 
-1. Create a Telegram bot with BotFather and copy its token.
-2. Create a Notion integration, copy its token, and share a parent page with it.
-3. Add model and search-provider credentials to n8n.
+1. A Telegram bot token from BotFather.
+2. An Anthropic API key.
 
-Never commit credentials. Copy `.env.example` to `.env` for the values the build step reads locally; API credentials live in n8n Cloud.
-
+Copy `.env.example` to `.env` and fill them in. Backups authenticate through the instance's attached service account, so there is no third credential to rotate.
 ## Development
 
-Prospect is a plain JavaScript project (Node >= 20, CommonJS, no runtime dependencies). The domain logic lives in the n8n Code-node payloads (`n8n/code/*.js`) and the tooling in `tools/*.cjs`.
+Plain JavaScript – Node >= 22, CommonJS, one runtime dependency (the Anthropic SDK). The domain logic is in `src/core/*.cjs` as pure functions; everything that touches the world is in the shell around it.
 
 ```bash
 npm test
 ```
 
-Create the Notion data sources beneath the shared parent page:
+Run one real ingest without Telegram or the database:
 
 ```bash
-npm run bootstrap-notion
+set -a; . ./.env; set +a
+npm run ingest-url -- https://example.org/phd-position
 ```
 
-Build the deployable workflows from the tracked templates and payload files:
-
-```bash
-npm run build-workflows
-```
-
-Push the resulting `n8n/import/*.json` to n8n Cloud through the MCP server (see `n8n/README.md`) and bind the Telegram, Notion, model, and search credentials in the UI.
-
+Every ingest writes the raw API response to `data/traces/` gzipped. Those are debugging traces and drop-in regression fixtures at the same time – `gunzip -c` one into `tests/fixtures/ingest/` and it becomes a test.
 ## Experiment plan
 
 Evaluate Prospect on 15–20 real opportunities before expanding scope. Measure deadline correctness, required-field completeness, unsupported claims, manual corrections, research cost, execution time, duplicate detection, and whether researched information changes application decisions.

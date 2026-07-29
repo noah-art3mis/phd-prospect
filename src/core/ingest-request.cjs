@@ -11,9 +11,11 @@
 
 const { renderMessages } = require('./prompt.cjs');
 
-// Carried over from the n8n build. max_uses bounds how many pages are fetched;
-// max_content_tokens bounds how large each one is, which is what actually bounds cost –
-// one verbose advert could otherwise run up the bill inside a single permitted fetch.
+// max_uses bounds how many pages are fetched; max_content_tokens bounds how large each one
+// is. Neither bounds the ingest: the server-side loop re-sends the accumulated conversation
+// on every iteration, so billed input grows with the square of the iteration count and a
+// single call has run to 800,000 tokens against a 5,000-token-per-fetch cap. The bounds that
+// do hold are the clock and the token ceiling in src/ingest.cjs.
 const MAX_SEARCHES = 3;
 const MAX_FETCHES = 8;
 const MAX_CONTENT_TOKENS = 5000;
