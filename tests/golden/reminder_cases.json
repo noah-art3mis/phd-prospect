@@ -1,5 +1,5 @@
 {
-  "_comment": "Golden contract for the pure reminder core (src/core/reminders.cjs::dueReminders). Input is the opportunity rows as stored – a nullable `deadline_at` UTC instant, a `confirmed` flag and a `reminders_sent` list of already-fired lead times – plus the instant, zone and lead times as explicit arguments. `expect` is the exact reminder list, in order. Days remaining are counted in calendar days in `zone`, not in UTC, so a deadline late on the local day is not one day nearer just because UTC has already rolled over. Deadlines are a scalar on the opportunity, and idempotency lives in `reminders_sent` on the row rather than in an external table.",
+  "_comment": "Golden contract for the pure reminder core (src/core/reminders.cjs::dueReminders). Input is the opportunity rows as stored – a nullable `deadline_at` UTC instant, a `confirmed` flag and a `reminders_sent` list of already-fired lead times – plus the instant, zone and lead times as explicit arguments. `expect` is the exact reminder list, in order. A lead time is due once it has been *reached* and not yet fired, not only on the day it matches exactly - an exact match meant one failed send, or one morning with the app down, lost the reminder for good. Only the most urgent reached lead time fires, and `closes` names the looser ones it answers, so three weeks of downtime produce one message rather than a backlog. Days remaining are counted in calendar days in `zone`, not in UTC, so a deadline late on the local day is not one day nearer just because UTC has already rolled over. Deadlines are a scalar on the opportunity, and idempotency lives in `reminders_sent` on the row rather than in an external table.",
   "cases": [
     {
       "name": "deadline_seven_days_out_matches_lead_time",
@@ -25,12 +25,16 @@
           "title": "PhD in Trustworthy AI",
           "lead_time": 7,
           "days_remaining": 7,
+          "closes": [
+            30,
+            7
+          ],
           "deadline_at": "2026-07-13T23:59:00.000Z"
         }
       ]
     },
     {
-      "name": "days_remaining_between_lead_times_sends_nothing",
+      "name": "days_remaining_past_a_lead_time_still_warns",
       "now": "2026-07-06T18:00:00.000Z",
       "zone": "America/Mexico_City",
       "lead_times": [
@@ -47,7 +51,20 @@
           "reminders_sent": []
         }
       ],
-      "expect": []
+      "expect": [
+        {
+          "opportunity_id": 1,
+          "title": "PhD in Trustworthy AI",
+          "lead_time": 7,
+          "days_remaining": 5,
+          "closes": [
+            30,
+            7
+          ],
+          "deadline_at": "2026-07-11T12:00:00.000Z"
+        }
+      ],
+      "_comment": "Five days out with nothing sent means the seven-day sweep did not land - a failed send, an outage, a restart. It warns now rather than waiting for the one-day mark, which is the whole point of catch-up. Under the old exact-match rule this expected nothing."
     },
     {
       "name": "already_sent_lead_time_is_not_resent",
@@ -135,6 +152,11 @@
           "title": "Closes today",
           "lead_time": 0,
           "days_remaining": 0,
+          "closes": [
+            7,
+            1,
+            0
+          ],
           "deadline_at": "2026-07-07T04:59:00.000Z"
         }
       ]
@@ -184,6 +206,10 @@
           "title": "Zone-sensitive deadline",
           "lead_time": 6,
           "days_remaining": 6,
+          "closes": [
+            7,
+            6
+          ],
           "deadline_at": "2026-07-13T04:00:00.000Z"
         }
       ]
@@ -219,6 +245,10 @@
           "title": "Sooner",
           "lead_time": 7,
           "days_remaining": 7,
+          "closes": [
+            30,
+            7
+          ],
           "deadline_at": "2026-07-13T23:59:00.000Z"
         },
         {
@@ -226,6 +256,9 @@
           "title": "Further out",
           "lead_time": 30,
           "days_remaining": 30,
+          "closes": [
+            30
+          ],
           "deadline_at": "2026-08-05T23:59:00.000Z"
         }
       ]

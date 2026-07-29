@@ -197,3 +197,49 @@ test('link previews are never requested – the record matters, not the page', (
     assert.deepEqual(calls[0].body.link_preview_options, { is_disabled: true });
   });
 });
+
+// --- retrying a send --------------------------------------------------------------------
+//
+// Live: an ingest ran, cost money, produced a good record and wrote a row - and one
+// transient `fetch failed` on the approval card discarded the only notification of it. The
+// polling loop already retried; every write was one-shot.
+
+test('a send that fails on the network is retried', async () => {
+  let calls = 0;
+  const fetch = async () => {
+    calls += 1;
+    if (calls < 3) throw new TypeError('fetch failed');
+    return { ok: true, status: 200, json: async () => ({ ok: true, result: { message_id: 1 } }) };
+  };
+  const telegram = createTelegram({ token: 'T', fetch, sleep: async () => {} });
+
+  await telegram.sendMessage(42, 'the card');
+  assert.equal(calls, 3);
+});
+
+test('a send Telegram itself rejects is not retried', async () => {
+  // "bot was blocked by the user" will say the same thing every time. Retrying it delays
+  // every later message behind a wait that cannot help.
+  let calls = 0;
+  const fetch = async () => {
+    calls += 1;
+    return { ok: false, status: 403, json: async () => ({ ok: false, description: 'Forbidden: bot was blocked by the user' }) };
+  };
+  const telegram = createTelegram({ token: 'T', fetch, sleep: async () => {} });
+
+  await assert.rejects(telegram.sendMessage(42, 'hello'), /blocked/);
+  assert.equal(calls, 1);
+});
+
+test('a server error at Telegram is retried', async () => {
+  let calls = 0;
+  const fetch = async () => {
+    calls += 1;
+    if (calls < 2) return { ok: false, status: 502, json: async () => ({ ok: false, description: 'Bad Gateway' }) };
+    return { ok: true, status: 200, json: async () => ({ ok: true, result: { message_id: 1 } }) };
+  };
+  const telegram = createTelegram({ token: 'T', fetch, sleep: async () => {} });
+
+  await telegram.sendMessage(42, 'hello');
+  assert.equal(calls, 2);
+});

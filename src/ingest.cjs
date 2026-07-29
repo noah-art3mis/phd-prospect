@@ -11,6 +11,7 @@ const { readIngestResponse, readEverything, fetchErrors } = require('./core/inge
 const { validate } = require('./core/validate.cjs');
 const { canonicalizeUrl, submissionIdentity } = require('./core/url.cjs');
 const { resolveDeadline } = require('./core/deadline.cjs');
+const { withRetry } = require('./retry.cjs');
 
 // A stuck loop is worse than a reported failure: each resume costs another call.
 const MAX_RESUMES = 6;
@@ -29,6 +30,18 @@ const TIME_BUDGET_MS = 600_000;
 // The context window. A resume that would carry billed input past it cannot succeed – there
 // is nowhere for the conversation to go – so it can only be charged for.
 const TOKEN_BUDGET = 1_000_000;
+
+// Worth another attempt: the service was busy or briefly broken, which happens before a
+// single token is generated and so costs nothing to try again. A 529 arrived live.
+//
+// Not worth another attempt, and this is the half that matters: a call the clock cut short.
+// Whatever it generated has already been billed, and retrying buys a second bill for the
+// same advert - the mistake that turned one 26-minute run into three charges and is why the
+// SDK's own retries are off. The signal is what distinguishes them, checked by the caller,
+// because the SDK reports an abort as an ordinary Error with prose in its message.
+function isOverloaded(error) {
+  return error?.status === 429 || error?.status === 529 || (error?.status >= 500 && error?.status < 600);
+}
 
 // The clock is the only lever there is inside a single request, and it is a blunt one:
 // aborting stops the stream, not the billing for what was already generated. It bounds the
@@ -113,6 +126,7 @@ function createIngest({
   onResponse = () => {},
   timeBudgetMs = TIME_BUDGET_MS,
   tokenBudget = TOKEN_BUDGET,
+  sleep,
 }) {
   async function ingest(submission) {
     const request = buildIngestRequest(prompt, {
@@ -143,9 +157,12 @@ function createIngest({
       const signal = AbortSignal.timeout(remainingMs);
       let response;
       try {
-        response = await anthropic.messages
-          .stream({ ...request, messages: [...messages] }, { signal })
-          .finalMessage();
+        response = await withRetry(
+          () => anthropic.messages.stream({ ...request, messages: [...messages] }, { signal }).finalMessage(),
+          // Never past the budget: a retry that outlives the clock is the billing this
+          // whole arrangement exists to bound.
+          { isTransient: (error) => !signal.aborted && isOverloaded(error), sleep }
+        );
       } catch (error) {
         // Whether our own signal fired, not what the error looks like. Running out of time is
         // the deliberate outcome of the budget, so it has to arrive the way every other

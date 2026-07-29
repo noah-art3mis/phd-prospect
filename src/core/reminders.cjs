@@ -25,9 +25,19 @@ function localDayNumber(instant, zone) {
   return Date.UTC(year, month - 1, day) / 86400000;
 }
 
-// Every reminder due right now: a confirmed opportunity whose deadline is exactly one of
-// the lead times away in local calendar days, and whose lead time has not already fired.
-// Sorted by deadline, so the message the caller builds reads soonest-first.
+// Every reminder due right now: a confirmed opportunity that has reached a lead time it has
+// not yet fired. Sorted by deadline, so the message the caller builds reads soonest-first.
+//
+// Reached, not landed on. Requiring the day to match a lead time exactly meant one missed
+// morning lost the reminder for good – a failed send, a Telegram outage, an app that was
+// down, a restart spanning the send hour – because the next day's count no longer matched
+// anything. The job already declined to record a failed send, which bought nothing, since
+// the decision could never offer it again. This is the half that makes that care pay.
+//
+// One reminder per opportunity per sweep, the most urgent that has come due. Three weeks of
+// downtime should produce one message, not a backlog of three, so the lead times it overtook
+// are closed out with it: `closes` is what the caller writes back, and firing the one-day
+// warning answers the thirty-day one too.
 function dueReminders({ opportunities, now, zone, leadTimes }) {
   const today = localDayNumber(now, zone);
   const due = [];
@@ -40,16 +50,28 @@ function dueReminders({ opportunities, now, zone, leadTimes }) {
     if (Number.isNaN(deadline.getTime())) continue;
 
     const daysRemaining = localDayNumber(deadline, zone) - today;
-    if (!leadTimes.includes(daysRemaining)) continue;
+    // Past the deadline there is nothing to warn about, and the row stays for the record.
+    if (daysRemaining < 0) continue;
 
     const sent = opportunity.reminders_sent || [];
-    if (sent.includes(daysRemaining)) continue;
+    // A lead time is moot once a tighter one has already fired: having been told "7 days
+    // left", a later "30 days" message would restate a deadline the user has already heard
+    // about, in wording that no longer matches how long is actually left.
+    const tightestSent = sent.length > 0 ? Math.min(...sent) : Infinity;
+    const outstanding = leadTimes.filter(
+      (lead) => daysRemaining <= lead && !sent.includes(lead) && lead < tightestSent
+    );
+    if (outstanding.length === 0) continue;
 
     due.push({
       opportunity_id: opportunity.id,
       title: opportunity.title,
-      lead_time: daysRemaining,
+      // The most urgent one reached: it is the one whose wording matches how little time is
+      // actually left, and the others are answered by sending it.
+      lead_time: Math.min(...outstanding),
+      // What is really left, which after a missed day is not the lead time.
       days_remaining: daysRemaining,
+      closes: outstanding,
       deadline_at: opportunity.deadline_at,
     });
   }
@@ -62,7 +84,12 @@ function dueReminders({ opportunities, now, zone, leadTimes }) {
 function recordSent(sent, reminders) {
   const updated = [...(sent || [])];
   for (const reminder of reminders) {
-    if (!updated.includes(reminder.lead_time)) updated.push(reminder.lead_time);
+    // Every lead time the send answered, not only the one it was named after: a one-day
+    // warning delivered after three weeks of silence has also answered the thirty-day one,
+    // and leaving those open would send two more messages about the same deadline.
+    for (const lead of reminder.closes ?? [reminder.lead_time]) {
+      if (!updated.includes(lead)) updated.push(lead);
+    }
   }
   return updated;
 }
