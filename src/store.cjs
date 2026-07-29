@@ -1,8 +1,9 @@
 // SQLite storage – one `opportunity` table, opened from a file path.
 //
 // Scalar columns for what is queried or sorted on; JSON columns for the lists that are only
-// ever read with the opportunity. Storing lists-of-objects natively is the specific thing
-// Notion made painful, so it is the thing this schema is shaped around.
+// ever read with the opportunity. Storing lists-of-objects natively - supervisors, evidence,
+// contacts - is what this schema is shaped around: the previous store could not do it, and
+// working around that was most of what made it painful.
 //
 // Supervisors, research topics and per-field evidence deliberately have no columns of their
 // own: they are findings, and they travel inside `findings`. A second copy in its own column
@@ -155,7 +156,7 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
 
   return {
     // Save a candidate. Unconfirmed unless the caller says otherwise (the seed does, having
-    // already been approved once in Notion).
+    // already been through a human once in the build these records came from).
     insertCandidate(candidate) {
       const stamp = now();
       const result = statements.insert.run(

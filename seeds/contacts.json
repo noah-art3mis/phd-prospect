@@ -1,0 +1,138 @@
+[
+  {
+    "name": "Arkaitz Zubiaga",
+    "role": "Supervisor",
+    "institution_or_lab": "Social Data Science Lab / Centre for Human-Centred Computing, Queen Mary University of London",
+    "research_topics": "",
+    "profile_url": "https://www.zubiaga.org/",
+    "notes": "Labs: https://sds.eecs.qmul.ac.uk/ , https://www.seresearch.qmul.ac.uk/chcc/people/"
+  },
+  {
+    "name": "Kalina Bontcheva",
+    "role": "Supervisor",
+    "institution_or_lab": "NLP Group, University of Sheffield",
+    "research_topics": "Social media, disinformation, NLP for social media, semantic search, GATE, crowdsourcing of NLP corpora, collaborative text annotation",
+    "profile_url": "https://www.sheffield.ac.uk/cs/people/academic/kalina-bontcheva",
+    "notes": ""
+  },
+  {
+    "name": "Maria Liakata",
+    "role": "Supervisor",
+    "institution_or_lab": "Queen Mary University of London / Alan Turing Institute",
+    "research_topics": "Social media, dementia",
+    "profile_url": "https://maria-liakata-nlp-group.github.io/",
+    "notes": "Also https://www.turing.ac.uk/people/researchers/maria-liakata"
+  },
+  {
+    "name": "Guillaume Cabanac",
+    "role": "Supervisor",
+    "institution_or_lab": "",
+    "research_topics": "Academic integrity",
+    "profile_url": "https://scholar.google.com/citations?user=4dp38PkAAAAJ&hl=en",
+    "notes": ""
+  },
+  {
+    "name": "Rob Procter",
+    "role": "Supervisor",
+    "institution_or_lab": "AI and Human-Centred Computing, University of Warwick",
+    "research_topics": "AI ethics applied in government",
+    "profile_url": "https://warwick.ac.uk/fac/sci/dcs/people/rob_procter/",
+    "notes": "Lab: https://warwick.ac.uk/fac/sci/dcs/research/aihcc/"
+  },
+  {
+    "name": "Emma Pierson",
+    "role": "Supervisor",
+    "institution_or_lab": "Pierson Lab, UC Berkeley",
+    "research_topics": "HypotheSEA",
+    "profile_url": "https://people.eecs.berkeley.edu/~emmapierson/group.html",
+    "notes": ""
+  },
+  {
+    "name": "Charlotte Sleigh",
+    "role": "Supervisor",
+    "institution_or_lab": "UCL",
+    "research_topics": "Misinformation",
+    "profile_url": "https://scholar.google.com/citations?user=bLJCmK0AAAAJ&hl=en",
+    "notes": ""
+  },
+  {
+    "name": "Emily Sullivan",
+    "role": "Supervisor",
+    "institution_or_lab": "Normative Philsci Lab",
+    "research_topics": "",
+    "profile_url": "https://www.eesullivan.com/nps",
+    "notes": ""
+  },
+  {
+    "name": "John-orr Hanna",
+    "role": "Supervisor",
+    "institution_or_lab": "",
+    "research_topics": "Misinformation",
+    "profile_url": "https://www.linkedin.com/in/john-orr-h-8022912/",
+    "notes": ""
+  },
+  {
+    "name": "Isabelle Augenstein",
+    "role": "Supervisor",
+    "institution_or_lab": "CopeNLU, University of Copenhagen",
+    "research_topics": "NLP, explainability, fact-checking",
+    "profile_url": "",
+    "notes": "Group: https://copenlu.github.io/"
+  },
+  {
+    "name": "Pepa Atanasova",
+    "role": "Supervisor",
+    "institution_or_lab": "CopeNLU, University of Copenhagen",
+    "research_topics": "",
+    "profile_url": "",
+    "notes": ""
+  },
+  {
+    "name": "TJ",
+    "role": "Supervisor",
+    "institution_or_lab": "University of Edinburgh",
+    "research_topics": "",
+    "profile_url": "",
+    "notes": "Name to confirm"
+  },
+  {
+    "name": "Ted",
+    "role": "Supervisor",
+    "institution_or_lab": "",
+    "research_topics": "",
+    "profile_url": "",
+    "notes": "Name/institution to confirm"
+  },
+  {
+    "name": "Leonardo Nascimento",
+    "role": "Supervisor",
+    "institution_or_lab": "LABHDUFBA, UFBA",
+    "research_topics": "Digital humanities",
+    "profile_url": "https://www.linkedin.com/in/leofn-labhdufba/",
+    "notes": "Lab: https://labhdufba.github.io/"
+  },
+  {
+    "name": "Thiago A. S. Pardo",
+    "role": "Supervisor",
+    "institution_or_lab": "NILC, USP",
+    "research_topics": "NLP",
+    "profile_url": "https://sites.google.com/icmc.usp.br/taspardo/home",
+    "notes": ""
+  },
+  {
+    "name": "Roney Lira de Sales Santos",
+    "role": "Supervisor",
+    "institution_or_lab": "UFBA",
+    "research_topics": "NLP, fake news",
+    "profile_url": "http://lattes.cnpq.br/5238590321324566",
+    "notes": ""
+  },
+  {
+    "name": "Leticia Cesarino",
+    "role": "Supervisor",
+    "institution_or_lab": "UFSC",
+    "research_topics": "Digital anthropology",
+    "profile_url": "",
+    "notes": ""
+  }
+]

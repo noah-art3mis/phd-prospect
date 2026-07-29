@@ -1,7 +1,7 @@
-// Loading the Notion seed into the store.
+// Loading the committed seed into the store.
 //
-// The transform itself is already built and tested (tools/notion-to-seed.cjs); this only
-// loads its committed output. The one rule worth stating: seeded rows cross the same
+// `seed/opportunities.json` was transformed once from the previous build's records and is
+// tracked as data; nothing regenerates it. The one rule worth stating: seeded rows cross the same
 // validate() seam as live ingest, so the seed is not a back door into the database. A row
 // that would fail the deadline evidence rule is rejected rather than written.
 //
