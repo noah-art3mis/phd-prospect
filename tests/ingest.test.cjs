@@ -269,6 +269,35 @@ test('token usage is reported on every outcome, including ones that produced not
   }
 });
 
+test('the three input token classes are kept apart – they bill at different rates', () => {
+  // Fresh input bills at 1×, a cache read at 0.1×, a cache write at 1.25×. Added together
+  // they become one number that cannot tell an expensive ingest from a cheap one, which is
+  // precisely the difference prompt caching is supposed to make.
+  const response = responseWith(everyField());
+  response.usage = {
+    input_tokens: 1000,
+    cache_read_input_tokens: 2000,
+    cache_creation_input_tokens: 300,
+    output_tokens: 40,
+  };
+
+  assert.deepEqual(readIngestResponse(response).usage, {
+    model: 'claude-sonnet-5',
+    inputTokens: 1000,
+    cacheReadTokens: 2000,
+    cacheWriteTokens: 300,
+    outputTokens: 40,
+  });
+});
+
+test('a response with no caching reports zero, not absent, for the cache classes', () => {
+  // Every live run so far reported both as zero. A missing key and a measured zero read the
+  // same downstream, so the reader states it rather than leaving the caller to guess.
+  const { usage } = readIngestResponse(fixture('complete'));
+  assert.equal(usage.cacheReadTokens, 0);
+  assert.equal(usage.cacheWriteTokens, 0);
+});
+
 // --- the loop ---------------------------------------------------------------------------
 
 // Only `stream` is offered, deliberately: a non-streaming ingest races the SDK's ten-minute

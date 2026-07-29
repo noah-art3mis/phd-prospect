@@ -30,7 +30,10 @@ async function main(url) {
     anthropic,
     prompt,
     zone: config.timezone,
-    onUsage: (u) => console.error(`  call: ${u.inputTokens} in, ${u.outputTokens} out`),
+    onUsage: (u) =>
+      console.error(
+        `  call: ${u.inputTokens} in, ${u.cacheReadTokens} cached, ${u.cacheWriteTokens} written, ${u.outputTokens} out`
+      ),
   });
 
   const result = await ingest({ kind: 'url', url });

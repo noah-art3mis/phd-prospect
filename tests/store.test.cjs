@@ -254,3 +254,58 @@ test('the committed seed file loads and yields seven opportunities, four with a 
     assert.equal(store.listConfirmed().filter((o) => o.deadline_at !== null).length, 4);
   });
 });
+
+test('recorded usage keeps the token classes apart across the round trip', () => {
+  // Summing them in the column would lose the distinction just as surely as summing them in
+  // the reader: the digest prices each class at its own rate, and it reads these columns.
+  withStore((store) => {
+    store.recordUsage({
+      model: 'claude-sonnet-5',
+      inputTokens: 100,
+      cacheReadTokens: 200,
+      cacheWriteTokens: 30,
+      outputTokens: 4,
+    });
+
+    const totals = store.usageSince('1970-01-01T00:00:00.000Z');
+    assert.equal(totals.input_tokens, 100);
+    assert.equal(totals.cache_read_tokens, 200);
+    assert.equal(totals.cache_write_tokens, 30);
+    assert.equal(totals.output_tokens, 4);
+    assert.equal(totals.calls, 1);
+  });
+});
+
+test('a database written before the cache columns existed gains them on open', () => {
+  // The columns are added to a table that already exists, so an upgrade in place does not
+  // start by throwing on every insert. CREATE TABLE IF NOT EXISTS is silent about the
+  // difference, which is the failure this pins.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prospect-store-old-'));
+  const dbPath = path.join(dir, 'prospect.db');
+  try {
+    const { DatabaseSync } = require('node:sqlite');
+    const old = new DatabaseSync(dbPath);
+    old.exec(`CREATE TABLE usage_event (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      occurred_at TEXT NOT NULL,
+      model TEXT NOT NULL,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0
+    )`);
+    old.exec(`INSERT INTO usage_event (occurred_at, model, input_tokens, output_tokens)
+              VALUES ('2026-07-28T00:00:00.000Z', 'claude-sonnet-5', 10, 1)`);
+    old.close();
+
+    const store = openStore(dbPath);
+    store.recordUsage({ model: 'claude-sonnet-5', inputTokens: 5, cacheReadTokens: 7 });
+    const totals = store.usageSince('1970-01-01T00:00:00.000Z');
+    store.close();
+
+    assert.equal(totals.calls, 2);
+    assert.equal(totals.input_tokens, 15);
+    // The pre-existing row predates caching, so it reads as zero rather than as unknown.
+    assert.equal(totals.cache_read_tokens, 7);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

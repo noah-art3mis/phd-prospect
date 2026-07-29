@@ -13,14 +13,27 @@ const { formatLocalDate } = require('./deadline.cjs');
 
 const HORIZON_DAYS = 30;
 
-// Approximate on purpose. The content cap already bounds the worst case near $9/month, so
-// precise accounting would track a number that cannot surprise; summing logged tokens is
-// enough to notice a change in shape. List price for the configured model – the introductory
-// rate would flatter the figure, and an estimate that reads high is the safer error.
-const USD_PER_MILLION = { input: 3, output: 15 };
+// Approximate on purpose: summing logged tokens is enough to notice a change in shape, and
+// list price is used rather than the introductory rate because an estimate that reads high
+// is the safer error.
+//
+// Four rates, not two. A cache read costs a tenth of fresh input and a cache write a quarter
+// above it, so pricing all input alike would make caching – the largest saving available –
+// read as no change at all.
+const USD_PER_MILLION = { input: 3, cacheRead: 0.3, cacheWrite: 3.75, output: 15 };
 
-function approximateSpend({ input_tokens: input = 0, output_tokens: output = 0 }) {
-  return (input / 1e6) * USD_PER_MILLION.input + (output / 1e6) * USD_PER_MILLION.output;
+function approximateSpend({
+  input_tokens: input = 0,
+  cache_read_tokens: cacheRead = 0,
+  cache_write_tokens: cacheWrite = 0,
+  output_tokens: output = 0,
+}) {
+  return (
+    (input / 1e6) * USD_PER_MILLION.input +
+    (cacheRead / 1e6) * USD_PER_MILLION.cacheRead +
+    (cacheWrite / 1e6) * USD_PER_MILLION.cacheWrite +
+    (output / 1e6) * USD_PER_MILLION.output
+  );
 }
 
 function describeBackupAge(lastBackup, now) {

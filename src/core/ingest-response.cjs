@@ -20,11 +20,17 @@ function textOf(response) {
     .join('');
 }
 
+// Four classes, kept apart, because three of them are input and all three bill differently:
+// fresh input at the base rate, a cache read at a tenth of it, a cache write at a quarter
+// above it. Added together they make one number that cannot distinguish an expensive ingest
+// from a cheap one – which is exactly the distinction prompt caching exists to create.
 function usageOf(response) {
   const usage = response.usage ?? {};
   return {
     model: response.model,
-    inputTokens: (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0),
+    inputTokens: usage.input_tokens ?? 0,
+    cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+    cacheWriteTokens: usage.cache_creation_input_tokens ?? 0,
     outputTokens: usage.output_tokens ?? 0,
   };
 }

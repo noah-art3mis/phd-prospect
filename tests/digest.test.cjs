@@ -162,6 +162,32 @@ test('spend is computed at list price, so the estimate errs high rather than low
   assert.equal(approximateSpend({ input_tokens: 0, output_tokens: 1e6 }).toFixed(2), '15.00');
 });
 
+test('cached input is priced as cached, not as fresh input', () => {
+  // A cache read is a tenth of the base rate and a cache write is a quarter above it. Priced
+  // as plain input, caching would look like it saved nothing and the change that pays for
+  // itself would read as noise.
+  assert.equal(approximateSpend({ cache_read_tokens: 1e6 }).toFixed(2), '0.30');
+  assert.equal(approximateSpend({ cache_write_tokens: 1e6 }).toFixed(2), '3.75');
+});
+
+test('the digest prices a cached week below an uncached one of the same size', async () => {
+  await withDigest(
+    (store) => {
+      store.recordUsage({
+        model: 'claude-sonnet-5',
+        inputTokens: 100_000,
+        cacheReadTokens: 900_000,
+        outputTokens: 100_000,
+      });
+    },
+    async ({ sent, digest }) => {
+      await digest(new Date());
+      // 100k fresh at $3/M + 900k cached at $0.30/M + 100k output at $15/M.
+      assert.match(sent[0].text, /about \$2\.07 over 1 model calls/);
+    }
+  );
+});
+
 test('upcomingDeadlines takes the horizon as an argument rather than assuming thirty days', () => {
   const rows = [
     { title: 'a', deadline_at: '2026-07-09T00:00:00.000Z' },
