@@ -358,3 +358,48 @@ test('when the app cannot fetch it either, the original failure is what the user
     assert.match(errors.at(-1).message, /could not fetch that page/i);
   }, { fetchPage: page, onError: (e) => errors.push(e) });
 });
+
+// --- the same advert twice ---------------------------------------------------------------
+
+test('the same link sent twice in a row is only paid for once', async () => {
+  // Back to back, neither submission has produced a row yet, so a check against the database
+  // sees nothing and both calls run. The window is between the two, and only something that
+  // knows what is in flight can close it.
+  await withApp([fixture('complete')], async ({ telegram, anthropic, app }) => {
+    await app.bot.handleUpdate(linkFrom());
+    await app.bot.handleUpdate({ ...linkFrom(), update_id: 2, message: { ...linkFrom().message, message_id: 11 } });
+    await app.bot.settle();
+
+    assert.equal(anthropic.requests.length, 1, 'the same advert was ingested twice');
+    assert.match(telegram.sent.map((m) => m.text).join('\n'), /already reading that one/i);
+  });
+});
+
+test('a candidate still waiting for approval is not ingested again', async () => {
+  // The old check looked only at confirmed rows, so an advert sitting on a card nobody had
+  // pressed yet was re-read and re-billed every time the link arrived.
+  await withApp([fixture('complete')], async ({ telegram, anthropic, app }) => {
+    await app.bot.handleUpdate(linkFrom());
+    await app.bot.settle();
+    const before = anthropic.requests.length;
+
+    await app.bot.handleUpdate({ ...linkFrom(), update_id: 3, message: { ...linkFrom().message, message_id: 12 } });
+    await app.bot.settle();
+
+    assert.equal(anthropic.requests.length, before, 'a pending candidate was ingested again');
+    assert.match(telegram.sent.at(-1).text, /waiting for you/i);
+  });
+});
+
+test('a failed ingest does not block the link from being tried again', async () => {
+  // The in-flight guard has to release on failure, or one bad moment makes an advert
+  // permanently unsubmittable until a restart.
+  await withApp([fixture('max_tokens'), fixture('complete')], async ({ anthropic, app }) => {
+    await app.bot.handleUpdate(linkFrom());
+    await app.bot.settle();
+    await app.bot.handleUpdate({ ...linkFrom(), update_id: 4, message: { ...linkFrom().message, message_id: 13 } });
+    await app.bot.settle();
+
+    assert.equal(anthropic.requests.length, 2, 'the retry after a failure was refused');
+  });
+});

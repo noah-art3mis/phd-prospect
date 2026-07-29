@@ -41,7 +41,10 @@ CREATE TABLE IF NOT EXISTS opportunity (
   updated_at     TEXT    NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS opportunity_canonical_url ON opportunity (canonical_url);
+-- Unique, not merely indexed. One advert is one row: two would both fire reminders for the
+-- same deadline, and no check before the insert can close the window between two submissions
+-- that arrive together. The constraint makes that state unrepresentable instead.
+CREATE UNIQUE INDEX IF NOT EXISTS opportunity_canonical_url ON opportunity (canonical_url);
 CREATE INDEX IF NOT EXISTS opportunity_due ON opportunity (confirmed, deadline_at);
 
 -- Token usage, for the weekly digest's approximate spend. One row per model call.
@@ -88,6 +91,17 @@ const UPDATABLE_COLUMNS = new Set([
   'reminders_sent',
 ]);
 
+// CREATE INDEX IF NOT EXISTS is equally silent about an index that exists without the
+// constraint it now needs, so an older database would keep accepting duplicates forever.
+// Dropped and rebuilt rather than tolerated; a database that already holds duplicates fails
+// loudly here, which is the right time to find out.
+function ensureUniqueIndex(db, name, table, column) {
+  const existing = db.prepare('PRAGMA index_list(' + table + ')').all().find((i) => i.name === name);
+  if (existing && existing.unique === 1) return;
+  if (existing) db.exec(`DROP INDEX ${name}`);
+  db.exec(`CREATE UNIQUE INDEX ${name} ON ${table} (${column})`);
+}
+
 // CREATE TABLE IF NOT EXISTS is silent about a table that exists with the wrong columns, so
 // a database written before a column was added would keep working until the first insert
 // against it. Adding what is missing on open keeps the running instance upgradeable in place.
@@ -111,6 +125,7 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
   db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA foreign_keys = ON');
   db.exec(SCHEMA);
+  ensureUniqueIndex(db, 'opportunity_canonical_url', 'opportunity', 'canonical_url');
   ensureColumns(db, 'usage_event', {
     cache_read_tokens: 'INTEGER NOT NULL DEFAULT 0',
     cache_write_tokens: 'INTEGER NOT NULL DEFAULT 0',
@@ -125,6 +140,7 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
     `),
     byId: db.prepare('SELECT * FROM opportunity WHERE id = ?'),
     byCanonicalUrl: db.prepare('SELECT * FROM opportunity WHERE canonical_url = ? AND confirmed = 1 LIMIT 1'),
+    anyByCanonicalUrl: db.prepare('SELECT * FROM opportunity WHERE canonical_url = ? LIMIT 1'),
     confirm: db.prepare('UPDATE opportunity SET confirmed = 1, updated_at = ? WHERE id = ?'),
     remove: db.prepare('DELETE FROM opportunity WHERE id = ?'),
     setReminders: db.prepare('UPDATE opportunity SET reminders_sent = ?, updated_at = ? WHERE id = ?'),
@@ -182,10 +198,16 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
       return hydrate(statements.byId.get(id));
     },
 
-    // The re-submission short-circuit: confirmed rows only, so a pending candidate never
-    // suppresses a fresh ingest.
+    // Tracked work only. `findByUrl` is what the re-submission check uses, because a pending
+    // candidate is also an advert already paid for; this one answers "is it being reminded on".
     findConfirmedByUrl(url) {
       return hydrate(statements.byCanonicalUrl.get(canonicalizeUrl(url)));
+    },
+
+    // Any row for this advert, approved or not. The re-submission check needs to see pending
+    // work: a candidate waiting for a button press is still an advert already paid for.
+    findByUrl(url) {
+      return hydrate(statements.anyByCanonicalUrl.get(canonicalizeUrl(url)));
     },
 
     confirmOpportunity(id) {

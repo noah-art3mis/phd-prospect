@@ -105,15 +105,19 @@ for (const [what, url] of SAME_PAGE) {
   });
 }
 
-test('a URL matching only an unconfirmed row does not short-circuit', async () => {
-  // A candidate still awaiting approval is not tracked work; re-sending it should run.
-  await withApp(async ({ store, requests, app }) => {
+test('a URL matching an unconfirmed row is answered, not read again', async () => {
+  // This used to run a fresh ingest, on the reasoning that a candidate awaiting approval is
+  // not tracked work. Superseded by canonical_url being unique: a second read would cost a
+  // model call and then fail at the insert, so the only thing it could buy is the bill.
+  // Pending is its own answer - the record is already on the screen.
+  await withApp(async ({ store, requests, sent, app }) => {
     store.insertCandidate({ ...TRACKED, confirmed: false });
 
     await app.bot.handleUpdate(send('https://uni.example/phd'));
     await app.bot.settle();
 
-    assert.equal(requests.length, 1, 'a pending candidate must not suppress a fresh ingest');
+    assert.equal(requests.length, 0, 'a pending candidate was read and paid for twice');
+    assert.match(sent.at(-1).text, /waiting for you/i);
   });
 });
 

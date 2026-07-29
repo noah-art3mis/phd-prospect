@@ -53,19 +53,47 @@ async function retryFromPage({ submission, failure, ingest, fetchPage }) {
 }
 
 function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage }) {
+  // Adverts being read right now. The database cannot answer this: a submission produces no
+  // row until its call comes back, so two links arriving together both look new and both get
+  // paid for. Memory is the right place for it - it is a fact about this process, and a
+  // restart that loses it has also lost the ingest it was tracking.
+  const inFlight = new Set();
+
   return async function handleSubmission(submission) {
-    // Before the model call: an advert already tracked answers with the deadline on file,
-    // costing nothing (#28). Keyed on identity rather than on the kind of submission, so the
-    // same advert is recognised whether it arrives as a link or as the text of one - and a
-    // link-less paste is recognised by its text.
-    if (submission.kind !== 'document') {
-      const existing = store.findConfirmedByUrl(submissionIdentity(submission));
-      if (existing) {
-        await telegram.sendMessage(chatId, alreadyTracked(existing));
+    // Before the model call: an advert already known costs nothing to answer (#28). Keyed on
+    // identity rather than on the kind of submission, so the same advert is recognised
+    // whether it arrives as a link or as the text of one - and a link-less paste is
+    // recognised by its text.
+    const identity = submission.kind === 'document' ? null : submissionIdentity(submission);
+
+    if (identity) {
+      if (inFlight.has(identity)) {
+        await telegram.sendMessage(chatId, 'Already reading that one – the record is on its way.');
         return;
       }
+      const existing = store.findByUrl(identity);
+      if (existing) {
+        // Pending and tracked are different answers. A candidate nobody has pressed yet is
+        // not "already tracked", and reading it again would buy a second copy of a record
+        // that is sitting on the screen.
+        await telegram.sendMessage(
+          chatId,
+          existing.confirmed ? alreadyTracked(existing) : stillWaiting(existing)
+        );
+        return;
+      }
+      inFlight.add(identity);
     }
 
+    try {
+      await readAndPresent();
+    } finally {
+      // Released whatever happened: a failure that left the advert permanently unsubmittable
+      // would be a worse bug than the double billing this prevents.
+      if (identity) inFlight.delete(identity);
+    }
+
+    async function readAndPresent() {
     if (submission.kind === 'document') {
       submission = { ...submission, pdfBase64: await fetchPdf(telegram, submission) };
     }
@@ -83,6 +111,7 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fe
       throw new Error(result.reason);
     }
     await approval.present(result.candidate);
+    }
   };
 }
 
@@ -105,6 +134,10 @@ async function fetchPdf(telegram, submission) {
     );
   }
   return bytes.toString('base64');
+}
+
+function stillWaiting(opportunity) {
+  return `I already read that one – it is waiting for you to approve or reject it.\n\n${opportunity.title}`;
 }
 
 function alreadyTracked(opportunity) {
