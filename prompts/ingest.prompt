@@ -41,6 +41,8 @@ The page is your primary source. When it leaves a field unstated, you may search
 
 Stop when the official sources are exhausted. A field nobody states is `not_stated` – that is a finished answer, not a failure.
 
+If fetching the submitted page is refused twice, stop. Do not hunt for mirrors, caches, or archived copies, and do not retry the same address in another language or without its query string – a refusal is about the fetcher, not the address, and it will not change. Return the record with every field `not_stated`; the app reads that as a page it could not fetch and asks for the text instead. Continuing costs as much as a real extraction and finds nothing.
+
 {{role "user"}}
 Extract the PhD opportunity at this URL: {{url}}
 

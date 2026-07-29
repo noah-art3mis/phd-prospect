@@ -7,7 +7,7 @@
 // around, because it produces a truncated candidate that looks successful.
 
 const { buildIngestRequest } = require('./core/ingest-request.cjs');
-const { readIngestResponse, readEverything } = require('./core/ingest-response.cjs');
+const { readIngestResponse, readEverything, fetchErrors } = require('./core/ingest-response.cjs');
 const { validate } = require('./core/validate.cjs');
 const { canonicalizeUrl } = require('./core/url.cjs');
 const { resolveDeadline } = require('./core/deadline.cjs');
@@ -40,6 +40,25 @@ function abortedFailure(budgetMs) {
   };
 }
 
+// Why an empty record came back. The generic version of this message listed four possible
+// causes and committed to none, which left the one useful next step – paste the text yourself
+// – looking like a guess. The response already knows: every fetch the tool refused is in
+// `content` with the URL it was for and the code it failed with.
+function unreadableReason(response) {
+  const errors = fetchErrors(response);
+  if (errors.length === 0) {
+    // The fetches worked and the page still yielded nothing. Here the cause really is
+    // unknown, and naming one would be worse than saying so.
+    return 'I could not read anything from that page – it may be JS-rendered, paywalled, blocked, or gone.';
+  }
+
+  const codes = [...new Set(errors.map((error) => error.code))].join(', ');
+  return (
+    `I could not fetch that page – every attempt was refused (${codes}). ` +
+    'That usually means the advert is rendered in the browser rather than served, so there is ' +
+    'nothing there to read. Sending me the text or a PDF works where the link does not.'
+  );
+}
 
 // Findings arrive as lists; `institution` and `deadline_at` are single columns. A field that
 // holds one thing and came back with several is the model disagreeing with the column, and
@@ -84,6 +103,8 @@ function createIngest({
     const deadline = Date.now() + timeBudgetMs;
     let billedTokens = 0;
     let result;
+    // Kept for the failure path: why a page could not be read is in the response, not the record.
+    let lastResponse;
 
     for (let attempt = 0; attempt <= MAX_RESUMES; attempt += 1) {
       const remainingMs = deadline - Date.now();
@@ -110,6 +131,7 @@ function createIngest({
         throw error;
       }
 
+      lastResponse = response;
       onResponse(response, submission);
       result = readIngestResponse(response);
       onUsage(result.usage);
@@ -147,10 +169,7 @@ function createIngest({
     // a success, which is the trap: presenting it as a finished opportunity with every field
     // unknown is worse than saying so.
     if (!readEverything(candidate)) {
-      return {
-        ok: false,
-        reason: 'I could not read anything from that page – it may be JS-rendered, paywalled, blocked, or gone.',
-      };
+      return { ok: false, reason: unreadableReason(lastResponse) };
     }
 
     // Deterministic validation. Structured outputs guarantee the shape; this enforces the

@@ -1,0 +1,158 @@
+{
+  "_comment": "Trimmed from a live trace of a KU Leuven advert (2026-07-29). Every web_fetch the model attempted on the submitted domain was refused - unavailable on the first try, url_not_allowed on every retry - because the page renders client-side and Anthropic's fetcher sees no advert. The record that came back is well-formed and empty. Thinking and code-execution blocks removed; the fetch results and the final record are verbatim.",
+  "id": "msg_011CdVjvDh98mEdH9HeFzG2H",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 303704,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 8292,
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "server_tool_use": {
+      "web_search_requests": 3,
+      "web_fetch_requests": 8
+    }
+  },
+  "content": [
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_01LRm1znTBnxajQzGXoQN2dJ",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_01LRm1znTBnxajQzGXoQN2dJ",
+      "content": {
+        "type": "web_fetch_tool_result_error",
+        "error_code": "unavailable"
+      }
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_0143EErW6fd6gwMPrQguro2b",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_0143EErW6fd6gwMPrQguro2b",
+      "content": {
+        "type": "web_fetch_tool_result_error",
+        "error_code": "url_not_allowed"
+      }
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_01SngA28dAHd6KScZN1LA9yN",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://www.kuleuven.be/personeel/jobsite/jobs/60706660"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_01SngA28dAHd6KScZN1LA9yN",
+      "content": {
+        "type": "web_fetch_tool_result_error",
+        "error_code": "url_not_allowed"
+      }
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_01FpvwX7K3bsG6kGQoDmgzcU",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=en&lang=en"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_01FpvwX7K3bsG6kGQoDmgzcU",
+      "content": {
+        "type": "web_fetch_tool_result_error",
+        "error_code": "url_not_allowed"
+      }
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_015eKa7TV45JtR9sG1UGZaF6",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://www.kuleuven.be/personeel/jobsite/en/jobs-at-ku-leuven"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_015eKa7TV45JtR9sG1UGZaF6",
+      "content": {
+        "type": "web_fetch_tool_result_error",
+        "error_code": "url_not_allowed"
+      }
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_01K5Px4bHJj3SHKLfC8PQVfR",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://kuleuven.be/personeel/jobsite/jobs/60607734?amp=&lang=en"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_01K5Px4bHJj3SHKLfC8PQVfR",
+      "content": {
+        "type": "web_fetch_tool_result_error",
+        "error_code": "url_not_allowed"
+      }
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_0189i68ro7ttsB6qbZucsAiC",
+      "name": "web_fetch",
+      "input": {
+        "url": "https://web.archive.org/web/2024/https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_0189i68ro7ttsB6qbZucsAiC",
+      "content": {
+        "type": "web_fetch_tool_result_error",
+        "error_code": "url_not_in_prior_context"
+      }
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_01AEPBhmuHMtcY6SRXDtk87y",
+      "name": "web_fetch",
+      "input": {
+        "url": "http://archive.org/wayback/available?url=kuleuven.be/personeel/jobsite/jobs/60706660"
+      }
+    },
+    {
+      "type": "web_fetch_tool_result",
+      "tool_use_id": "srvtoolu_01AEPBhmuHMtcY6SRXDtk87y",
+      "content": {
+        "type": "web_fetch_tool_result_error",
+        "error_code": "url_not_in_prior_context"
+      }
+    },
+    {
+      "type": "text",
+      "text": "{\"title\":\"PhD opportunity — KU Leuven vacancy 60706660 (source page could not be retrieved)\",\"source_url\":\"https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl\",\"findings\":[{\"field\":\"institution\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"department_or_lab\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"opportunity_type\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"programme\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"country\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"city\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"summary\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"research_topics\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"supervisors\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"funding\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"eligibility\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"required_documents\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"duration\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"start_date\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"application_url\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]},{\"field\":\"deadline\",\"state\":\"not_stated\",\"value\":[],\"evidence\":[]}],\"contacts\":[],\"references\":[\"https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl\"]}"
+    }
+  ]
+}

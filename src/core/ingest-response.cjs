@@ -35,6 +35,26 @@ function usageOf(response) {
   };
 }
 
+// Which fetches the tool refused, and for which page. The server-side loop reports every
+// attempt in `content`: a `server_tool_use` carrying the URL, then a `web_fetch_tool_result`
+// carrying either the document or an error code. When a record comes back empty, this is the
+// difference between naming the cause and listing four things it might have been.
+function fetchErrors(response) {
+  const urlByToolUse = new Map();
+  const errors = [];
+
+  for (const block of response.content ?? []) {
+    if (block.type === 'server_tool_use' && block.input?.url) {
+      urlByToolUse.set(block.id, block.input.url);
+    }
+    if (block.type === 'web_fetch_tool_result' && block.content?.type === 'web_fetch_tool_result_error') {
+      errors.push({ url: urlByToolUse.get(block.tool_use_id) ?? null, code: block.content.error_code });
+    }
+  }
+
+  return errors;
+}
+
 function readIngestResponse(response) {
   const usage = usageOf(response);
 
@@ -128,4 +148,4 @@ function readEverything(candidate) {
   return findings.some((finding) => finding.state === 'found');
 }
 
-module.exports = { readIngestResponse, readEverything, textOf, usageOf };
+module.exports = { readIngestResponse, readEverything, fetchErrors, textOf, usageOf };
