@@ -6,7 +6,7 @@ Prospect is a personal tool for sending a PhD opportunity to a Telegram bot – 
 
 ## Implementation status
 
-The application runs end to end: Telegram bot, ingest, human approval, SQLite storage, reminders, backups, and the weekly digest. It has been exercised against the live Anthropic API but **not yet against a live Telegram bot** – that round trip is the largest untested surface. Deployment to the Oracle instance is not done.
+The application runs end to end: Telegram bot, ingest, human approval, SQLite storage, reminders, backups, and the weekly digest. The whole round trip has now been exercised live against both APIs – an advert submitted from Telegram, refused by `web_fetch`, fetched by the app instead, read, validated, presented, and approved into a tracked row. What is still untested against a real bot is the passage of time: the daily reminder sweep, the nightly backup, and the Sunday digest have only ever run against a clock supplied by their tests. Deployment to the Oracle instance is not done.
 
 Earlier versions of this project ran on n8n Cloud with Notion storage. Both were removed in ADR-0006; the ADRs are kept as a record of why.
 ## Why this exists

@@ -12,9 +12,13 @@ Oracle Cloud's Always Free tier includes the address. This project exists becaus
 
 Five things only an account holder can do. Do them in this order – region and shape are the two that are awkward to change afterwards.
 
-1. **Sign up** at [cloud.oracle.com](https://cloud.oracle.com). Identity verification wants a card; Always Free does not charge it. **Pick the home region carefully: it cannot be changed later**, and every free resource must live in it. Nearest to Mexico City are `us-ashburn-1` and `sa-saopaulo-1`.
+1. **Sign up** at [signup.cloud.oracle.com](https://signup.cloud.oracle.com). Identity verification wants a real credit card whose billing country matches the address you give – prepaid and virtual cards are the usual reason a signup is rejected. Oracle authorises about a dollar and reverses it; Always Free never charges it.
 
-2. **Create the instance** – shape and image below. Paste the public half of the deploy key when the form asks:
+   **The account starts on a 30-day trial with $300 of credits, not on Always Free.** During the trial the credits quietly absorb paid resources, and when it ends anything that is not free-tier-eligible is reclaimed. So the label to look for when creating the instance is **"Always Free-eligible"**, not the shape name. Decline the Pay As You Go upgrade it will keep offering: staying on the downgraded free account is what keeps the bill at zero.
+
+   **Pick the home region carefully: it cannot be changed later**, and every Always Free resource must live in it – a block volume created elsewhere bills at the normal rate. Free Tier is offered in every commercial region, so the choice is not about availability, and it is not about latency either: nothing dials in to this app, so the distance to it does not matter. What the region decides is the odds of getting free ARM capacity. Mexico now has `mx-queretaro-1` and `mx-monterrey-1`; `us-ashburn-1` and `sa-saopaulo-1` are the larger, more contested pools. Any of them works.
+
+2. **Create the instance** – shape and image below. The deploy key already exists on the laptop; paste its public half when the form asks:
 
    ```sh
    cat ~/.ssh/prospect_oracle.pub
@@ -42,7 +46,7 @@ Five things only an account holder can do. Do them in this order – region and 
 
 An Always Free instance, in the home region you chose at signup:
 
-- **`VM.Standard.A1.Flex`** (Ampere ARM) – up to 4 OCPU and 24 GB across all your free instances. Far more than this app needs, and often answers *"Out of host capacity"*. Retry, or pick a quieter availability domain.
+- **`VM.Standard.A1.Flex`** (Ampere ARM) – 1,500 OCPU hours and 9,000 GB hours a month, which is 2 OCPU and 12 GB running continuously, across all your free instances. Far more than this app needs, and often answers *"Out of host capacity"*. Retry, or pick a quieter availability domain.
 - **`VM.Standard.E2.1.Micro`** (AMD, 1 OCPU, 1 GB) – two are free, and they are almost always available. This is the fallback, and it is enough: the container is capped at 512 MB.
 
 Ubuntu 22.04 or later. Everything below is identical on either shape; the container image is multi-arch.
@@ -67,7 +71,7 @@ Nothing, if it stays inside the Always Free allowances, which this workload does
 
 | Resource        | Always Free                      | This app                          |
 | --------------- | -------------------------------- | --------------------------------- |
-| Compute         | 4 OCPU / 24 GB Ampere, or 2 × E2.1.Micro | one instance, container capped at 512 MB |
+| Compute         | 2 OCPU / 12 GB Ampere, or 2 × E2.1.Micro | one instance, container capped at 512 MB |
 | Block storage   | 200 GB                           | the boot volume                   |
 | Object Storage  | 20 GB                            | one SQLite file per night         |
 | Outbound data   | 10 TB/month                      | Telegram polling and API calls    |
