@@ -635,6 +635,8 @@ const PASTE = {
   kind: 'paste',
   url: 'https://www.kuleuven.be/personeel/jobsite/jobs/60706660?hl=nl&lang=nl',
   text: 'Finding structure in multi-modal food data\nApply no later than August 14, 2026.',
+  // The instant the text reached the app: the fallback's fetch, or the message that carried it.
+  retrievedAt: '2026-07-29T22:31:06.000Z',
 };
 
 test('pasted text is sent as the advert itself, not as something to fetch', () => {
@@ -671,7 +673,7 @@ test('a pasted record is stored under the link that came with it', async () => {
 
 test('a paste with no link is filed under the identity of its text', async () => {
   const { pasteIdentity } = require('../src/core/url.cjs');
-  const bare = { kind: 'paste', text: 'PhD in food data\nApplications close 14 August 2026.' };
+  const bare = { kind: 'paste', text: 'PhD in food data\nApplications close 14 August 2026.', retrievedAt: '2026-07-29T22:31:06.000Z' };
 
   const result = await ingestWith(fakeAnthropic([fixture('complete')]))(bare);
 
@@ -685,12 +687,47 @@ test('a link-less paste tells the model what to cite, so its deadline can be fou
   // reference to quote, every pasted deadline would land as needs_confirmation - stored,
   // listed, and silently never reminding.
   const { pasteIdentity } = require('../src/core/url.cjs');
-  const bare = { kind: 'paste', text: 'PhD in food data\nApplications close 14 August 2026.' };
+  const bare = { kind: 'paste', text: 'PhD in food data\nApplications close 14 August 2026.', retrievedAt: '2026-07-29T22:31:06.000Z' };
 
   const anthropic = fakeAnthropic([fixture('complete')]);
   await ingestWith(anthropic)(bare);
 
   assert.match(JSON.stringify(anthropic.requests[0].messages), new RegExp(pasteIdentity(bare.text)));
+});
+
+test('a paste is stamped with when the app read the text, so its evidence validates', async () => {
+  // Live: the fallback fetched a KU Leuven advert the model's web_fetch had refused, the
+  // model read it correctly – twelve fields found, the deadline quoted in Dutch – and
+  // validate threw the whole record away, because every excerpt from the pasted text
+  // carried `retrieved_at: "unknown (pasted text, no fetch)"`. Nothing else could have been
+  // written there: the model has no clock. The instant is the app's to supply.
+  const paste = {
+    kind: 'paste',
+    url: 'https://www.kuleuven.be/personeel/jobsite/jobs/60691726?hl=nl&lang=nl',
+    text: 'Solliciteren tot en met: 15/08/2026 23:59 CET',
+    retrievedAt: '2026-07-30T00:01:04.480Z',
+  };
+
+  const result = await ingestWith(fakeAnthropic([fixture('paste_undated_evidence')]))(paste);
+
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.candidate.deadline_at, '2026-08-15T22:59:00.000Z');
+  assert.equal(result.candidate.findings.deadline.evidence[0].retrieved_at, paste.retrievedAt);
+  // The page the model went and read itself keeps the instant it read it.
+  assert.equal(
+    result.candidate.findings.required_documents.evidence[0].retrieved_at,
+    '2026-07-30T00:00:21Z'
+  );
+});
+
+test('a paste with no retrieval instant is a programming error, not a silent default', async () => {
+  // Every paste reaches ingest through a shell that knows when the text arrived. Substituting
+  // a clock reading here would hide the caller that forgot, and the record would claim a
+  // retrieval that never happened.
+  await assert.rejects(
+    () => ingestWith(fakeAnthropic([fixture('paste_undated_evidence')]))({ ...PASTE, retrievedAt: undefined }),
+    /retrievedAt/
+  );
 });
 
 test('a refused-fetch failure carries the addresses, so a caller can retry them', async () => {

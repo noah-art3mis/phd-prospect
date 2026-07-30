@@ -344,6 +344,35 @@ test('the record is still filed under the link, not under the text that was fetc
   }, { fetchPage: page });
 });
 
+test('the fallback records when it read the page, so the record survives validation', async () => {
+  // The live failure this whole path was built for, and the one it nearly threw away: the
+  // app fetched the KU Leuven advert the model had been refused, the model read it and
+  // quoted the Dutch deadline correctly, and every excerpt came back with
+  // `retrieved_at: "unknown (pasted text, no fetch)"` – the only honest answer available to
+  // something with no clock. Validation rejected the lot. The fetch instant is the app's.
+  const page = async (url) => ({ ok: true, text: 'Solliciteren tot en met: 15/08/2026 23:59 CET', url });
+  const link = 'https://www.kuleuven.be/personeel/jobsite/jobs/60691726?hl=nl&lang=nl';
+  const errors = [];
+
+  await withApp(
+    [fixture('fetch_blocked_linkedin'), fixture('paste_undated_evidence')],
+    async ({ store, telegram, app }) => {
+      await app.bot.handleUpdate(linkFrom(ME, link));
+      await app.bot.settle();
+
+      assert.deepEqual(errors, [], 'the record was rejected instead of presented');
+      const card = telegram.sent.at(-1);
+      assert.match(card.text, /Human-centred Explainable Constraint Solving/);
+
+      const id = Number(card.options.replyMarkup.inline_keyboard[0][0].callback_data.split(':')[1]);
+      await app.bot.handleUpdate(press('approve', id));
+      await app.bot.settle();
+      assert.equal(store.listConfirmed()[0].deadline_at, '2026-08-15T22:59:00.000Z');
+    },
+    { fetchPage: page, onError: (e) => errors.push(e) }
+  );
+});
+
 test('when the app cannot fetch it either, the original failure is what the user hears', async () => {
   // Two failures, one of them an implementation detail. Reporting "I will not fetch that
   // address" would describe the fallback rather than the advert.

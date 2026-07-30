@@ -9,6 +9,7 @@
 const { buildIngestRequest } = require('./core/ingest-request.cjs');
 const { readIngestResponse, readEverything, fetchErrors } = require('./core/ingest-response.cjs');
 const { validate } = require('./core/validate.cjs');
+const { stampRetrieval } = require('./core/evidence.cjs');
 const { canonicalizeUrl, submissionIdentity } = require('./core/url.cjs');
 const { resolveDeadline } = require('./core/deadline.cjs');
 const { withRetry } = require('./retry.cjs');
@@ -129,6 +130,13 @@ function createIngest({
   sleep,
 }) {
   async function ingest(submission) {
+    // Before the call, so a caller that forgot costs nothing. There is no clock reading to
+    // fall back on: substituting one here would file a retrieval that never happened, and
+    // the shell that received the text is the only thing that knows when it arrived.
+    if (submission.kind === 'paste' && !submission.retrievedAt) {
+      throw new Error('a pasted submission must carry retrievedAt – when the text reached the app');
+    }
+
     const request = buildIngestRequest(prompt, {
       variables: { source: describeSource(submission) },
       content: submissionContent(submission),
@@ -211,7 +219,12 @@ function createIngest({
         : { ok: false, reason: result.reason };
     }
 
-    const candidate = result.candidate;
+    // The instant the text reached the app, written onto the evidence that quotes it. The
+    // model is asked for excerpts and a reference, never for a clock reading it does not have.
+    const candidate =
+      submission.kind === 'paste'
+        ? stampRetrieval(result.candidate, { reference: identity, retrievedAt: submission.retrievedAt })
+        : result.candidate;
 
     // A record where nothing was found means the page could not be read. It is structurally
     // a success, which is the trap: presenting it as a finished opportunity with every field

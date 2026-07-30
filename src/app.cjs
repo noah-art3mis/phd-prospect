@@ -44,15 +44,17 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;
 // Only after web_fetch has already refused, and only the address the user typed: fetches the
 // *model* chooses still happen on Anthropic's infrastructure, which is where a page saying
 // "now fetch the metadata service" would be obeyed. See src/fetch-page.cjs for the guard.
-async function retryFromPage({ submission, failure, ingest, fetchPage }) {
+async function retryFromPage({ submission, failure, ingest, fetchPage, now }) {
   const page = await fetchPage(submission.url);
   // The fallback failing is an implementation detail. What the user needs to hear is why
   // their advert could not be read, which is the failure that got us here.
   if (!page.ok) return failure;
-  return ingest({ kind: 'paste', url: submission.url, text: page.text });
+  // Read here, so the instant is ours to state. The model quotes the text and cannot know
+  // when it was fetched; every excerpt from it is stamped with this.
+  return ingest({ kind: 'paste', url: submission.url, text: page.text, retrievedAt: now().toISOString() });
 }
 
-function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage }) {
+function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage, now }) {
   // Adverts being read right now. The database cannot answer this: a submission produces no
   // row until its call comes back, so two links arriving together both look new and both get
   // paid for. Memory is the right place for it - it is a fact about this process, and a
@@ -98,11 +100,15 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fe
       submission = { ...submission, pdfBase64: await fetchPdf(telegram, submission) };
     }
 
+    // Text the user pasted was retrieved by them, at an instant nobody recorded; what the app
+    // can state is when it arrived, which is what its evidence cites.
+    if (submission.kind === 'paste') submission = { ...submission, retrievedAt: now().toISOString() };
+
     let result = await ingest(submission);
 
     // A refused fetch is the one failure the app can do something about itself.
     if (!result.ok && result.refusedFetches?.length > 0 && submission.url) {
-      result = await retryFromPage({ submission, failure: result, ingest, fetchPage });
+      result = await retryFromPage({ submission, failure: result, ingest, fetchPage, now });
     }
 
     if (!result.ok) {
@@ -153,7 +159,7 @@ function dataDirectory(config) {
   return path.dirname(path.resolve(config.dbPath));
 }
 
-function createApp({ config, store, anthropic, telegram, prompt, trace, fetchPage = fetchPageDefault, onError }) {
+function createApp({ config, store, anthropic, telegram, prompt, trace, fetchPage = fetchPageDefault, now = () => new Date(), onError }) {
   const chatId = config.telegramAllowedUserId;
 
   const { ingest } = createIngest({
@@ -169,7 +175,7 @@ function createApp({ config, store, anthropic, telegram, prompt, trace, fetchPag
   const bot = createBot({
     telegram,
     allowedUserId: config.telegramAllowedUserId,
-    onSubmission: createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage }),
+    onSubmission: createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage, now }),
     onCallback: (decision) => approval.handleCallback(decision),
     onText: async (decision) => {
       const handled = await approval.handleText(decision);
