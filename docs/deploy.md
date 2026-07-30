@@ -10,7 +10,7 @@ Oracle Cloud's Always Free tier includes the address. This project exists becaus
 
 ## Provisioning, in order
 
-Five things only an account holder can do. Do them in this order – region and shape are the two that are awkward to change afterwards.
+Six things only an account holder can do. Do them in this order – region and shape are the two that are awkward to change afterwards.
 
 1. **Sign up** at [signup.cloud.oracle.com](https://signup.cloud.oracle.com). Identity verification wants a real credit card whose billing country matches the address you give – prepaid and virtual cards are the usual reason a signup is rejected. Oracle authorises about a dollar and reverses it; Always Free never charges it.
 
@@ -18,7 +18,11 @@ Five things only an account holder can do. Do them in this order – region and 
 
    **Pick the home region carefully: it cannot be changed later**, and every Always Free resource must live in it – a block volume created elsewhere bills at the normal rate. Free Tier is offered in every commercial region, so the choice is not about availability, and it is not about latency either: nothing dials in to this app, so the distance to it does not matter. What the region decides is the odds of getting free ARM capacity. Mexico now has `mx-queretaro-1` and `mx-monterrey-1`; `us-ashburn-1` and `sa-saopaulo-1` are the larger, more contested pools. Any of them works.
 
-2. **Create the instance** – shape and image below. The deploy key already exists on the laptop; paste its public half when the form asks:
+2. **Create the network first, separately.** Networking → Virtual Cloud Networks → *Start VCN Wizard* → **VCN with Internet Connectivity**, name it `prospect-vcn`, accept every default. This is a detour worth taking: the instance form offers to create a VCN inline, but its *public IPv4 address* checkbox greys out whenever the subnet it latched onto is private, and untangling that in a form that keeps re-validating is slower than the wizard. The wizard produces exactly what is needed – a public subnet, an internet gateway, a route table pointing at it.
+
+   The gateway is what gives the instance its **outbound** path. Still no ingress rule: the public address exists to dial out, not to be dialled.
+
+3. **Create the instance** – shape and image below, selecting the existing `prospect-vcn` and its public subnet. The deploy key already exists on the laptop; paste its public half when the form asks:
 
    ```sh
    cat ~/.ssh/prospect_oracle.pub
@@ -26,11 +30,11 @@ Five things only an account holder can do. Do them in this order – region and 
 
    The private half stays on the laptop at `~/.ssh/prospect_oracle`, has no passphrase so `ssh` and `scp` work unattended, and is used for nothing else. Add a passphrase with `ssh-keygen -p -f ~/.ssh/prospect_oracle` if you would rather type one.
 
-3. **Create the bucket** – Object Storage → Create Bucket → `prospect-backups`, standard tier, defaults otherwise.
+4. **Create the bucket** – Object Storage → Create Bucket → `prospect-backups`, standard tier, defaults otherwise.
 
-4. **Issue the pre-authenticated request** on that bucket – see *The backup destination* below. Copy the URL immediately; it is shown once.
+5. **Issue the pre-authenticated request** on that bucket – see *The backup destination* below. Copy the URL immediately; it is shown once.
 
-5. **Note the public IP** from the instance page, then:
+6. **Note the public IP** from the instance page, then:
 
    ```sh
    ssh -i ~/.ssh/prospect_oracle ubuntu@<public-ip>      # 'opc@' on Oracle Linux images
