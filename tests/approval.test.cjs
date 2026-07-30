@@ -245,43 +245,102 @@ test('an unparseable corrected deadline is refused rather than stored as a guess
 
 // --- the card ---------------------------------------------------------------------------
 
-test('the card shows the deadline, the findings and where they came from', () => {
-  const card = approvalCard({ id: 1, ...CANDIDATE }, { zone: ZONE });
+const NOW = new Date('2026-11-15T12:00:00Z');
+const card = (overrides = {}) => approvalCard({ id: 1, ...CANDIDATE, ...overrides }, { zone: ZONE, now: NOW });
 
-  assert.match(card, /PhD in Trustworthy AI/);
-  assert.match(card, /uni\.example\/phd/);
-  assert.match(card, /1 December 2026/);
-  assert.match(card, /Institution: Example University/);
-  assert.match(card, /Supervisors: Dr Ada Example/);
-  assert.match(card, /1 evidence items?/);
+test('the card shows the deadline, the findings and where they came from', () => {
+  const text = card();
+
+  assert.match(text, /PhD in Trustworthy AI/);
+  assert.match(text, /uni\.example\/phd/);
+  assert.match(text, /1 December 2026/);
+  assert.match(text, /Dr Ada Example/);
+  assert.match(text, /1 evidence item\b/);
 });
 
-test('a finding that needs checking is shown with its warning, not silently presented as fact', () => {
-  const card = approvalCard({ id: 1, ...CANDIDATE }, { zone: ZONE });
-  assert.match(card, /Possibly fully funded\s+\(NEEDS CHECKING\)/);
+test('the header carries institution and place, so they are not four more fields to read', () => {
+  const text = card({
+    findings: {
+      ...CANDIDATE.findings,
+      city: { state: 'found', value: 'Exampleton', evidence: [] },
+      country: { state: 'found', value: 'Belgium', evidence: [] },
+    },
+  });
+
+  assert.match(text.split('\n')[1], /Example University · Exampleton, Belgium/);
+  assert.ok(!/^Institution:/m.test(text), 'institution was repeated as a field');
+});
+
+test('the deadline says how long is left, which is the number the decision turns on', () => {
+  // 15 November to 1 December, counted in local days: a date alone means working it out on
+  // the spot, every time the card is read.
+  assert.match(card(), /1 December 2026 — in 16 days/);
+});
+
+test('a deadline today or already gone is named as such, not given as a negative count', () => {
+  assert.match(card({ deadline_at: '2026-11-15T23:59:00.000Z' }), /— today/);
+  assert.match(card({ deadline_at: '2026-11-13T23:59:00.000Z' }), /— 2 days ago/);
+});
+
+test('a list finding is broken into lines rather than joined into a paragraph', () => {
+  // The wall of text this layout exists to remove: research_topics and eligibility arrive as
+  // arrays and used to be comma-joined into one unreadable run.
+  const text = card({
+    findings: {
+      ...CANDIDATE.findings,
+      research_topics: { state: 'found', value: ['Trustworthy AI', 'Model evaluation', 'Alignment'], evidence: [] },
+    },
+  });
+
+  assert.match(text, /TOPICS\n• Trustworthy AI\n• Model evaluation\n• Alignment/);
+});
+
+test('a labelled field with several values keeps its label above the bullets', () => {
+  // Bulleting a labelled field without repeating the label leaves the list floating under
+  // the section heading, attached to whatever line happened to come before it.
+  const text = card({
+    findings: {
+      ...CANDIDATE.findings,
+      supervisors: { state: 'found', value: ['Dr Ada Example', 'Prof Grace Example'], evidence: [] },
+    },
+  });
+
+  assert.match(text, /Supervisors:\n• Dr Ada Example\n• Prof Grace Example/);
+});
+
+test('fields that need checking are collected at the end, not buried mid-card', () => {
+  // Inline, the warning sat beside a value halfway down and was read as part of it. The
+  // question it answers – what in here should I not trust? – is asked about the record as a
+  // whole, so it is answered in one place.
+  const text = card();
+
+  assert.match(text, /Check before trusting: Funding/);
+  assert.match(text, /Possibly fully funded/);
+});
+
+test('the fields nobody stated are named, not just counted', () => {
+  // A count says how much is missing; the names say whether what is missing matters. The
+  // user asked for this after reading "2 fields not stated" and having to guess which two.
+  const text = card();
+
+  assert.match(text, /Not stated: .*\bStarts\b/);
 });
 
 test('an opportunity with no deadline says so, and says no reminders will fire', () => {
-  const card = approvalCard({ id: 1, ...CANDIDATE, deadline_at: null }, { zone: ZONE });
-  assert.match(card, /no reminders will fire/);
+  assert.match(card({ deadline_at: null }), /no reminders will fire/);
 });
 
 test('a finding containing markup renders literally and breaks nothing', () => {
   // The card is sent with no parse_mode; there is nothing to escape, so text from a page an
   // attacker controls must survive byte for byte.
   const hostile = '*bold* _under_ `code` [link](http://evil.example) </b>';
-  const card = approvalCard(
-    {
-      id: 1,
-      ...CANDIDATE,
-      title: hostile,
-      findings: { ...CANDIDATE.findings, institution: { state: 'found', value: hostile, evidence: [] } },
-    },
-    { zone: ZONE }
-  );
+  const text = card({
+    title: hostile,
+    findings: { ...CANDIDATE.findings, institution: { state: 'found', value: hostile, evidence: [] } },
+  });
 
-  assert.ok(card.includes(`${hostile}`), 'the title was altered');
-  assert.ok(card.includes(`Institution: ${hostile}`), 'the finding was altered');
+  assert.ok(text.includes(hostile), 'the title was altered');
+  assert.equal(text.split('\n').filter((line) => line.includes(hostile)).length, 2, 'the finding was altered');
 });
 
 test('parseEdit ignores text that is not a correction', () => {
@@ -300,7 +359,7 @@ test('a record with no source page says so rather than showing its internal key'
       deadline_at: null,
       findings: {},
     },
-    { zone: 'Europe/Brussels' }
+    { zone: 'Europe/Brussels', now: NOW }
   );
 
   assert.match(card, /pasted text/i);

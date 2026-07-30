@@ -170,7 +170,7 @@ function createApp({ config, store, anthropic, telegram, prompt, trace, fetchPag
     onResponse: (response, submission) => trace.record(response, { url: submission.url ?? submission.fileName }),
   });
 
-  const approval = createApproval({ store, telegram, zone: config.timezone, chatId });
+  const approval = createApproval({ store, telegram, zone: config.timezone, chatId, now });
 
   const bot = createBot({
     telegram,

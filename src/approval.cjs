@@ -11,7 +11,7 @@
 
 const { approvalCard, approvalButtons, parseEdit } = require('./core/card.cjs');
 
-function createApproval({ store, telegram, zone, chatId }) {
+function createApproval({ store, telegram, zone, chatId, now = () => new Date() }) {
   async function present(candidate) {
     const id = store.insertCandidate(candidate);
     await sendCard(id);
@@ -20,7 +20,7 @@ function createApproval({ store, telegram, zone, chatId }) {
 
   async function sendCard(id) {
     const opportunity = store.getOpportunity(id);
-    await telegram.sendMessage(chatId, approvalCard(opportunity, { zone }), {
+    await telegram.sendMessage(chatId, approvalCard(opportunity, { zone, now: now() }), {
       replyMarkup: approvalButtons(id),
     });
   }
