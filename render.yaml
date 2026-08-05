@@ -1,0 +1,43 @@
+# Render blueprint – the deployment as a file rather than as a sequence of clicks.
+#
+# A *worker*, not a web service: nothing dials in, so there is no port to bind and no health
+# check URL to answer. Render's free tier does not offer workers, and its spin-down would be
+# fatal here anyway – a bot that sleeps misses both the long poll and the 09:00 sweep.
+#
+# The disk is what makes SQLite viable on a platform whose filesystem is otherwise rebuilt on
+# every deploy. It also fixes the service at one instance and turns off zero-downtime deploys,
+# because two instances cannot share it – a constraint worth seeing rather than reading about.
+#
+# Render cron jobs cannot mount a disk, so the reminder sweep, the nightly backup and the
+# weekly digest stay where they already are: inside this process, on its own scheduler.
+services:
+  - type: worker
+    name: prospect
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: ohio
+    autoDeploy: false
+    disk:
+      name: prospect-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DB_PATH
+        value: /data/prospect.db
+      - key: TZ
+        value: America/Mexico_City
+      - key: REMINDER_LEAD_TIMES
+        value: 30,7,1
+      - key: REMINDER_SEND_HOUR
+        value: "9"
+      # sync: false means Render prompts for the value and stores it itself. Secrets belong in
+      # the platform's store, never in the file that describes the deployment.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ALLOWED_USER_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: BACKUP_UPLOAD_URL
+        sync: false
