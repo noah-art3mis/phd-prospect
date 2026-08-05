@@ -8,12 +8,15 @@
 // the path that has been exercised by hand. Keeping an occasional copy outside the provider
 // should be a habit rather than a project.
 //
-// The destination is a pre-authenticated URL: object storage issues one that grants writes
-// to a single bucket, and it carries its own authority, so the upload sends no credential and
-// there is no SDK, no request signing and no key file to install. The trade is that the URL
-// *is* the credential - it lives in .env and expires on the date it was issued with - so it
-// is write-only, scoped to one bucket, and never allowed into a log, an error or a database
-// row where a leaked backup message would disclose it.
+// The destination is S3-compatible object storage – Cloudflare R2 in production, but nothing
+// here is R2-specific. The request is signed with SigV4, so what travels is a signature over
+// this request and this body; the secret stays in the process. That is the property a URL
+// carrying its own authority cannot have: a leaked signed request expires, a leaked
+// pre-authenticated URL grants writes until someone notices.
+//
+// Signing is `aws4fetch` (about 4 KB) rather than the AWS SDK: one algorithm, no client
+// lifecycle, no credential-file discovery, nothing to install on the box. The key id and the
+// secret are still never allowed into a log, an error, or a database row.
 //
 // A failed backup raises the Telegram alert. Silent backup failure is the specific hazard
 // this design defends against – it is why continuous WAL replication was rejected, since
@@ -22,33 +25,47 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { backup } = require('node:sqlite');
+const { AwsV4Signer } = require('aws4fetch');
 
 function backupName(instant) {
   return `prospect-${instant.toISOString().replace(/[:.]/g, '-')}.db`;
 }
 
-// What may be said about the destination out loud. The URL grants writes to whoever holds it,
-// and this string reaches a Telegram alert and a backup_event row, so it names the bucket and
-// stops there.
-function describeDestination(uploadUrl, objectName) {
-  const bucket = /\/b\/([^/]+)\//.exec(String(uploadUrl))?.[1] ?? 'object storage';
-  return `${bucket}/${objectName}`;
+// What may be said about the destination out loud. This string reaches a Telegram alert and a
+// backup_event row, so it names the bucket and the object and stops there – never the
+// endpoint's credentials and never the signed URL.
+function describeDestination(destination, objectName) {
+  return `${destination?.bucket ?? 'object storage'}/${objectName}`;
 }
 
-async function uploadBackup({ fetch, uploadUrl, objectName, bytes }) {
-  const response = await fetch(`${uploadUrl}${encodeURIComponent(objectName)}`, {
+async function uploadBackup({ fetch, destination, objectName, bytes }) {
+  const { endpoint, bucket, accessKeyId, secretAccessKey, region = 'auto' } = destination;
+  const url = `${String(endpoint).replace(/\/+$/, '')}/${bucket}/${encodeURIComponent(objectName)}`;
+
+  // Signed over the body as well as the headers: x-amz-content-sha256 is what makes a
+  // swapped-in-flight upload fail rather than restore to something else.
+  const signed = await new AwsV4Signer({
+    url,
     method: 'PUT',
+    body: bytes,
     headers: { 'content-type': 'application/octet-stream' },
+    accessKeyId,
+    secretAccessKey,
+    service: 's3',
+    region,
+  }).sign();
+
+  const response = await fetch(signed.url.toString(), {
+    method: 'PUT',
+    headers: signed.headers,
     body: bytes,
     signal: AbortSignal.timeout(120000),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    // Deliberately not the URL: a failed upload is reported to Telegram and written to the
-    // database, and neither is a place to put something that grants writes.
-    throw new Error(`upload to ${describeDestination(uploadUrl, objectName)} failed (${response.status}) ${detail}`.trim());
+    throw new Error(`upload to ${describeDestination(destination, objectName)} failed (${response.status}) ${detail}`.trim());
   }
-  return describeDestination(uploadUrl, objectName);
+  return describeDestination(destination, objectName);
 }
 
 // Keep the last few on the box as well as off it, so recovering from a bad write does not
@@ -66,7 +83,7 @@ function pruneLocal(directory, keep) {
 async function runBackup({
   store,
   directory,
-  uploadUrl,
+  destination,
   fetch = globalThis.fetch,
   keepLocal = 5,
   now = new Date(),
@@ -79,25 +96,27 @@ async function runBackup({
     // The SQLite backup API: consistent even while the database is being written to.
     await backup(store.handle, localPath);
 
-    let destination = localPath;
+    // Where the copy ended up, in words fit for an alert: the local path when the upload is
+    // skipped, the bucket and object when it is not.
+    let wroteTo = localPath;
     if (upload) {
-      destination = await uploadBackup({
+      wroteTo = await uploadBackup({
         fetch,
-        uploadUrl,
+        destination,
         objectName: path.basename(localPath),
         bytes: fs.readFileSync(localPath),
       });
     }
 
     const pruned = pruneLocal(directory, keepLocal);
-    store.recordBackup({ succeeded: true, destination, detail: null });
-    return { ok: true, localPath, destination, pruned };
+    store.recordBackup({ succeeded: true, destination: wroteTo, detail: null });
+    return { ok: true, localPath, destination: wroteTo, pruned };
   } catch (error) {
     // Recorded as well as raised, so the weekly digest can report a stale backup rather than
     // the failure only existing in the alert that fired at the time.
     store.recordBackup({
       succeeded: false,
-      destination: uploadUrl ? describeDestination(uploadUrl, '') : null,
+      destination: destination ? describeDestination(destination, '') : null,
       detail: error.message,
     });
     throw new Error(`backup failed: ${error.message}`);

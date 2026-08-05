@@ -249,7 +249,7 @@ function scheduleJobs({ config, store, telegram, onError, signal }) {
       ...common,
       name: 'backup',
       hour: BACKUP_HOUR,
-      run: () => runBackup({ store, directory: backupDirectory, uploadUrl: config.backupUploadUrl }),
+      run: () => runBackup({ store, directory: backupDirectory, destination: config.backupDestination }),
     }),
 
     // Sunday morning. Its absence is the alarm, so it goes out at the same hour reminders

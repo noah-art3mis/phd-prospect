@@ -20,7 +20,7 @@ async function main(argv) {
     const result = await runBackup({
       store,
       directory,
-      uploadUrl: config.backupUploadUrl,
+      destination: config.backupDestination,
       upload: !argv.includes('--local'),
     });
     console.log(result.localPath);

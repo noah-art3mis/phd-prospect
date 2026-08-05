@@ -15,6 +15,7 @@
     "digest": "node tools/digest.cjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.115.0"
+    "@anthropic-ai/sdk": "^0.115.0",
+    "aws4fetch": "^1.0.20"
   }
 }

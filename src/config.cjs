@@ -17,7 +17,10 @@ const CONFIG_KEYS = [
   'TZ',
   'REMINDER_LEAD_TIMES',
   'REMINDER_SEND_HOUR',
-  'BACKUP_UPLOAD_URL',
+  'BACKUP_S3_ENDPOINT',
+  'BACKUP_S3_BUCKET',
+  'BACKUP_S3_ACCESS_KEY_ID',
+  'BACKUP_S3_SECRET_ACCESS_KEY',
   'DB_PATH',
 ];
 
@@ -68,6 +71,10 @@ function loadConfig(env) {
     problems.push(`REMINDER_SEND_HOUR must be an hour from 0 to 23`);
   }
 
+  if (present.BACKUP_S3_ENDPOINT && !/^https:\/\//.test(present.BACKUP_S3_ENDPOINT)) {
+    problems.push(`BACKUP_S3_ENDPOINT must be an https URL, e.g. https://<account>.r2.cloudflarestorage.com`);
+  }
+
   let leadTimes = [];
   if (present.REMINDER_LEAD_TIMES) {
     const parsed = present.REMINDER_LEAD_TIMES.split(',').map((part) => Number(part.trim()));
@@ -87,7 +94,17 @@ function loadConfig(env) {
     timezone: present.TZ,
     reminderLeadTimes: leadTimes,
     reminderSendHour: sendHour,
-    backupUploadUrl: present.BACKUP_UPLOAD_URL,
+    // One object, because the four values are only ever used together, and the two that grant
+    // writes are hidden the same way the API keys above are.
+    backupDestination: redactSecrets(
+      {
+        endpoint: present.BACKUP_S3_ENDPOINT,
+        bucket: present.BACKUP_S3_BUCKET,
+        accessKeyId: present.BACKUP_S3_ACCESS_KEY_ID,
+        secretAccessKey: present.BACKUP_S3_SECRET_ACCESS_KEY,
+      },
+      ['accessKeyId', 'secretAccessKey']
+    ),
     dbPath: present.DB_PATH,
   };
 

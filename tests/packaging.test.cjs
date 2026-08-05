@@ -69,17 +69,19 @@ test('every command the deploy doc tells you to run exists', () => {
   }
 });
 
-test('the deploy doc records the accepted single-project risk rather than leaving it implicit', () => {
-  // Primary and backup share one tenancy, so a billing or account problem takes both. The
-  // mitigation is that a manual off-box copy is trivial – which only works if it is written
-  // down where someone will read it.
-  assert.match(deployDoc, /same Oracle tenancy/i);
+test('the deploy doc says the host and the bucket are different vendors', () => {
+  // The property that replaced an accepted risk: compute and backups no longer share an
+  // account, so one suspended bill cannot take both. Worth asserting, because the cheap
+  // version of this deployment – bucket and box at the same provider – is one click away and
+  // reads as tidier.
+  assert.match(deployDoc, /different vendor/i);
   assert.match(deployDoc, /npm run backup/);
 });
 
-test('the deploy doc covers restart-on-failure and restore', () => {
-  assert.match(deployDoc, /kill 1/);
+test('the deploy doc covers restoring, and says to prove it before it is needed', () => {
+  // A backup nobody has restored is a hope. The doc is where that instruction survives.
   assert.match(deployDoc, /restore/i);
+  assert.match(deployDoc, /before you need it/i);
 });
 
 test('the build ignores what should never enter the image', () => {

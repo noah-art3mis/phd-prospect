@@ -19,7 +19,10 @@ const COMPLETE = {
   TZ: 'America/Mexico_City',
   REMINDER_LEAD_TIMES: '30,7,1',
   REMINDER_SEND_HOUR: '9',
-  BACKUP_UPLOAD_URL: 'https://objectstorage.us-ashburn-1.oraclecloud.com/p/EXAMPLE-TOKEN/n/mynamespace/b/prospect-backups/o/',
+  BACKUP_S3_ENDPOINT: 'https://account.r2.cloudflarestorage.com',
+  BACKUP_S3_BUCKET: 'prospect-backups',
+  BACKUP_S3_ACCESS_KEY_ID: 'AKIAEXAMPLEKEYID',
+  BACKUP_S3_SECRET_ACCESS_KEY: 'r2-secret-value',
   DB_PATH: '/data/prospect.db',
 };
 
@@ -32,7 +35,10 @@ test('a complete environment loads into typed values', () => {
   assert.equal(config.timezone, 'America/Mexico_City');
   assert.deepEqual(config.reminderLeadTimes, [30, 7, 1]);
   assert.equal(config.reminderSendHour, 9);
-  assert.equal(config.backupUploadUrl, 'https://objectstorage.us-ashburn-1.oraclecloud.com/p/EXAMPLE-TOKEN/n/mynamespace/b/prospect-backups/o/');
+  assert.equal(config.backupDestination.endpoint, 'https://account.r2.cloudflarestorage.com');
+  assert.equal(config.backupDestination.bucket, 'prospect-backups');
+  assert.equal(config.backupDestination.accessKeyId, 'AKIAEXAMPLEKEYID');
+  assert.equal(config.backupDestination.secretAccessKey, 'r2-secret-value');
   assert.equal(config.dbPath, '/data/prospect.db');
 });
 
@@ -49,13 +55,24 @@ test('every declared config key is actually required at boot', () => {
   // The bug this catches: a key added to CONFIG_KEYS and then never read, or read from
   // process.env somewhere downstream instead — either of which makes the fail-fast promise
   // partly false.
+  // Asserted by looking for each value rather than by counting fields: the four bucket keys
+  // collapse into one destination object, and some fields are deliberately non-enumerable, so
+  // a count answers a question nobody is asking.
   const config = loadConfig(COMPLETE);
   assert.equal(Object.keys(COMPLETE).length, CONFIG_KEYS.length, 'the fixture and the surface have drifted');
-  assert.equal(
-    Object.keys(config).length + 2, // the two secrets are non-enumerable
-    CONFIG_KEYS.length,
-    'a declared key produced no config value'
-  );
+
+  const values = (value) => {
+    if (typeof value === 'function') return [];
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return Object.getOwnPropertyNames(value).flatMap((key) => values(value[key]));
+    }
+    return [String(value)];
+  };
+  const carried = values(config);
+
+  for (const [key, raw] of Object.entries(COMPLETE)) {
+    assert.ok(carried.includes(String(raw)), `${key} is declared but reaches no config value`);
+  }
 });
 
 for (const key of Object.keys(COMPLETE)) {
@@ -87,8 +104,8 @@ test('the error names every offending key at once, not just the first', () => {
   // Fixing a missing key only to be told about the next one is a bad boot loop.
   const env = { ...COMPLETE };
   delete env.TELEGRAM_BOT_TOKEN;
-  delete env.BACKUP_UPLOAD_URL;
-  assert.throws(() => loadConfig(env), /TELEGRAM_BOT_TOKEN[\s\S]*BACKUP_UPLOAD_URL/);
+  delete env.BACKUP_S3_SECRET_ACCESS_KEY;
+  assert.throws(() => loadConfig(env), /TELEGRAM_BOT_TOKEN[\s\S]*BACKUP_S3_SECRET_ACCESS_KEY/);
 });
 
 test('lead times are sorted descending and de-duplicated', () => {
@@ -110,4 +127,7 @@ test('config carries no secrets into its string form', () => {
   const printed = `${config}` + JSON.stringify(config);
   assert.ok(!printed.includes('123456:ABC-DEF'), 'bot token leaked');
   assert.ok(!printed.includes('sk-ant-test'), 'api key leaked');
+  // The bucket credentials are secrets too: they grant writes to the copy of the database.
+  assert.ok(!printed.includes('r2-secret-value'), 'backup secret leaked');
+  assert.ok(!printed.includes('AKIAEXAMPLEKEYID'), 'backup key id leaked');
 });

@@ -30,7 +30,10 @@ const COMPLETE = {
   TZ: 'America/Mexico_City',
   REMINDER_LEAD_TIMES: '30,7,1',
   REMINDER_SEND_HOUR: '9',
-  BACKUP_UPLOAD_URL: 'https://objectstorage.us-ashburn-1.oraclecloud.com/p/EXAMPLE-TOKEN/n/mynamespace/b/prospect-backups/o/',
+  BACKUP_S3_ENDPOINT: 'https://account.r2.cloudflarestorage.com',
+  BACKUP_S3_BUCKET: 'prospect-backups',
+  BACKUP_S3_ACCESS_KEY_ID: 'AKIAEXAMPLEKEYID',
+  BACKUP_S3_SECRET_ACCESS_KEY: 'r2-secret-value',
 };
 
 function withTempDir(run) {
