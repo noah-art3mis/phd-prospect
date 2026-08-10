@@ -1,4 +1,5 @@
 # State holds the derived S3 secret; it never goes to git.
+bootstrap.env
 *.tfstate
 *.tfstate.*
 .terraform/
