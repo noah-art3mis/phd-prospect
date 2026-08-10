@@ -20,7 +20,9 @@ Getting Prospect from a fresh checkout to a bot that answers. `docs/deploy.md` c
 
 - [ ] **`BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`** – Cloudflare R2: 10 GB free and no egress charge. Create a bucket (`prospect-backups`), then an **API token scoped to that bucket** with object read and write. The endpoint is `https://<account-id>.r2.cloudflarestorage.com`. Any S3-compatible bucket works – nothing in the code is R2-specific.
 
-  The URL is shown once, at creation, and never again. It ends in `/o/`. Paste it into `.env`.
+  The secret access key is shown once, at creation, and never again. Paste it into `.env`.
+
+  Or provision both as code: `infra/r2/` creates the bucket and the scoped token with OpenTofu and prints the four values ready for `.env`. The header of `infra/r2/main.tf` describes the one bootstrap token it needs – IaC cannot create its own first credential.
 
   It is write-only and scoped to one bucket, which is what limits the damage – but it *is* a credential, so treat it like a password. When it expires the nightly upload starts failing, which raises the Telegram alert and shows as a stale backup in the Sunday digest. Nothing else will remind you.
 
