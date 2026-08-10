@@ -56,7 +56,9 @@ async function main(argv) {
     return;
   }
 
-  const response = await s3Get(destination, `/${encodeURIComponent(objectName)}`);
+  // Encode per path segment: a key containing '/' must keep it literal, exactly as listed.
+  const encodedKey = objectName.split('/').map(encodeURIComponent).join('/');
+  const response = await s3Get(destination, `/${encodedKey}`);
   const bytes = Buffer.from(await response.arrayBuffer());
 
   const staging = `${config.dbPath}.restore`;
