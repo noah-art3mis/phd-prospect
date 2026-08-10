@@ -12,6 +12,7 @@
     "ingest-url": "node tools/ingest-url.cjs",
     "remind": "node tools/remind.cjs",
     "backup": "node tools/backup.cjs",
+    "restore": "node tools/restore.cjs",
     "digest": "node tools/digest.cjs"
   },
   "dependencies": {
