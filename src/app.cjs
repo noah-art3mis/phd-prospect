@@ -11,7 +11,7 @@ const { createAnthropicClient } = require('./anthropic.cjs');
 
 const { createTelegram, pollUpdates } = require('./telegram.cjs');
 const { createBot } = require('./bot.cjs');
-const { createIngest } = require('./ingest.cjs');
+const { createIngest, TIME_BUDGET_MS } = require('./ingest.cjs');
 const { submissionIdentity } = require('./core/url.cjs');
 const { createApproval } = require('./approval.cjs');
 const { loadPrompt } = require('./core/prompt.cjs');
@@ -44,14 +44,17 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;
 // Only after web_fetch has already refused, and only the address the user typed: fetches the
 // *model* chooses still happen on Anthropic's infrastructure, which is where a page saying
 // "now fetch the metadata service" would be obeyed. See src/fetch-page.cjs for the guard.
-async function retryFromPage({ submission, failure, ingest, fetchPage, now }) {
+async function retryFromPage({ submission, failure, ingest, fetchPage, now, deadline }) {
   const page = await fetchPage(submission.url);
   // The fallback failing is an implementation detail. What the user needs to hear is why
   // their advert could not be read, which is the failure that got us here.
   if (!page.ok) return failure;
   // Read here, so the instant is ours to state. The model quotes the text and cannot know
   // when it was fetched; every excerpt from it is stamped with this.
-  return ingest({ kind: 'paste', url: submission.url, text: page.text, retrievedAt: now().toISOString() });
+  return ingest(
+    { kind: 'paste', url: submission.url, text: page.text, retrievedAt: now().toISOString() },
+    { deadline }
+  );
 }
 
 function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage, now }) {
@@ -104,14 +107,24 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fe
     // can state is when it arrived, which is what its evidence cites.
     if (submission.kind === 'paste') submission = { ...submission, retrievedAt: now().toISOString() };
 
-    let result = await ingest(submission);
+    // One clock for the submission, started before the first read and shared with the
+    // second. Bounds live on the ingest rather than on the call, so the rescue used to begin
+    // with a full budget of its own - and the failure that reaches it is the one that had
+    // already spent a full budget getting there.
+    //
+    // The token ceiling is not shared, and is not bounded across the two reads. It lands
+    // only at a resume boundary and a paste has no page for the loop to grow on, so the
+    // clock is what does the work here; saying so beats implying otherwise by silence.
+    const deadline = Date.now() + TIME_BUDGET_MS;
+
+    let result = await ingest(submission, { deadline });
 
     // An advert that went unread is the one failure the app can do something about itself.
     // Asked as "did the response report a refused fetch", the question was unanswerable for
-    // the failures that cost the most - a run the clock cut short has no response at all -
+    // the failures that cost the most – a run the clock cut short has no response at all –
     // so the ingest states the fact instead and this reads it.
     if (!result.ok && result.unread && submission.url) {
-      result = await retryFromPage({ submission, failure: result, ingest, fetchPage, now });
+      result = await retryFromPage({ submission, failure: result, ingest, fetchPage, now, deadline });
     }
 
     if (!result.ok) {

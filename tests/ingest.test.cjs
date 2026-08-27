@@ -867,3 +867,14 @@ test('a bad request is not retried – it will be refused identically', async ()
   await assert.rejects(ingestWith(anthropic, () => {}, { sleep: async () => {} })(SUBMISSION), /schema too large/);
   assert.equal(calls, 1);
 });
+
+test('an ingest honours a deadline the caller had already started', async () => {
+  // The rescue re-reads the same advert. Handed a fresh clock it would double what one
+  // submission can cost, which is the whole subject of docs/findings-live-ingest.md.
+  const anthropic = fakeAnthropic([fixture('complete')]);
+  const result = await ingestWith(anthropic)(SUBMISSION, { deadline: Date.now() - 1 });
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /too long/i);
+  assert.equal(anthropic.requests.length, 0, 'a call was made on a budget already spent');
+});

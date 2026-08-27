@@ -133,7 +133,9 @@ function createIngest({
   tokenBudget = TOKEN_BUDGET,
   sleep,
 }) {
-  async function ingest(submission) {
+  // `deadline` is an instant, not a duration, so a caller that reads the same advert twice
+  // spends one budget across both reads rather than one each.
+  async function ingest(submission, { deadline = Date.now() + timeBudgetMs } = {}) {
     // Before the call, so a caller that forgot costs nothing. There is no clock reading to
     // fall back on: substituting one here would file a retrieval that never happened, and
     // the shell that received the text is the only thing that knows when it arrived.
@@ -151,7 +153,6 @@ function createIngest({
     const identity = submission.kind === 'paste' ? submissionIdentity(submission) : submission.url;
 
     const messages = [...request.messages];
-    const deadline = Date.now() + timeBudgetMs;
     let billedTokens = 0;
     let result;
     // Kept for the failure path: why a page could not be read is in the response, not the record.

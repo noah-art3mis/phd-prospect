@@ -494,3 +494,30 @@ test('a failure the app cannot do anything about is reported without a second fe
   assert.deepEqual(fetched, [], 'a fetch was paid for on a failure that had nothing to do with reading the page');
   assert.equal(calls, 1);
 });
+
+test('the rescue shares the submission budget instead of starting a new clock', async () => {
+  // Bounds live on the ingest, not on the call, so a second ingest used to begin with a
+  // full ten minutes of its own - and the failure that reaches the rescue is exactly the
+  // one that already spent ten minutes getting there.
+  const deadlines = [];
+
+  const handle = createSubmissionHandler({
+    store: { findByUrl: () => null },
+    telegram: { async sendMessage() {} },
+    ingest: async (submission, options) => {
+      deadlines.push(options?.deadline);
+      if (submission.kind === 'paste') return { ok: true, candidate: { title: 'Read on the second try' } };
+      return { ok: false, unread: true, reason: 'That one took too long.' };
+    },
+    approval: { present: async () => {} },
+    chatId: ME,
+    fetchPage: async (url) => ({ ok: true, text: 'PhD position.', url }),
+    now: () => new Date('2026-08-17T12:00:00Z'),
+  });
+
+  await handle({ kind: 'url', url: 'https://www.linkedin.com/posts/x/' });
+
+  assert.equal(deadlines.length, 2);
+  assert.ok(Number.isFinite(deadlines[0]), 'the ingest was given no deadline to share');
+  assert.equal(deadlines[1], deadlines[0], 'the rescue was handed a clock of its own');
+});
