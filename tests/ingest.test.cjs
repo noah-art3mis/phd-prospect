@@ -55,7 +55,7 @@ test('research is bounded: 3 searches, 8 fetches, 5000 content tokens per page',
   assert.equal(search.max_uses, MAX_SEARCHES);
   assert.equal(MAX_SEARCHES, 3);
   assert.equal(fetch.max_uses, MAX_FETCHES);
-  assert.equal(MAX_FETCHES, 8);
+  assert.equal(MAX_FETCHES, 5);
   // max_uses limits how many pages are fetched, not how large they are – the content cap is
   // what actually bounds cost.
   assert.equal(fetch.max_content_tokens, MAX_CONTENT_TOKENS);

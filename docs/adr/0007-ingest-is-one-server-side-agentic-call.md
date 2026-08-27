@@ -19,3 +19,27 @@ Ingest submits the user's URL to one Anthropic call that uses the server-side `w
 - **The call can stop with `stop_reason: "pause_turn"`** when Anthropic's tool loop hits its iteration limit. This returns HTTP 200 with a partial result and no error. A single call doing fetch plus searches makes this materially likely, so ingest must check `stop_reason` and re-send to resume; treating the first response as final produces truncated candidates that look successful.
 - We never hold the page's raw bytes. Evidence excerpts come from the model's reading of the page. Citations are **not** used: the response is constrained by structured outputs, and Anthropic returns a 400 if citations and structured outputs are combined. Trading verifiable spans for a record that cannot be malformed is a deliberate choice — human approval against the source URL is what verifies the record.
 - Fetch failures, bot-blocking, and JS-rendered pages become a reported failure ("couldn't read that page") rather than an engineering problem to solve locally.
+
+## Amendment, 2026-08-27: the submitted advert is read by the app
+
+"The app never fetches a user-submitted URL itself" no longer holds, and has not fully held since the fallback fetch landed. The app now reads the submitted address itself on every URL submission and hands the model text; only if that fetch fails is the address given to `web_fetch` at all.
+
+Two measurements drove it, both from live runs.
+
+**Reachability.** Anthropic's `web_fetch` answers `url_not_allowed` for LinkedIn every time it has ever been asked – six attempts across three traces, without exception – while the same posts serve a browser the whole page. The refusal is the tool declining the address, not the site refusing us. Adverts arrive from LinkedIn often enough that "we cannot read that" was the wrong answer to keep giving.
+
+**Cost.** A page the model fetches arrives mid-conversation, and the server-side tool loop re-sends the whole conversation on every iteration after it. One measured rescue ran seven iterations at roughly 25,000 billed input tokens each. Read by the app instead, the advert sits in the opening turn and costs no round trip to obtain.
+
+### What this does and does not narrow
+
+The SSRF argument was never about *how many* addresses we fetch. It was about *whose* addresses: a page that says "now fetch the metadata service" is dangerous precisely because the model chose to follow it. That has not changed. Every address the model picks – research pages, search results – is still resolved and connected to entirely on Anthropic's infrastructure.
+
+What we fetch is one address, typed by the single authorised operator, before any model has read anything. The guard in `src/core/page-text.cjs` is checked twice: against the address as written, and again against every IP it resolves to, since a public hostname is free to point at a private one. Redirects are walked by hand so the second address is not one nobody checked.
+
+That is a narrower thing than ADR-0004's fetch service, which was rejected for putting the highest-risk code in the system in our hands. It remains rejected. This is not that.
+
+### Consequences
+
+- The `unread` marker on ingest failures, and the fallback it gates, now apply only to pasted text carrying the address it came from. A URL submission is read by the app first, so there is nothing left to rescue it with.
+- Research bounds are 3 searches and 5 fetches. The fetch cap came down from 8 because the submitted advert no longer spends one, and because the cap bounds iterations rather than pages – the worst run on record spent eight fetches and 461,000 input tokens to report that it could not read the page.
+- Pages our fetcher cannot reach but `web_fetch` can are still reachable: the address is handed over when our own fetch fails.

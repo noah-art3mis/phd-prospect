@@ -35,22 +35,28 @@ const DIGEST_WEEKDAY = 0; // Sunday
 // stated here so the failure names a number rather than surfacing as a request error.
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
-// Anthropic's web_fetch refuses some pages that are perfectly readable – a LinkedIn post it
-// answered `url_not_allowed` for served 174 KB to an ordinary client on the first try. The
-// refusal is the tool declining the address, not the site refusing us, so the advert was
-// there the whole time. Rather than tell the user to copy it out by hand, fetch it and hand
-// the text back through the same path a paste takes.
+// Our address, our fetch.
 //
-// Only ever the address the user typed, and that is the half that carries the security
-// argument: fetches the *model* chooses still happen on Anthropic's infrastructure, which is
-// where a page saying "now fetch the metadata service" would be obeyed. What triggers this
-// is a failed read of any kind, not a refusal in particular – see the `unread` gate below.
-// The guard on the address itself is in src/fetch-page.cjs.
-async function retryFromPage({ submission, failure, ingest, fetchPage, now, deadline }) {
+// The submitted page is read here rather than by web_fetch, and that is a cost decision as
+// much as a reachability one. A page the model fetches arrives mid-conversation, and the
+// server-side tool loop re-sends the whole conversation on every iteration after it – one
+// live rescue ran seven iterations at roughly twenty-five thousand tokens apiece. Read here,
+// the advert is in the opening turn and no round trip was spent getting it.
+//
+// It is also simply more reliable. Anthropic's web_fetch answers `url_not_allowed` for
+// LinkedIn every time it has ever been asked, while the same posts serve a browser the whole
+// page – the refusal is the tool declining the address, not the site refusing us.
+//
+// This narrows ADR-0007 rather than reversing it, and the narrowing is the address: fetches
+// the *model* chooses still happen entirely on Anthropic's infrastructure, which is where a
+// page saying "now fetch the metadata service" would be obeyed. What runs here is one fetch
+// of one address the operator typed. The guard is in src/core/page-text.cjs, checked against
+// the address as written and again against every IP it resolves to.
+async function readFromPage({ submission, ingest, fetchPage, now, deadline }) {
   const page = await fetchPage(submission.url);
-  // The fallback failing is an implementation detail. What the user needs to hear is why
-  // their advert could not be read, which is the failure that got us here.
-  if (!page.ok) return failure;
+  // Not the end of the road: web_fetch reaches some pages this cannot, so a caller is left
+  // free to hand the address to the model instead.
+  if (!page.ok) return null;
   // Read here, so the instant is ours to state. The model quotes the text and cannot know
   // when it was fetched; every excerpt from it is stamped with this.
   return ingest(
@@ -59,21 +65,23 @@ async function retryFromPage({ submission, failure, ingest, fetchPage, now, dead
   );
 }
 
-// One read of an advert, rescue included: the model reads it, and if that left the advert
-// unread the app fetches the page itself and reads it again on the same clock.
-//
-// Exported because tools/ingest-url.cjs is the shakedown path and has to exercise what the
-// bot exercises. It used to call `ingest` directly, which meant the one rescue the app can
-// perform was invisible to the tool people reach for when a page will not read.
+// One read of an advert. Exported because tools/ingest-url.cjs is the shakedown path and has
+// to exercise what the bot exercises; it used to call `ingest` directly, which left the whole
+// of this invisible to the tool people reach for when a page will not read.
 async function readAdvert({ submission, ingest, fetchPage, now, deadline = Date.now() + TIME_BUDGET_MS }) {
-  const result = await ingest(submission, { deadline });
+  if (submission.kind === 'url') {
+    const read = await readFromPage({ submission, ingest, fetchPage, now, deadline });
+    if (read) return read;
+    // Ours could not fetch it. Hand the address over and let web_fetch try.
+    return ingest(submission, { deadline });
+  }
 
-  // An advert that went unread is the one failure the app can do something about itself.
-  // Asked as "did the response report a refused fetch", the question was unanswerable for
-  // the failures that cost the most – a run the clock cut short has no response at all – so
-  // the ingest states the fact instead and this reads it.
+  // A document has no page of ours to read. A paste already carries its text – but it also
+  // carries the address that text came from, and an ingest that left the advert unread may
+  // yet be rescued by reading that address live.
+  const result = await ingest(submission, { deadline });
   if (result.ok || !result.unread || !submission.url) return result;
-  return retryFromPage({ submission, failure: result, ingest, fetchPage, now, deadline });
+  return (await readFromPage({ submission, ingest, fetchPage, now, deadline })) ?? result;
 }
 
 function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage, now }) {
@@ -126,14 +134,12 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fe
     // can state is when it arrived, which is what its evidence cites.
     if (submission.kind === 'paste') submission = { ...submission, retrievedAt: now().toISOString() };
 
-    // One clock for the submission, started before the first read and shared with the
-    // second. Bounds live on the ingest rather than on the call, so the rescue used to begin
-    // with a full budget of its own – and the failure that reaches it is the one that had
-    // already spent a full budget getting there.
+    // readAdvert starts one clock and both of its reads honour it, so a submission costs at
+    // most one budget however many times the advert is read.
     //
-    // The token ceiling is not shared, and is not bounded across the two reads. It lands
-    // only at a resume boundary and a paste has no page for the loop to grow on, so the
-    // clock is what does the work here; saying so beats implying otherwise by silence.
+    // The token ceiling is not shared. It lands only at a resume boundary and a paste has no
+    // page for the loop to grow on, so the clock is what does the work here; saying so beats
+    // implying otherwise by silence.
     const result = await readAdvert({ submission, ingest, fetchPage, now });
 
     if (!result.ok) {
