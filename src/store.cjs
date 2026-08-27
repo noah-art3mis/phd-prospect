@@ -88,7 +88,6 @@ const UPDATABLE_COLUMNS = new Set([
   'findings',
   'contacts',
   'references',
-  'reminders_sent',
 ]);
 
 // CREATE INDEX IF NOT EXISTS is equally silent about an index that exists without the
@@ -237,10 +236,25 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
       for (const column of columns) {
         if (!UPDATABLE_COLUMNS.has(column)) throw new Error(`'${column}' is not an updatable column`);
       }
-      const assignments = columns.map((c) => `"${c}" = ?`).join(', ');
+      // `reminders_sent` describes the deadline currently on the row, so the two move
+      // together or not at all. Left behind when the date changes it silences the new one:
+      // a record whose tightest lead time has already fired is treated as having nothing
+      // more urgent left to say, whatever date it now carries. Written here rather than by
+      // the caller because a rule with two owners is a rule one of them can forget.
+      //
+      // Only when the date actually moves. `deadline_at` inside the CASE is the value still
+      // on the row, so re-sending the date a record already has is not a change and does not
+      // re-open reminders the user has already had. `IS` rather than `=` so that two NULLs
+      // compare equal.
+      const movesDeadline = columns.includes('deadline_at');
+      const assignments = columns
+        .map((c) => `"${c}" = ?`)
+        .concat(movesDeadline ? [`reminders_sent = CASE WHEN deadline_at IS ? THEN reminders_sent ELSE '[]' END`] : [])
+        .join(', ');
       const values = columns.map((c) => (JSON_COLUMNS.includes(c) ? JSON.stringify(changes[c]) : changes[c]));
       db.prepare(`UPDATE opportunity SET ${assignments}, updated_at = ? WHERE id = ?`).run(
         ...values,
+        ...(movesDeadline ? [changes.deadline_at] : []),
         now(),
         id
       );

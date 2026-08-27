@@ -135,7 +135,9 @@ A link is normalized to a canonical URL – scheme folded, default ports, fragme
 
 There is deliberately no fuzzy cross-source identity: reject deletes the row, so nothing needs to recognise the same opportunity arriving from a different address.
 
-Reminders are idempotent through `reminders_sent` on the row, a list of the lead times already fired. Repeated scheduler runs cannot resend the same reminder. Rechecking live adverts for changed deadlines or closure is not built.
+Reminders are idempotent through `reminders_sent` on the row, a list of the lead times already fired *for the deadline the row currently carries*. Repeated scheduler runs cannot resend the same reminder; correcting the deadline clears the list, because those sends were about a different date and leaving them would silence the new one.
+
+Rechecking live adverts automatically is not built. Correcting a tracked record by hand is: send `<id> deadline = 2026-12-01` and the next sweep acts on the new date.
 ## Alternatives considered
 
 | Option            | Strength                                                     | Reason not selected as the foundation                         |

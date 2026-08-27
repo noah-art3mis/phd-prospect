@@ -34,7 +34,7 @@ It runs as a single always-on process in Docker on a free VM, with no n8n, no No
 16. As the user, I want the validated record presented on Telegram with Approve / Edit / Reject buttons, so that nothing is stored without my say-so.
 17. As the user, I want approval messages sent as plain text with no markup parsing, so that text from a page an attacker controls cannot break or hijack the message.
 18. As the user, I want to reject a record, so that junk is discarded.
-19. As the user, I want to edit a field before approving, so that I can correct the model.
+19. As the user, I want to edit a field, before or after approving, so that I can correct the model — and so that a deadline the model could not find is not permanently unrecordable.
 20. As the user, I want to approve a record, so that it is saved to the database.
 21. As the user, I want an unapproved candidate excluded from reminders, listings and counts, so that pending work never behaves like tracked work.
 22. As the user, I want re-submitting a link I have already confirmed to answer with the deadline I already have, so that I neither pay for a second call nor end up with two rows firing duplicate reminders.
