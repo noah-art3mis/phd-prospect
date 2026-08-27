@@ -690,3 +690,30 @@ test('a page we did not choose the address of still falls through to the model',
 
   assert.deepEqual(seen, ['url'], 'the address was never offered to the model');
 });
+
+test('a rescue that cannot open the page does not speak over the failure it came to rescue', async () => {
+  // The user pastes text out of a document and gives the address it came from. The paste is
+  // what failed; going to the live address is a rescue. When that address refuses, answering
+  // "open it: if it loads, send me the text and I will work from that" tells someone who has
+  // just done exactly that to do it again – the URL branch's exception, applied one branch
+  // wider than the reasoning that authorises it.
+  const handle = createSubmissionHandler({
+    store: { findByUrl: () => null },
+    telegram: { async sendMessage() {} },
+    ingest: async () => ({ ok: false, unread: true, reason: 'I could not read anything from that page.' }),
+    approval: { present: async () => assert.fail('nothing should have been presented') },
+    chatId: ME,
+    fetchPage: async () => ({ ok: false, status: 403, reason: 'that page answered 403.' }),
+    now: () => new Date('2026-08-27T12:00:00Z'),
+  });
+
+  await assert.rejects(
+    () =>
+      handle({
+        kind: 'paste',
+        url: 'https://docs.google.com/document/d/abc/edit',
+        text: 'Advert text the user copied out of the document.',
+      }),
+    /could not read anything from that page/
+  );
+});

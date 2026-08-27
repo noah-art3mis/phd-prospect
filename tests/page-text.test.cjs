@@ -10,9 +10,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { isFetchableUrl, isPrivateAddress, pageText } = require('../src/core/page-text.cjs');
+const { isFetchableUrl, isPrivateAddress, pageText, plainText } = require('../src/core/page-text.cjs');
 
 const LINKEDIN = fs.readFileSync(path.join(__dirname, 'fixtures', 'linkedin-post.html'), 'utf8');
+// Both captured 27 Aug 2026 from the document behind record #10, the DSSG call. The page
+// had its script and style bodies emptied – pageText discards those – so every character
+// that reaches the extracted text is the one the live page served.
+const DOC_PAGE = fs.readFileSync(path.join(__dirname, 'fixtures', 'google-doc-page.html'), 'utf8');
+const DOC_EXPORT = fs.readFileSync(path.join(__dirname, 'fixtures', 'google-doc-export.txt'), 'utf8');
 
 // --- what may be fetched ----------------------------------------------------------------
 
@@ -179,4 +184,49 @@ test('a mapped-address URL is refused by the same check the fetcher runs first',
   assert.equal(isFetchableUrl('http://[::ffff:169.254.169.254]/latest/meta-data/'), false);
   assert.equal(isFetchableUrl('http://[fe9f::1]/'), false);
   assert.equal(isFetchableUrl('http://100.64.0.1/'), false);
+});
+
+// --- a page that is a program, and a body that is already prose --------------------------
+
+test("a Google Doc's own page yields its menu bar, and not a word of the advert", () => {
+  // 417 KB of HTML in, and what comes out is the interface: the document is drawn by script
+  // nothing here runs. This is what record #10 was read from, and why it was tracked with no
+  // deadline one day before it closed.
+  const text = pageText(DOC_PAGE);
+
+  assert.match(text, /Compartilhar/, 'this is not the page that was captured');
+  assert.doesNotMatch(text, /candidatura/i, 'the document body was in the HTML after all');
+  assert.ok(text.length < 300, `the interface alone came to ${text.length} characters`);
+});
+
+test('the same document, asked for as text, arrives whole', () => {
+  const text = plainText(DOC_EXPORT);
+
+  assert.match(text, /O período de candidaturas vai estar aberto até 28 de Agosto/);
+  assert.ok(text.length > 4000, `only ${text.length} characters survived`);
+});
+
+test('prose keeps the characters a markup stripper would eat', () => {
+  // Constructed, because the DSSG document happens to contain no angle brackets at all –
+  // which is exactly why reading it live proved nothing about this. In an advert `<` is a
+  // bound and `>` is a bound, and everything between one and the next is not a tag.
+  const body = [
+    'Elegibilidade: idade < 30 anos.',
+    'O período de candidaturas vai estar aberto até 28 de Agosto.',
+    'Bolsa mensal > 1.200 EUR.',
+    'Contacto: <dssg@nova.pt>',
+  ].join('\n\n');
+
+  const text = plainText(body);
+
+  assert.match(text, /28 de Agosto/, 'the deadline was deleted as if it were inside a tag');
+  assert.match(text, /idade < 30 anos/);
+  assert.match(text, /1\.200 EUR/);
+  assert.match(text, /dssg@nova\.pt/);
+});
+
+test('prose is capped too, because a document is billed by the token', () => {
+  const text = plainText('word '.repeat(50_000), { maxChars: 1000 });
+  assert.ok(text.length <= 1000, `got ${text.length}`);
+  assert.ok(text.length > 900, `the cap took the document with it: ${text.length}`);
 });

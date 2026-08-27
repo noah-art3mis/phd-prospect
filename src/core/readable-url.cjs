@@ -12,16 +12,34 @@
 // same shape is a row here; whoever adds it does not have to find every place a decision
 // about addresses is currently made, because there is only this one.
 
+// Two worlds behind one status – the document is not shared, or Google declined to serve
+// this particular client – and nothing here can tell them apart. So it names neither and
+// gives the one action that does: the user opens it and already knows which world it is.
+const docWillNotOpen = (status) =>
+  `I could not open that Google Doc (${status}). Either it is not shared publicly, or Google ` +
+  'would not serve it to me. Open it: if it loads, send me the text and I will work from that.';
+
+const docIsNotThere = (status) =>
+  `There is no Google Doc at that address (${status}) – it has been deleted, or the link is wrong.`;
+
 const REWRITES = [
   {
-    // Not `/d/e/…`: that is Google's published-to-web form, which is server-rendered HTML
-    // and already readable. Reading `e` as the document id would build an export address
-    // for a document that does not exist.
-    // `/u/0/` appears when the reader is signed into more than one account.
-    what: 'Google Doc',
     host: 'docs.google.com',
+    // Not `/d/e/…`: that is Google's published-to-web form, which is server-rendered HTML
+    // and already readable. Reading `e` as the document id would build an export address for
+    // a document that does not exist. `/u/0/` appears when the reader is signed into more
+    // than one account.
     path: /^\/document\/(?:u\/\d+\/)?d\/(?!e\/)([^/]+)/,
     to: (id) => `https://docs.google.com/document/d/${id}/export?format=txt`,
+
+    // Whether a refusal at the address we chose is the end of the road is a property of this
+    // site, not of the act of rewriting one. Here it is: the document's own page is an
+    // interface drawn by script, and web_fetch runs no more of it than we do, so handing the
+    // address on would buy a model call to be told what the status already said.
+    //
+    // Measured against docs.google.com: an existing document that is not shared answers 403
+    // on the export address, and a document id that does not exist answers 404.
+    refusals: { 401: docWillNotOpen, 403: docWillNotOpen, 404: docIsNotThere },
   },
 ];
 
@@ -39,46 +57,23 @@ function readableUrl(url) {
     if (parsed.hostname !== rewrite.host) continue;
     const match = rewrite.path.exec(parsed.pathname);
     if (!match) continue;
-    return { url: rewrite.to(...match.slice(1)), what: rewrite.what };
+    return { url: rewrite.to(...match.slice(1)), refusals: rewrite.refusals };
   }
   return null;
 }
 
-// A refusal from an address this module chose, rather than one a person typed, and whether
-// it is the end of the road. It usually is: the reason a document is read at a second
-// address is that its first one is an interface rather than a document, and web_fetch runs
-// no more script than we do. Going on to spend a model call there buys nothing but a slower
-// way to be told what the status already said.
+// What a refusal at a rewritten address means, according to the row that chose it.
 //
-// The exception is a status that might not last. Google being busy is not the document being
-// unreadable, and answering "there is no such document" to a 503 files a permanent verdict
-// on a transient fact.
+// A row that claims nothing gets nothing. Falling through to web_fetch is the safe answer,
+// and a site that answers 403 to anything but a browser is one it may well read – that class
+// of site is why the fetcher asks like a browser in the first place.
 //
-// Both statuses below were measured against docs.google.com: an existing document that is
-// not shared answers 403 on the export address, and an id that does not exist answers 404.
-function notShared(what, status) {
-  // Two worlds behind one status – the document is not public, or Google declined to serve
-  // this particular client – and nothing here can tell them apart. So it names neither and
-  // gives the one action that does: the user opens it and already knows which world it is.
-  return (
-    `I could not open that ${what} (${status}). Either it is not shared publicly, or Google ` +
-    'would not serve it to me. Open it: if it loads, send me the text and I will work from that.'
-  );
-}
-
-function notThere(what, status) {
-  return `There is no ${what} at that address (${status}) – it has been deleted, or the link is wrong.`;
-}
-
-const REFUSALS = new Map([
-  [401, notShared],
-  [403, notShared],
-  [404, notThere],
-]);
-
+// Nor is a status that might not last a refusal: Google being busy is not the document being
+// unreadable, and answering "there is no such document" to a 503 files a permanent verdict on
+// a transient fact.
 function refusedReason(readable, status) {
-  const say = REFUSALS.get(status);
-  return say ? say(readable.what, status) : null;
+  const say = readable.refusals?.[status];
+  return say ? say(status) : null;
 }
 
 module.exports = { readableUrl, refusedReason };

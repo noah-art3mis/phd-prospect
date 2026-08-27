@@ -22,8 +22,6 @@ test('a Google Doc is asked for as text, not as the page that would draw it', ()
     read.url,
     'https://docs.google.com/document/d/1Pt3UEeXt3gVmZ5-IElB0mL1EnjE2ZiiMbIKS87EqMww/export?format=txt'
   );
-  // Named, because a failure to read one has to be able to say what it failed to read.
-  assert.equal(read.what, 'Google Doc');
 });
 
 test('the forms a share link actually arrives in all reach the same document', () => {
@@ -74,27 +72,36 @@ test('something that is not an address is not an error', () => {
 
 // --- when the address we chose refuses -----------------------------------------------------
 
-test('a refusal from an address we chose is final, and says which document it was', () => {
+test('a refusal from an address we chose is final where the row says it is', () => {
   // Verified live: an existing document that is not shared answers 403 on the export
   // address, and a document id that does not exist answers 404. Neither is HTML we could
   // mistake for an advert, and neither is worth a model call – the document's own page is
   // the interface, and web_fetch runs no more script than we do.
-  const doc = { what: 'Google Doc', url: 'https://docs.google.com/document/d/abc/export?format=txt' };
+  const doc = readableUrl('https://docs.google.com/document/d/abc/edit');
 
   assert.match(refusedReason(doc, 403), /Google Doc/);
   assert.match(refusedReason(doc, 403), /403/);
-  // Two worlds behind one status – not shared, or Google declining to serve us – and this
-  // cannot tell them apart, so it names neither and gives the action that does.
+  // Two worlds behind one status – not shared, or Google declining to serve this client –
+  // and this cannot tell them apart, so it names neither and gives the action that does.
   assert.match(refusedReason(doc, 403), /send me the text/i);
 
   assert.match(refusedReason(doc, 404), /404/);
   assert.match(refusedReason(doc, 404), /deleted|wrong/i);
 });
 
+test('a row that claims no verdict does not inherit one', () => {
+  // "There is nowhere else to try" is a fact about a page drawn by script, not about the act
+  // of rewriting an address. A host that answers 403 to anything but a browser is one
+  // web_fetch may well read – and BROWSER_UA exists because that is a real kind of site.
+  // Falling through is the safe answer, so it is the one a silent row gets.
+  assert.equal(refusedReason({ url: 'https://elsewhere.example/advert.txt' }, 403), null);
+  assert.equal(refusedReason({ url: 'https://elsewhere.example/advert.txt', refusals: {} }, 404), null);
+});
+
 test('a refusal that might not last is not final', () => {
-  // Google being busy or briefly broken is not the document being unreadable. Answering
-  // "there is no such document" to a 500 would file a permanent verdict on a transient fact.
-  const doc = { what: 'Google Doc', url: 'https://docs.google.com/document/d/abc/export?format=txt' };
+  // Google being busy is not the document being unreadable. Answering "there is no such
+  // document" to a 503 files a permanent verdict on a transient fact.
+  const doc = readableUrl('https://docs.google.com/document/d/abc/edit');
 
   assert.equal(refusedReason(doc, 500), null);
   assert.equal(refusedReason(doc, 429), null);
