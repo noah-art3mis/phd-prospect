@@ -497,8 +497,8 @@ test('a failure the app cannot do anything about is reported without a second fe
 
 test('the rescue shares the submission budget instead of starting a new clock', async () => {
   // Bounds live on the ingest, not on the call, so a second ingest used to begin with a
-  // full ten minutes of its own – and the failure that reaches the rescue is exactly the
-  // one that already spent ten minutes getting there.
+  // full budget of its own – and the failure that reaches the rescue is exactly the one
+  // that already spent a full budget getting there.
   const deadlines = [];
 
   const handle = createSubmissionHandler({

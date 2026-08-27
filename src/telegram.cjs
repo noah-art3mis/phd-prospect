@@ -14,9 +14,10 @@ const TELEGRAM_API = 'https://api.telegram.org';
 const MAX_MESSAGE_LENGTH = 4096;
 
 // Measured on the Render worker over five days: Telegram went unreachable for stretches of
-// well over a minute, several times a week. The shared default – three attempts half a
-// second apart – was never going to survive one of those, and what it discarded was the
-// approval card an ingest had just been billed for, followed by the alert saying so.
+// well over a minute, several times a week. Writes were using the shared default, which is
+// sized for a call that failed rather than for a service that is away, and it never had a
+// chance against one of those. What it discarded was the approval card an ingest had just
+// been billed for, followed by the alert saying so.
 //
 // So a send is bounded by a clock rather than by a count. The budget is the whole answer to
 // "how long may this block", which matters because pollUpdates awaits the acknowledgement:

@@ -15,8 +15,8 @@ const ATTEMPTS = 3;
 const BASE_DELAY_MS = 500;
 
 // Doubling without a ceiling spends most of a long outage asleep after the service has
-// already come back. pollUpdates has capped its own backoff at a minute since the beginning;
-// this is the same ceiling, for callers that wait long enough to need one.
+// already come back. pollUpdates has capped its own backoff since the beginning; this is the
+// same ceiling, for callers that wait long enough to need one.
 const MAX_DELAY_MS = 60_000;
 
 // How long a caller may block, as a number somebody chose. `attempts` cannot express that:
