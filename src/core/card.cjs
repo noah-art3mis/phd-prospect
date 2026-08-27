@@ -104,6 +104,9 @@ function timeRemaining(deadlineAt, zone, now) {
 function approvalCard(opportunity, { zone, now = new Date() }) {
   const findings = opportunity.findings ?? {};
   const lines = [opportunity.title];
+  // A tracked record gets a card too, now that corrections reach one. Saying so is what
+  // stops it reading as a decision still waiting to be made.
+  if (opportunity.confirmed) lines.push('Tracked already – nothing here to press.');
 
   const header = headerLine(findings);
   if (header) lines.push(header);
@@ -165,7 +168,12 @@ function approvalButtons(opportunityId) {
 
 // Editing carries no server-side state: the correction names the row it applies to, so a
 // restart between the card and the correction loses nothing. Format: `<id> <field> = <value>`.
-const EDITABLE_FIELDS = ['title', 'institution', 'deadline'];
+// What the card renders from the row, and nothing else. `institution` was here and the
+// correction went into a column no reader touches - the header is built from
+// findings.institution - so the user was shown a record contradicting the edit they had just
+// made. A finding is answered with evidence beneath it; correcting the value by hand would
+// leave that excerpt supporting the answer it replaced.
+const EDITABLE_FIELDS = ['title', 'deadline'];
 const EDIT_PATTERN = /^(\d+)\s+([a-z_]+)\s*=\s*(.+)$/i;
 
 // Whether text is shaped like a correction at all, without needing a zone to find out. The

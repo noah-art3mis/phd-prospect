@@ -33,9 +33,10 @@ function createApproval({ store, telegram, zone, chatId, now = () => new Date() 
 
   async function sendCard(id) {
     const opportunity = store.getOpportunity(id);
-    await telegram.sendMessage(chatId, approvalCard(opportunity, { zone, now: now() }), {
-      replyMarkup: approvalButtons(id),
-    });
+    // Buttons only where there is a decision left to make. A tracked record answers both of
+    // them with "already tracking", so offering them is a control that does nothing.
+    const options = opportunity.confirmed ? {} : { replyMarkup: approvalButtons(id) };
+    await telegram.sendMessage(chatId, approvalCard(opportunity, { zone, now: now() }), options);
   }
 
   async function handleCallback({ action, opportunityId, chatId: from, messageId }) {

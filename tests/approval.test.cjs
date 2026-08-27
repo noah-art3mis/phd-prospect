@@ -204,7 +204,7 @@ test('a correction naming an unknown field says what can be corrected', async ()
   await withApproval(async ({ telegram, approval }) => {
     const id = await approval.present(CANDIDATE);
     await approval.handleText({ text: `${id} vibes = good` });
-    assert.match(telegram.sent.at(-1).text, /title.*institution.*deadline/);
+    assert.match(telegram.sent.at(-1).text, /title.*deadline/);
   });
 });
 
@@ -445,7 +445,7 @@ test('a tracked record can still be corrected, because approval is not a claim o
   });
 });
 
-test('a corrected deadline is one the reminder sweep can still act on', async () => {
+test('correcting a deadline clears the sends recorded against the old one', async () => {
   // The record was silent because it had no deadline. It must not stay silent because the
   // reminders it never sent look spent.
   await withApproval(async ({ store, approval }) => {
@@ -456,5 +456,55 @@ test('a corrected deadline is one the reminder sweep can still act on', async ()
     await approval.handleText({ text: `${id} deadline = 2026-08-28` });
 
     assert.deepEqual(store.getOpportunity(id).reminders_sent, []);
+  });
+});
+
+test('institution is not offered for correction, because the card does not read the column', async () => {
+  // It was offered, and the edit landed in a column nothing renders: the card's header comes
+  // from findings.institution, so the user was shown a record contradicting the correction
+  // they had just made. A finding is answered with evidence; correcting the value by hand
+  // would leave the excerpt beneath it supporting the old one.
+  await withApproval(async ({ store, telegram, approval }) => {
+    const id = await approval.present(CANDIDATE);
+    await approval.handleText({ text: `${id} institution = Corrected University` });
+
+    assert.equal(store.getOpportunity(id).institution, 'Example University', 'the column was written anyway');
+    assert.match(telegram.sent.at(-1).text, /I can only correct: title, deadline/);
+  });
+});
+
+test('the card for a tracked record says so, and carries no buttons to press', async () => {
+  // Correcting a tracked record re-renders its card. Before, that card came back looking
+  // exactly like a pending one - Approve and Reject on a row that is already approved.
+  // Pressing either is harmless, and a control that does nothing is still a bug.
+  await withApproval(async ({ telegram, approval }) => {
+    const id = await approval.present(CANDIDATE);
+    assert.ok(telegram.sent.at(-1).options.replyMarkup, 'a pending card lost its buttons');
+
+    await approval.handleCallback({ action: 'approve', opportunityId: id, chatId: CHAT, messageId: 11 });
+    await approval.handleText({ text: `${id} title = A clearer title` });
+
+    const card = telegram.sent.at(-1);
+    assert.equal(card.options?.replyMarkup, undefined, 'the tracked record came back with live buttons');
+    assert.match(card.text, /tracked/i);
+  });
+});
+
+test('re-sending the deadline a record already has leaves its reminders alone', async () => {
+  // The reset is for a date that moved. A correction that changes nothing would otherwise
+  // re-open every reminder the user has already had.
+  await withApproval(async ({ store, approval }) => {
+    const id = await approval.present(CANDIDATE);
+    await approval.handleCallback({ action: 'approve', opportunityId: id, chatId: CHAT, messageId: 11 });
+
+    // Once to set it – the date the record was ingested with resolves to a different instant
+    // than the same day typed by hand, which is a real change and does reset.
+    await approval.handleText({ text: `${id} deadline = 2026-12-01` });
+    store.recordRemindersSent(id, [30, 7]);
+
+    // Twice, saying the same thing.
+    await approval.handleText({ text: `${id} deadline = 2026-12-01` });
+
+    assert.deepEqual(store.getOpportunity(id).reminders_sent, [30, 7]);
   });
 });

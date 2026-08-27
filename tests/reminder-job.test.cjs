@@ -222,3 +222,28 @@ test('a weekly schedule lands on the requested local weekday', () => {
   assert.match(local, /Sun/);
   assert.match(local, /09/);
 });
+
+test('a deadline corrected onto a record that had none is reminded on', async () => {
+  // The whole point of letting a tracked record be corrected. Live, two tracked
+  // opportunities were stored with no deadline and had one - the nearer of them the next
+  // day - and neither could be reminded on because neither date could be entered.
+  //
+  // The row carries a full set of sent lead times, which is the trap: they were never sent
+  // about this date, and if they were allowed to stand the corrected record would go on
+  // being as silent as it was before anyone fixed it.
+  await withJob([opportunity({ deadline_at: null })], async ({ store, telegram, sweep }) => {
+    const [row] = store.listConfirmed();
+    store.recordRemindersSent(row.id, [30, 7, 1]);
+    assert.equal((await sweep()).sent, 0, 'a record with no deadline was reminded on');
+
+    store.updateOpportunity(row.id, { deadline_at: '2026-07-12T23:59:00.000Z' });
+    const result = await sweep();
+
+    assert.equal(result.sent, 1);
+    assert.match(telegram.sent.at(-1).text, /6 days/);
+    assert.match(telegram.sent.at(-1).text, /12 July 2026/);
+    // 30 and 7 are both answered by a six-days-out warning; 1 is still to come. Clearing the
+    // list did not cost the sweep its habit of absorbing the lead times it overtook.
+    assert.deepEqual(store.getOpportunity(row.id).reminders_sent.sort((a, b) => a - b), [7, 30]);
+  });
+});
