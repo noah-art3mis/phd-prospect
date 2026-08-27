@@ -1,9 +1,11 @@
 // Building the ingest request – pure, so what gets sent to the model is assertable without
 // a network call.
 //
-// One agentic call does the whole job: the model's own server-side web_fetch and web_search
-// tools fetch the page, extract the opportunity, and fill gaps. The app never resolves or
-// connects to a user-submitted URL itself, so there is no SSRF surface to defend (ADR-0007).
+// One agentic call does the job: the model's own server-side web_fetch and web_search tools
+// extract the opportunity and fill gaps. The app reads the submitted advert itself and hands
+// it up as text – one address, the one the operator typed, guarded in src/core/page-text.cjs.
+// Every address the *model* chooses is still resolved on Anthropic's side, which is the half
+// of ADR-0007 that carries the SSRF argument.
 //
 // The model is given no tool that can write records, send messages, run shell, or read
 // credentials. Read-only holds by construction rather than by policy: there is nothing else
@@ -16,8 +18,17 @@ const { renderMessages } = require('./prompt.cjs');
 // on every iteration, so billed input grows with the square of the iteration count and a
 // single call has run to 800,000 tokens against a 5,000-token-per-fetch cap. The bounds that
 // do hold are the clock and the token ceiling in src/ingest.cjs.
+//
+// The fetch cap is what an iteration costs, not what a page costs, which is why it came
+// down. It is set from the traces on disk: the heaviest successful run fetched seven distinct
+// pages, and the submitted advert is no longer one of them because the app reads that itself,
+// so six leaves every recorded success intact. What it clips is the runaway – the worst run
+// on record spent every fetch it had and six figures of input tokens to report that it could
+// not read the page. Re-tuning this against fresh measurements is an open item in
+// docs/findings-live-ingest.md; the counts above are what justified the number, not a
+// standing summary of the corpus.
 const MAX_SEARCHES = 3;
-const MAX_FETCHES = 8;
+const MAX_FETCHES = 6;
 const MAX_CONTENT_TOKENS = 5000;
 
 const FINDING_FIELDS = [

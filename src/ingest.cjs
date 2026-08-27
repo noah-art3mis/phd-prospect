@@ -117,6 +117,13 @@ function submissionContent(submission) {
 function describeSource(submission) {
   if (submission.kind === 'paste') {
     const cite = `Cite it as ${submissionIdentity(submission)} in evidence, with an excerpt quoted from it.`;
+    // Three sources, not two, and the model is told which one it has. Saying the user pasted
+    // it because the fetch failed was true of one of them and became the sentence every URL
+    // submission carried – claiming a failure that had not happened, about a paste nobody
+    // had made.
+    if (submission.readByApp) {
+      return `the text of ${submission.url}, which this app fetched and read for you. You already have the page, so do not fetch it again. ${cite}`;
+    }
     return submission.url
       ? `the advert text below, which the user pasted because ${submission.url} could not be fetched – do not try to fetch it. ${cite}`
       : `the advert text below, which the user pasted and which has no source page. ${cite}`;
@@ -245,11 +252,13 @@ function createIngest({
       // `unread` travels alongside the sentence: a caller that can fetch the page itself
       // needs the fact, and matching the prose would break every time it improved.
       //
-      // Withheld when nothing was refused. Those fetches returned, so the model already had
-      // the bytes and read nothing in them – fetching the same page again would buy a second
-      // bill for the same silence. A refusal is the opposite case: nobody ever looked.
+      // Set whoever fetched the page. A record with nothing in it means the source yielded no
+      // advert, and the commonest way that happens now is that the app handed over text which
+      // turned out to be a sign-in wall – exactly the case where the live address is still
+      // worth trying. Withholding it here left the caller with a failure it could act on and
+      // no way to know.
       const reason = unreadableReason(lastResponse);
-      return fetchErrors(lastResponse).length > 0 ? { ok: false, reason, unread: true } : { ok: false, reason };
+      return { ok: false, reason, unread: true };
     }
 
     // Deterministic validation. Structured outputs guarantee the shape; this enforces the

@@ -1,4 +1,4 @@
-// The fallback fetch: the one place this app connects to an address a person gave it.
+// Our own fetch: the one place this app connects to an address a person gave it.
 //
 // It exists because Anthropic's web_fetch refuses some pages that are perfectly readable –
 // a LinkedIn post that returned `url_not_allowed` to the model served 174 KB to an ordinary

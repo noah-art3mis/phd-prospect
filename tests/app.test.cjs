@@ -296,31 +296,34 @@ test('pasting the same link-less advert twice does not pay for it twice', async 
   });
 });
 
-// --- the fallback fetch -----------------------------------------------------------------
+// --- reading the page ourselves -----------------------------------------------------------
 //
 // Live: Anthropic's web_fetch answered `url_not_allowed` for a LinkedIn post that plain curl
 // with a browser user-agent fetched at 200 with 174 KB. The refusal was the tool declining
 // the address, not the site refusing us, so the advert was readable the whole time and the
 // only thing missing was someone to go and read it.
 
-test('a page the model was refused is fetched by the app and ingested from its text', async () => {
+test('a page web_fetch always refuses is read by the app, and the model is told not to try it', async () => {
   const fetched = [];
   const page = async (url) => {
     fetched.push(url);
     return { ok: true, text: 'PhD in creativity support in generative AI at Aalborg University.', url };
   };
 
-  await withApp([fixture('fetch_blocked_linkedin'), fixture('complete')], async ({ store, telegram, app, anthropic }) => {
+  await withApp([fixture('complete')], async ({ store, telegram, app, anthropic }) => {
     await app.bot.handleUpdate(linkFrom(ME, 'https://www.linkedin.com/posts/x/'));
     await app.bot.settle();
 
-    assert.deepEqual(fetched, ['https://www.linkedin.com/posts/x/'], 'the refused page was not fetched');
-    assert.equal(anthropic.requests.length, 2, 'the second ingest did not run');
+    assert.deepEqual(fetched, ['https://www.linkedin.com/posts/x/'], 'the page was not fetched');
+    assert.equal(anthropic.requests.length, 1, 'the model was asked to fetch it as well');
 
-    // The retry sends the text, and tells the model not to go back to the address that failed.
-    const retry = JSON.stringify(anthropic.requests[1].messages);
-    assert.match(retry, /creativity support/);
-    assert.match(retry, /could not be fetched/i);
+    // The text goes up, described as what it is. It used to be announced as something the
+    // user had pasted because the address could not be fetched – a failure that had not
+    // happened, about a paste nobody had made, on every submission.
+    const sent = JSON.stringify(anthropic.requests[0].messages);
+    assert.match(sent, /creativity support/);
+    assert.match(sent, /this app fetched and read for you/i);
+    assert.doesNotMatch(sent, /the user pasted/i);
 
     // And it ends where any successful ingest ends: a card to approve.
     assert.match(telegram.sent.at(-1).text, /PhD in Trustworthy Artificial Intelligence/);
@@ -333,7 +336,7 @@ test('the record is still filed under the link, not under the text that was fetc
   // identity would make the same advert unrecognisable the next time the link is sent.
   const page = async (url) => ({ ok: true, text: 'An advert with a deadline.', url });
 
-  await withApp([fixture('fetch_blocked_linkedin'), fixture('complete')], async ({ store, telegram, app }) => {
+  await withApp([fixture('complete')], async ({ store, telegram, app }) => {
     await app.bot.handleUpdate(linkFrom(ME, 'https://www.linkedin.com/posts/x/'));
     await app.bot.settle();
     const id = Number(telegram.sent.at(-1).options.replyMarkup.inline_keyboard[0][0].callback_data.split(':')[1]);
@@ -355,7 +358,7 @@ test('the fallback records when it read the page, so the record survives validat
   const errors = [];
 
   await withApp(
-    [fixture('fetch_blocked_linkedin'), fixture('paste_undated_evidence')],
+    [fixture('paste_undated_evidence')],
     async ({ store, telegram, app }) => {
       await app.bot.handleUpdate(linkFrom(ME, link));
       await app.bot.settle();
@@ -440,7 +443,7 @@ test('a failed ingest does not block the link from being tried again', async () 
 // reporting a refused fetch – and a run the clock cut short has no response to report one.
 // The three failures that cost the most were the three that skipped the rescue.
 
-test('an ingest that ran out of time is retried from the page the app fetches itself', async () => {
+test('the advert is read from the app\'s own fetch before a model call is paid for', async () => {
   const fetched = [];
   const seen = [];
   const presented = [];
@@ -465,12 +468,12 @@ test('an ingest that ran out of time is retried from the page the app fetches it
   await handle({ kind: 'url', url: 'https://www.linkedin.com/posts/roozenbeek/' });
 
   assert.deepEqual(fetched, ['https://www.linkedin.com/posts/roozenbeek/'], 'the app never went to read it itself');
-  assert.equal(seen.length, 2, 'the fallback ingest did not run');
-  assert.equal(seen[1].kind, 'paste');
-  assert.deepEqual(presented, [{ title: 'Read on the second try' }], 'the rescued record was never presented');
+  assert.equal(seen.length, 1, 'a model call was paid for on the address as well');
+  assert.equal(seen[0].kind, 'paste');
+  assert.deepEqual(presented, [{ title: 'Read on the second try' }], 'the record was never presented');
 });
 
-test('a failure the app cannot do anything about is reported without a second fetch', async () => {
+test('a failure the app cannot do anything about is reported without a second read', async () => {
   const fetched = [];
   let calls = 0;
 
@@ -491,8 +494,8 @@ test('a failure the app cannot do anything about is reported without a second fe
   });
 
   await assert.rejects(() => handle({ kind: 'url', url: 'https://uni.example/phd' }), /did not pass validation/);
-  assert.deepEqual(fetched, [], 'a fetch was paid for on a failure that had nothing to do with reading the page');
-  assert.equal(calls, 1);
+  assert.deepEqual(fetched, ['https://uni.example/phd'], 'the app did not read the page itself');
+  assert.equal(calls, 1, 'a second model call was paid for on a failure reading again cannot fix');
 });
 
 test('the rescue shares the submission budget instead of starting a new clock', async () => {
@@ -504,10 +507,12 @@ test('the rescue shares the submission budget instead of starting a new clock', 
   const handle = createSubmissionHandler({
     store: { findByUrl: () => null },
     telegram: { async sendMessage() {} },
-    ingest: async (submission, options) => {
+    // Both reads are pastes here, so the read apart is which one it is, not what it carries.
+    ingest: async (_submission, options) => {
       deadlines.push(options?.deadline);
-      if (submission.kind === 'paste') return { ok: true, candidate: { title: 'Read on the second try' } };
-      return { ok: false, unread: true, reason: 'That one took too long.' };
+      return deadlines.length === 1
+        ? { ok: false, unread: true, reason: 'That one took too long.' }
+        : { ok: true, candidate: { title: 'Read on the second try' } };
     },
     approval: { present: async () => {} },
     chatId: ME,
@@ -515,9 +520,85 @@ test('the rescue shares the submission budget instead of starting a new clock', 
     now: () => new Date('2026-08-17T12:00:00Z'),
   });
 
-  await handle({ kind: 'url', url: 'https://www.linkedin.com/posts/x/' });
+  await handle({
+    kind: 'paste',
+    url: 'https://www.linkedin.com/posts/x/',
+    text: 'An advert whose text reached us stale.',
+  });
 
   assert.equal(deadlines.length, 2);
   assert.ok(Number.isFinite(deadlines[0]), 'the ingest was given no deadline to share');
   assert.equal(deadlines[1], deadlines[0], 'the rescue was handed a clock of its own');
+});
+
+// --- our address, our fetch ---------------------------------------------------------------
+//
+// The submitted page is read here rather than by web_fetch. A page the model fetches arrives
+// mid-conversation and is re-sent on every iteration after it, and the server-side loop bills
+// the whole conversation each time – one live rescue ran seven iterations at ~25k tokens
+// apiece. Reading it here puts the advert in the opening turn instead, and spends no round
+// trip to get it. What the model chooses for itself still runs on Anthropic's side, which is
+// the half of ADR-0007 that carries the security argument.
+
+test('the submitted page is read by the app, so the model is never asked to fetch it', async () => {
+  const fetched = [];
+  const page = async (url) => {
+    fetched.push(url);
+    return { ok: true, text: 'PhD in Trustworthy Artificial Intelligence at Example University.', url };
+  };
+
+  await withApp([fixture('complete')], async ({ telegram, anthropic, app }) => {
+    await app.bot.handleUpdate(linkFrom(ME, 'https://uni.example/phd'));
+    await app.bot.settle();
+
+    assert.deepEqual(fetched, ['https://uni.example/phd']);
+    assert.equal(anthropic.requests.length, 1, 'the model was asked to read the page as well');
+
+    // The advert travels as text in the opening turn, not as an address to go and get.
+    const sent = JSON.stringify(anthropic.requests[0].messages);
+    assert.match(sent, /Trustworthy Artificial Intelligence at Example University/);
+    assert.match(telegram.sent.at(-1).text, /PhD in Trustworthy Artificial Intelligence/);
+  }, { fetchPage: page });
+});
+
+test('a page the app cannot fetch is still handed to the model, which reaches some we cannot', async () => {
+  const page = async () => ({ ok: false, reason: 'that page answered 403.' });
+
+  await withApp([fixture('complete')], async ({ telegram, anthropic, app }) => {
+    await app.bot.handleUpdate(linkFrom(ME, 'https://uni.example/phd'));
+    await app.bot.settle();
+
+    assert.equal(anthropic.requests.length, 1);
+    const sent = JSON.stringify(anthropic.requests[0].messages);
+    assert.match(sent, /uni\.example\/phd/, 'the model was not given the address to try');
+    assert.match(telegram.sent.at(-1).text, /PhD in Trustworthy Artificial Intelligence/);
+  }, { fetchPage: page });
+});
+
+test('a page that answered 200 with something that is not the advert still reaches the model', async () => {
+  // `page.ok` only ever meant bytes arrived. A sign-in wall, a consent page or a JS shell is
+  // a 200 with real text in it, so our own fetch "succeeds" and the model reads a page that
+  // says nothing. Before this, the address was never offered to web_fetch at all and the
+  // user got "I could not read anything from that page" – the message this whole path
+  // exists to stop sending.
+  const seen = [];
+
+  const handle = createSubmissionHandler({
+    store: { findByUrl: () => null },
+    telegram: { async sendMessage() {} },
+    ingest: async (submission) => {
+      seen.push(submission.kind);
+      if (submission.kind === 'url') return { ok: true, candidate: { title: 'Read from the live page' } };
+      // Our sign-in wall: well-formed, and empty of advert.
+      return { ok: false, unread: true, reason: 'I could not read anything from that page.' };
+    },
+    approval: { present: async () => {} },
+    chatId: ME,
+    fetchPage: async (url) => ({ ok: true, text: 'Sign in to view this post. Join now.', url }),
+    now: () => new Date('2026-08-27T12:00:00Z'),
+  });
+
+  await handle({ kind: 'url', url: 'https://www.linkedin.com/posts/x/' });
+
+  assert.deepEqual(seen, ['paste', 'url'], 'the model was never given the address to try');
 });

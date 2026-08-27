@@ -47,7 +47,7 @@ test('the model and token budget come from the prompt file', () => {
   assert.equal(body.max_tokens, PROMPT.metadata.max_tokens);
 });
 
-test('research is bounded: 3 searches, 8 fetches, 5000 content tokens per page', () => {
+test('research is bounded: the caps in the tool definitions are the ones we set', () => {
   const body = request();
   const search = body.tools.find((t) => t.name === 'web_search');
   const fetch = body.tools.find((t) => t.name === 'web_fetch');
@@ -55,7 +55,7 @@ test('research is bounded: 3 searches, 8 fetches, 5000 content tokens per page',
   assert.equal(search.max_uses, MAX_SEARCHES);
   assert.equal(MAX_SEARCHES, 3);
   assert.equal(fetch.max_uses, MAX_FETCHES);
-  assert.equal(MAX_FETCHES, 8);
+  assert.equal(MAX_FETCHES, 6);
   // max_uses limits how many pages are fetched, not how large they are – the content cap is
   // what actually bounds cost.
   assert.equal(fetch.max_content_tokens, MAX_CONTENT_TOKENS);
@@ -877,4 +877,15 @@ test('an ingest honours a deadline the caller had already started', async () => 
   assert.equal(result.ok, false);
   assert.match(result.reason, /too long/i);
   assert.equal(anthropic.requests.length, 0, 'a call was made on a budget already spent');
+});
+
+test('a record with nothing in it says the advert went unread, whoever fetched the page', async () => {
+  // The source yielded no advert. Which fetcher produced it does not change that, and the
+  // caller has one thing left to try: the live address. Withholding the flag when no fetch
+  // was refused meant the commonest case – we handed over text that turned out to be a
+  // sign-in wall – looked like a failure nobody could act on.
+  const result = await ingestWith(fakeAnthropic([fixture('unreadable_page')]))(SUBMISSION);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.unread, true);
 });
