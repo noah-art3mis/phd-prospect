@@ -14,7 +14,20 @@ const { approvalCard, approvalButtons, parseEdit } = require('./core/card.cjs');
 function createApproval({ store, telegram, zone, chatId, now = () => new Date() }) {
   async function present(candidate) {
     const id = store.insertCandidate(candidate);
-    await sendCard(id);
+    try {
+      await sendCard(id);
+    } catch (error) {
+      // The row exists only to back a card somebody can press. Leaving it when the card
+      // never arrived is worse than losing the ingest: the advert then reads as waiting for
+      // an approval there is nothing anywhere to give, and resubmitting the link says so
+      // rather than reading it again.
+      //
+      // Unconfirmed only. A send fails slowly enough that the card can have arrived, been
+      // pressed, and been answered "Tracking:" before this runs – and deleting that record
+      // would be the failure this whole path exists to avoid, told to the user as a success.
+      store.deleteUnconfirmed(id);
+      throw error;
+    }
     return id;
   }
 

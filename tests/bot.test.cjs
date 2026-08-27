@@ -202,3 +202,38 @@ test('plain text is routed to the text handler', async () => {
 
   assert.deepEqual(texts, ['how many do I have?']);
 });
+
+test('a spinner that could not be stopped does not swallow the press', async () => {
+  // The ack is a courtesy; the work the press implies is not. Sequenced behind an await,
+  // a callback query Telegram has already expired – it answers 400, which no retry can
+  // help – would throw before the approval was ever routed, and pollUpdates has advanced
+  // its offset by then, so nothing brings the press back.
+  const handled = [];
+  const telegram = {
+    ...fakeTelegram(),
+    async answerCallbackQuery() {
+      throw new Error('Telegram answerCallbackQuery failed: query is too old');
+    },
+  };
+  const bot = createBot({
+    telegram,
+    allowedUserId: ME,
+    onSubmission: async () => {},
+    onCallback: async (c) => handled.push(c),
+    onError: () => {},
+  });
+
+  await bot.handleUpdate({
+    update_id: 5,
+    callback_query: {
+      id: 'cbq-9',
+      from: { id: ME },
+      data: 'approve:42',
+      message: { message_id: 11, chat: { id: ME } },
+    },
+  });
+  await bot.settle();
+
+  assert.equal(handled.length, 1, 'the approval was dropped with the spinner');
+  assert.equal(handled[0].opportunityId, 42);
+});

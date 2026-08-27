@@ -13,6 +13,8 @@ const { loadConfig } = require('../src/config.cjs');
 const { loadPrompt } = require('../src/core/prompt.cjs');
 const { createIngest } = require('../src/ingest.cjs');
 const { createTraceWriter } = require('../src/trace.cjs');
+const { readAdvert } = require('../src/app.cjs');
+const { fetchPage } = require('../src/fetch-page.cjs');
 
 async function main(url) {
   if (!url) {
@@ -45,7 +47,14 @@ async function main(url) {
       ),
   });
 
-  const result = await ingest({ kind: 'url', url });
+  // The same read the bot performs, rescue included: a tool that skipped it would report a
+  // page as unreadable that the app itself reads without trouble.
+  const result = await readAdvert({
+    submission: { kind: 'url', url },
+    ingest,
+    fetchPage,
+    now: () => new Date(),
+  });
   if (!result.ok) {
     console.error(`failed: ${result.reason}`);
     process.exitCode = 1;

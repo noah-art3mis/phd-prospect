@@ -44,12 +44,21 @@ function isOverloaded(error) {
   return error?.status === 429 || error?.status === 529 || (error?.status >= 500 && error?.status < 600);
 }
 
+// `unread`, set on every failure below that leaves the advert unread, is the caller's cue to
+// go and fetch the page itself. It claims something narrow: no record was produced, and the
+// advert was never handed to the model as text. It does not claim the model saw nothing – on
+// the resume ceiling it may have read the page six times over and simply never finished.
+//
 // The clock is the only lever there is inside a single request, and it is a blunt one:
 // aborting stops the stream, not the billing for what was already generated. It bounds the
 // worst case rather than making it free.
 function abortedFailure(budgetMs) {
   return {
     ok: false,
+    // Nothing was read, and there is no response to say why: the clock fires with the stream
+    // still open. The advert may well be one an ordinary fetch returns in seconds, so the
+    // caller is told the page went unread rather than left to infer it from the sentence.
+    unread: true,
     reason: `That one took too long – I stopped it after ${Math.round(budgetMs / 60_000)} minutes rather than let it keep billing.`,
   };
 }
@@ -129,7 +138,9 @@ function createIngest({
   tokenBudget = TOKEN_BUDGET,
   sleep,
 }) {
-  async function ingest(submission) {
+  // `deadline` is an instant, not a duration, so a caller that reads the same advert twice
+  // spends one budget across both reads rather than one each.
+  async function ingest(submission, { deadline = Date.now() + timeBudgetMs } = {}) {
     // Before the call, so a caller that forgot costs nothing. There is no clock reading to
     // fall back on: substituting one here would file a retrieval that never happened, and
     // the shell that received the text is the only thing that knows when it arrived.
@@ -147,7 +158,6 @@ function createIngest({
     const identity = submission.kind === 'paste' ? submissionIdentity(submission) : submission.url;
 
     const messages = [...request.messages];
-    const deadline = Date.now() + timeBudgetMs;
     let billedTokens = 0;
     let result;
     // Kept for the failure path: why a page could not be read is in the response, not the record.
@@ -194,6 +204,7 @@ function createIngest({
       if (billedTokens >= tokenBudget) {
         return {
           ok: false,
+          unread: true,
           reason: `That one used more than ${(tokenBudget / 1e6).toFixed(1)}M tokens without finishing, so I stopped it.`,
         };
       }
@@ -206,6 +217,7 @@ function createIngest({
     if (result.status === 'paused') {
       return {
         ok: false,
+        unread: true,
         reason: `The model kept pausing after ${MAX_RESUMES} resumes; the record was never finished.`,
       };
     }
@@ -215,7 +227,7 @@ function createIngest({
       // 'research_topics more than once' tells nobody what to do next.
       const refused = fetchErrors(lastResponse);
       return refused.length > 0
-        ? { ok: false, reason: unreadableReason(lastResponse), refusedFetches: refused }
+        ? { ok: false, reason: unreadableReason(lastResponse), unread: true }
         : { ok: false, reason: result.reason };
     }
 
@@ -230,12 +242,14 @@ function createIngest({
     // a success, which is the trap: presenting it as a finished opportunity with every field
     // unknown is worse than saying so.
     if (!readEverything(candidate)) {
-      // The refused addresses travel alongside the sentence: a caller that can fetch the page
-      // itself needs the fact, and matching the prose would break every time it improved.
-      const refused = fetchErrors(lastResponse);
-      return refused.length > 0
-        ? { ok: false, reason: unreadableReason(lastResponse), refusedFetches: refused }
-        : { ok: false, reason: unreadableReason(lastResponse) };
+      // `unread` travels alongside the sentence: a caller that can fetch the page itself
+      // needs the fact, and matching the prose would break every time it improved.
+      //
+      // Withheld when nothing was refused. Those fetches returned, so the model already had
+      // the bytes and read nothing in them – fetching the same page again would buy a second
+      // bill for the same silence. A refusal is the opposite case: nobody ever looked.
+      const reason = unreadableReason(lastResponse);
+      return fetchErrors(lastResponse).length > 0 ? { ok: false, reason, unread: true } : { ok: false, reason };
     }
 
     // Deterministic validation. Structured outputs guarantee the shape; this enforces the

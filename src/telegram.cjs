@@ -13,6 +13,30 @@ const { withRetry } = require('./retry.cjs');
 const TELEGRAM_API = 'https://api.telegram.org';
 const MAX_MESSAGE_LENGTH = 4096;
 
+// Measured on the Render worker over five days: Telegram went unreachable for stretches of
+// well over a minute, several times a week. Writes were using the shared default, which is
+// sized for a call that failed rather than for a service that is away, and it never had a
+// chance against one of those. What it discarded was the approval card an ingest had just
+// been billed for, followed by the alert saying so.
+//
+// So a send is bounded by a clock rather than by a count. The budget is the whole answer to
+// "how long may this block", which matters because pollUpdates awaits the acknowledgement:
+// whatever a send may occupy, the bot may stop reading for. Attempts remain only as a
+// backstop against a failure that returns instantly forever.
+const SEND_BUDGET_MS = 150_000;
+const SEND_ATTEMPTS = 12;
+const SEND_BASE_DELAY_MS = 1000;
+const SEND_MAX_DELAY_MS = 30_000;
+
+// A write is a few kilobytes of JSON. The old ninety seconds was never chosen for it; it was
+// chosen for nothing in particular, and it multiplied.
+const SEND_TIMEOUT_MS = 20_000;
+
+// A callback query expires in seconds, after which Telegram answers 400 for good. Retrying
+// it past that spends the send budget to buy a refusal – and the press it belongs to is
+// already being handled, because bot.cjs no longer sequences the work behind this ack.
+const CALLBACK_BUDGET_MS = 5_000;
+
 // Worth retrying: the connection failed, or Telegram had a bad minute. Not worth retrying:
 // Telegram understood and said no. "Bot was blocked by the user" answers the same way every
 // time, and waiting between identical refusals only delays whatever is queued behind it.
@@ -24,8 +48,15 @@ function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_AP
   // Every write goes through this. Reads already recovered - pollUpdates has backed off and
   // retried since the beginning - while a failed send simply threw, which is how an approval
   // card that cost a model call to produce was lost to one bad moment on the network.
-  async function call(method, body, { timeoutMs = 90000 } = {}) {
-    return withRetry(() => attempt(method, body, timeoutMs), { isTransient: isTransientSendFailure, sleep });
+  async function call(method, body, { timeoutMs = SEND_TIMEOUT_MS, budgetMs = SEND_BUDGET_MS } = {}) {
+    return withRetry(() => attempt(method, body, timeoutMs), {
+      isTransient: isTransientSendFailure,
+      attempts: SEND_ATTEMPTS,
+      baseDelayMs: SEND_BASE_DELAY_MS,
+      maxDelayMs: SEND_MAX_DELAY_MS,
+      budgetMs,
+      sleep,
+    });
   }
 
   async function attempt(method, body, timeoutMs) {
@@ -88,10 +119,14 @@ function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_AP
       return call('editMessageReplyMarkup', { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } });
     },
 
-    // Stops the spinner on a pressed button. Telegram wants this within seconds, so it is
-    // sent before any of the work the press implies.
+    // Stops the spinner on a pressed button. Telegram wants this within seconds and the
+    // query id expires, so this one gets a budget it cannot usefully outlive.
     async answerCallbackQuery(callbackQueryId, text) {
-      return call('answerCallbackQuery', { callback_query_id: callbackQueryId, text });
+      return call(
+        'answerCallbackQuery',
+        { callback_query_id: callbackQueryId, text },
+        { budgetMs: CALLBACK_BUDGET_MS }
+      );
     },
 
     // Straight to `attempt`, deliberately: pollUpdates owns the retry policy for reads and
@@ -167,4 +202,4 @@ async function pollUpdates(
   }
 }
 
-module.exports = { createTelegram, pollUpdates, MAX_MESSAGE_LENGTH };
+module.exports = { createTelegram, pollUpdates, MAX_MESSAGE_LENGTH, SEND_BUDGET_MS, SEND_TIMEOUT_MS, CALLBACK_BUDGET_MS };

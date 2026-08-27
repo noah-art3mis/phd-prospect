@@ -143,6 +143,10 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
     anyByCanonicalUrl: db.prepare('SELECT * FROM opportunity WHERE canonical_url = ? LIMIT 1'),
     confirm: db.prepare('UPDATE opportunity SET confirmed = 1, updated_at = ? WHERE id = ?'),
     remove: db.prepare('DELETE FROM opportunity WHERE id = ?'),
+    // The `confirmed = 0` belongs in the statement, not in a check beside it. Whoever calls
+    // this is undoing a row that was never presentable, and between their read and their
+    // write the user can have approved it – the window is however long a send takes to fail.
+    removeUnconfirmed: db.prepare('DELETE FROM opportunity WHERE id = ? AND confirmed = 0'),
     setReminders: db.prepare('UPDATE opportunity SET reminders_sent = ?, updated_at = ? WHERE id = ?'),
     listConfirmed: db.prepare(`
       SELECT * FROM opportunity WHERE confirmed = 1
@@ -218,6 +222,13 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
     // call again – accepted as a simplification.
     deleteOpportunity(id) {
       statements.remove.run(id);
+    },
+
+    // Undo a candidate that never reached anybody, leaving an approved row alone. A card can
+    // be delivered and pressed while the send that carried it is still retrying, so "the row
+    // I just inserted" and "a row nobody has approved" stop being the same row.
+    deleteUnconfirmed(id) {
+      statements.removeUnconfirmed.run(id);
     },
 
     updateOpportunity(id, changes) {

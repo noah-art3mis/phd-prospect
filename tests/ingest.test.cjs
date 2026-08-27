@@ -730,22 +730,52 @@ test('a paste with no retrieval instant is a programming error, not a silent def
   );
 });
 
-test('a refused-fetch failure carries the addresses, so a caller can retry them', async () => {
+test('a refused-fetch failure says the advert went unread, so a caller can fetch it', async () => {
   // The reason is prose for a person. A caller deciding whether to fetch the page itself
   // needs the fact, not the sentence – matching on wording would break the moment the
   // wording improved, and it has already changed twice.
   const result = await ingestWith(fakeAnthropic([fixture('fetch_blocked_linkedin')]))(SUBMISSION);
 
   assert.equal(result.ok, false);
-  assert.ok(Array.isArray(result.refusedFetches));
-  assert.match(result.refusedFetches[0].url, /linkedin\.com/);
-  assert.equal(result.refusedFetches[0].code, 'url_not_allowed');
+  assert.equal(result.unread, true);
 });
 
-test('a failure that had nothing to do with fetching carries no addresses', async () => {
-  const result = await ingestWith(fakeAnthropic([fixture('max_tokens')]))(SUBMISSION);
+test('an ingest that ran out of time says the advert went unread', async () => {
+  // Live, 17 Aug: a LinkedIn advert burned the whole ten-minute budget and reported nothing.
+  // There is no response to read when the clock fires, so nothing can name a refused fetch -
+  // and yet an ordinary fetch of that same address returns the advert. The failure has to
+  // carry the fact, or the one rescue the app can perform is unreachable from here.
+  const anthropic = fakeAnthropic([fixture('pause_turn')], { delayMs: 30 });
+  const result = await ingestWith(anthropic, () => {}, { timeBudgetMs: 10 })(SUBMISSION);
+
   assert.equal(result.ok, false);
-  assert.equal(result.refusedFetches, undefined);
+  assert.equal(result.unread, true);
+});
+
+test('an ingest stopped at the token ceiling says the advert went unread', async () => {
+  const heavy = structuredClone(fixture('pause_turn'));
+  heavy.usage = { input_tokens: 600_000, output_tokens: 1000 };
+  const result = await ingestWith(fakeAnthropic([heavy]), () => {}, { tokenBudget: 1_000_000 })(SUBMISSION);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.unread, true);
+});
+
+test('an ingest that kept pausing says the advert went unread', async () => {
+  const result = await ingestWith(fakeAnthropic([fixture('pause_turn')]))(SUBMISSION);
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /pausing/i);
+  assert.equal(result.unread, true);
+});
+
+test('a failure the app cannot do anything about is not marked unread', async () => {
+  // The model read the page and cut its answer short. Fetching the same page again would
+  // buy a second bill for a failure that had nothing to do with reaching it.
+  const result = await ingestWith(fakeAnthropic([fixture('max_tokens')]))(SUBMISSION);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.unread, undefined);
 });
 
 // --- retrying the model call ------------------------------------------------------------
@@ -836,4 +866,15 @@ test('a bad request is not retried – it will be refused identically', async ()
 
   await assert.rejects(ingestWith(anthropic, () => {}, { sleep: async () => {} })(SUBMISSION), /schema too large/);
   assert.equal(calls, 1);
+});
+
+test('an ingest honours a deadline the caller had already started', async () => {
+  // The rescue re-reads the same advert. Handed a fresh clock it would double what one
+  // submission can cost, which is the whole subject of docs/findings-live-ingest.md.
+  const anthropic = fakeAnthropic([fixture('complete')]);
+  const result = await ingestWith(anthropic)(SUBMISSION, { deadline: Date.now() - 1 });
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /too long/i);
+  assert.equal(anthropic.requests.length, 0, 'a call was made on a budget already spent');
 });
