@@ -59,6 +59,23 @@ async function retryFromPage({ submission, failure, ingest, fetchPage, now, dead
   );
 }
 
+// One read of an advert, rescue included: the model reads it, and if that left the advert
+// unread the app fetches the page itself and reads it again on the same clock.
+//
+// Exported because tools/ingest-url.cjs is the shakedown path and has to exercise what the
+// bot exercises. It used to call `ingest` directly, which meant the one rescue the app can
+// perform was invisible to the tool people reach for when a page will not read.
+async function readAdvert({ submission, ingest, fetchPage, now, deadline = Date.now() + TIME_BUDGET_MS }) {
+  const result = await ingest(submission, { deadline });
+
+  // An advert that went unread is the one failure the app can do something about itself.
+  // Asked as "did the response report a refused fetch", the question was unanswerable for
+  // the failures that cost the most – a run the clock cut short has no response at all – so
+  // the ingest states the fact instead and this reads it.
+  if (result.ok || !result.unread || !submission.url) return result;
+  return retryFromPage({ submission, failure: result, ingest, fetchPage, now, deadline });
+}
+
 function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage, now }) {
   // Adverts being read right now. The database cannot answer this: a submission produces no
   // row until its call comes back, so two links arriving together both look new and both get
@@ -117,17 +134,7 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fe
     // The token ceiling is not shared, and is not bounded across the two reads. It lands
     // only at a resume boundary and a paste has no page for the loop to grow on, so the
     // clock is what does the work here; saying so beats implying otherwise by silence.
-    const deadline = Date.now() + TIME_BUDGET_MS;
-
-    let result = await ingest(submission, { deadline });
-
-    // An advert that went unread is the one failure the app can do something about itself.
-    // Asked as "did the response report a refused fetch", the question was unanswerable for
-    // the failures that cost the most – a run the clock cut short has no response at all –
-    // so the ingest states the fact instead and this reads it.
-    if (!result.ok && result.unread && submission.url) {
-      result = await retryFromPage({ submission, failure: result, ingest, fetchPage, now, deadline });
-    }
+    const result = await readAdvert({ submission, ingest, fetchPage, now });
 
     if (!result.ok) {
       // Thrown so the alert path reports it – a failed ingest must never be silent, because
@@ -284,6 +291,7 @@ function scheduleJobs({ config, store, telegram, onError, signal }) {
 
 module.exports = {
   createApp,
+  readAdvert,
   createSubmissionHandler,
   scheduleJobs,
   run,
