@@ -11,7 +11,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { openStore } = require('../src/store.cjs');
-const { createApp } = require('../src/app.cjs');
+const { createApp, createSubmissionHandler } = require('../src/app.cjs');
 const { loadPrompt } = require('../src/core/prompt.cjs');
 
 const PROMPT = loadPrompt(path.join(__dirname, '..', 'prompts', 'ingest.prompt'));
@@ -431,4 +431,66 @@ test('a failed ingest does not block the link from being tried again', async () 
 
     assert.equal(anthropic.requests.length, 2, 'the retry after a failure was refused');
   });
+});
+
+// --- the rescue the expensive failures could not reach ------------------------------------
+//
+// Live, 17 Aug: a LinkedIn advert burned the whole ten-minute budget and came back as
+// "that one took too long". The fallback that would have saved it was gated on the response
+// reporting a refused fetch - and a run the clock cut short has no response to report one.
+// The three failures that cost the most were the three that skipped the rescue.
+
+test('an ingest that ran out of time is retried from the page the app fetches itself', async () => {
+  const fetched = [];
+  const seen = [];
+  const presented = [];
+
+  const handle = createSubmissionHandler({
+    store: { findByUrl: () => null },
+    telegram: { async sendMessage() {} },
+    ingest: async (submission) => {
+      seen.push(submission);
+      if (submission.kind === 'paste') return { ok: true, candidate: { title: 'Read on the second try' } };
+      return { ok: false, unread: true, reason: 'That one took too long - I stopped it after 10 minutes.' };
+    },
+    approval: { present: async (candidate) => presented.push(candidate) },
+    chatId: ME,
+    fetchPage: async (url) => {
+      fetched.push(url);
+      return { ok: true, text: 'PhD position in misinformation research.', url };
+    },
+    now: () => new Date('2026-08-17T12:00:00Z'),
+  });
+
+  await handle({ kind: 'url', url: 'https://www.linkedin.com/posts/roozenbeek/' });
+
+  assert.deepEqual(fetched, ['https://www.linkedin.com/posts/roozenbeek/'], 'the app never went to read it itself');
+  assert.equal(seen.length, 2, 'the fallback ingest did not run');
+  assert.equal(seen[1].kind, 'paste');
+  assert.deepEqual(presented, [{ title: 'Read on the second try' }], 'the rescued record was never presented');
+});
+
+test('a failure the app cannot do anything about is reported without a second fetch', async () => {
+  const fetched = [];
+  let calls = 0;
+
+  const handle = createSubmissionHandler({
+    store: { findByUrl: () => null },
+    telegram: { async sendMessage() {} },
+    ingest: async () => {
+      calls += 1;
+      return { ok: false, reason: 'The record did not pass validation: deadline has no evidence.' };
+    },
+    approval: { present: async () => assert.fail('nothing should have been presented') },
+    chatId: ME,
+    fetchPage: async (url) => {
+      fetched.push(url);
+      return { ok: true, text: 'irrelevant', url };
+    },
+    now: () => new Date('2026-08-17T12:00:00Z'),
+  });
+
+  await assert.rejects(() => handle({ kind: 'url', url: 'https://uni.example/phd' }), /did not pass validation/);
+  assert.deepEqual(fetched, [], 'a fetch was paid for on a failure that had nothing to do with reading the page');
+  assert.equal(calls, 1);
 });

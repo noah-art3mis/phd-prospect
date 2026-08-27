@@ -106,8 +106,11 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fe
 
     let result = await ingest(submission);
 
-    // A refused fetch is the one failure the app can do something about itself.
-    if (!result.ok && result.refusedFetches?.length > 0 && submission.url) {
+    // An advert that went unread is the one failure the app can do something about itself.
+    // Asked as "did the response report a refused fetch", the question was unanswerable for
+    // the failures that cost the most - a run the clock cut short has no response at all -
+    // so the ingest states the fact instead and this reads it.
+    if (!result.ok && result.unread && submission.url) {
       result = await retryFromPage({ submission, failure: result, ingest, fetchPage, now });
     }
 

@@ -50,6 +50,10 @@ function isOverloaded(error) {
 function abortedFailure(budgetMs) {
   return {
     ok: false,
+    // Nothing was read, and there is no response to say why: the clock fires with the stream
+    // still open. The advert may well be one an ordinary fetch returns in seconds, so the
+    // caller is told the page went unread rather than left to infer it from the sentence.
+    unread: true,
     reason: `That one took too long – I stopped it after ${Math.round(budgetMs / 60_000)} minutes rather than let it keep billing.`,
   };
 }
@@ -194,6 +198,7 @@ function createIngest({
       if (billedTokens >= tokenBudget) {
         return {
           ok: false,
+          unread: true,
           reason: `That one used more than ${(tokenBudget / 1e6).toFixed(1)}M tokens without finishing, so I stopped it.`,
         };
       }
@@ -206,6 +211,7 @@ function createIngest({
     if (result.status === 'paused') {
       return {
         ok: false,
+        unread: true,
         reason: `The model kept pausing after ${MAX_RESUMES} resumes; the record was never finished.`,
       };
     }
@@ -215,7 +221,7 @@ function createIngest({
       // 'research_topics more than once' tells nobody what to do next.
       const refused = fetchErrors(lastResponse);
       return refused.length > 0
-        ? { ok: false, reason: unreadableReason(lastResponse), refusedFetches: refused }
+        ? { ok: false, reason: unreadableReason(lastResponse), unread: true }
         : { ok: false, reason: result.reason };
     }
 
@@ -230,11 +236,11 @@ function createIngest({
     // a success, which is the trap: presenting it as a finished opportunity with every field
     // unknown is worse than saying so.
     if (!readEverything(candidate)) {
-      // The refused addresses travel alongside the sentence: a caller that can fetch the page
-      // itself needs the fact, and matching the prose would break every time it improved.
+      // `unread` travels alongside the sentence: a caller that can fetch the page itself
+      // needs the fact, and matching the prose would break every time it improved.
       const refused = fetchErrors(lastResponse);
       return refused.length > 0
-        ? { ok: false, reason: unreadableReason(lastResponse), refusedFetches: refused }
+        ? { ok: false, reason: unreadableReason(lastResponse), unread: true }
         : { ok: false, reason: unreadableReason(lastResponse) };
     }
 
