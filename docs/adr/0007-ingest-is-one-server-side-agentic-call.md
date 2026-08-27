@@ -42,4 +42,14 @@ That is a narrower thing than ADR-0004's fetch service, which was rejected for p
 
 - The `unread` marker on ingest failures, and the fallback it gates, now apply only to pasted text carrying the address it came from. A URL submission is read by the app first, so there is nothing left to rescue it with.
 - Research bounds are 3 searches and 5 fetches. The fetch cap came down from 8 because the submitted advert no longer spends one, and because the cap bounds iterations rather than pages – the worst run on record spent eight fetches and 461,000 input tokens to report that it could not read the page.
-- Pages our fetcher cannot reach but `web_fetch` can are still reachable: the address is handed over when our own fetch fails.
+- Pages our fetcher cannot reach but `web_fetch` can are still reachable: the address is handed over when our own fetch fails – except where the app chose the address itself, for which see the amendment below.
+
+## Amendment, 2026-08-27: the address read is not always the address submitted
+
+Some pages are a program rather than a document. A Google Doc serves its own menu bar and draws the document with script, so what our fetcher reads is 169 characters of interface; the same document asked for as plain text is some five thousand characters of advert, deadline included. Record #10 was tracked with no deadline for exactly this reason, one day before it closed.
+
+So the app now rewrites a submitted address to the address its text lives at, from a fixed table in `src/core/readable-url.cjs`. The record is still filed and cited under what the user sent.
+
+This does not widen the SSRF surface argued about above. The rewritten address is a pure function of an address the operator typed, decided before any model has read anything, and it goes through the same guard on the same hops. What the model chooses is still fetched on Anthropic's infrastructure. What is new is only that the operator's address and the address we connect to may differ, and both are ours to know in advance.
+
+It does add one exception to the fallback, and the exception is narrow twice over. A refusal at an address the app picked is final only where the table row says so – the Google Docs row does, because that document's own page is an interface drawn by script and `web_fetch` runs no more of it than we do; a row that claims nothing falls through as before, since a site answering 403 to anything but a browser is one `web_fetch` may well read. And the verdict is reached only on a URL submission. On a paste, going to the live address is a rescue, and a rescue never speaks over the failure it came to rescue: telling someone who has just pasted the text to open the page and send the text is the exception applied wider than this reasoning reaches. A status that might not last (a 5xx, a 429) is never a refusal.

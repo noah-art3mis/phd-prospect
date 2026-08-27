@@ -22,6 +22,7 @@ const { runBackup } = require('./jobs/backup.cjs');
 const { runWeeklyDigest } = require('./jobs/digest.cjs');
 const { createTraceWriter } = require('./trace.cjs');
 const { fetchPage: fetchPageDefault } = require('./fetch-page.cjs');
+const { readableUrl, refusedReason } = require('./core/readable-url.cjs');
 
 const INGEST_PROMPT = path.join(__dirname, '..', 'prompts', 'ingest.prompt');
 
@@ -34,6 +35,21 @@ const DIGEST_WEEKDAY = 0; // Sunday
 // Telegram's own bot API caps downloads at 20 MB, so this is the binding limit either way –
 // stated here so the failure names a number rather than surfacing as a request error.
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
+
+// The page, handed to the model as text.
+//
+// Filed as a paste carrying the address the user sent, never the one that was fetched: the
+// two differ whenever the table chose a different address, and a record filed under ours
+// would key a row nothing later looks up.
+//
+// Read by the app, so the instant is ours to state. The model quotes the text and cannot
+// know when it was fetched; every excerpt from it is stamped with this.
+function readPage({ submission, page, ingest, now, deadline }) {
+  return ingest(
+    { kind: 'paste', url: submission.url, text: page.text, retrievedAt: now().toISOString(), readByApp: true },
+    { deadline }
+  );
+}
 
 // Our address, our fetch.
 //
@@ -52,29 +68,30 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;
 // page saying "now fetch the metadata service" would be obeyed. What runs here is one fetch
 // of one address the operator typed. The guard is in src/core/page-text.cjs, checked against
 // the address as written and again against every IP it resolves to.
-async function readFromPage({ submission, ingest, fetchPage, now, deadline }) {
-  const page = await fetchPage(submission.url);
-  // Not the end of the road: web_fetch reaches some pages this cannot, so a caller is left
-  // free to hand the address to the model instead.
-  if (!page.ok) return null;
-  // Read here, so the instant is ours to state. The model quotes the text and cannot know
-  // when it was fetched; every excerpt from it is stamped with this.
-  return ingest(
-    { kind: 'paste', url: submission.url, text: page.text, retrievedAt: now().toISOString(), readByApp: true },
-    { deadline }
-  );
-}
-
 // One read of an advert. Exported because tools/ingest-url.cjs is the shakedown path and has
 // to exercise what the bot exercises; it used to call `ingest` directly, which left the whole
 // of this invisible to the tool people reach for when a page will not read.
 async function readAdvert({ submission, ingest, fetchPage, now, deadline = Date.now() + TIME_BUDGET_MS }) {
   if (submission.kind === 'url') {
-    const read = await readFromPage({ submission, ingest, fetchPage, now, deadline });
-    // `read.unread`, not `page.ok`: fetching the page only ever meant bytes arrived, and a
-    // sign-in wall or a consent page is a 200 with real text in it. What decides whether the
-    // address is still worth handing over is whether an advert came out the other end.
-    if (read && !read.unread) return read;
+    // Where the advert's text is, which is not always where the user found it. A Google Doc
+    // serves its menu bar and draws the document with script nothing here runs; the same
+    // document asked for as plain text is the whole of it. The table is in core/readable-url.
+    const readable = readableUrl(submission.url);
+    const page = await fetchPage(readable?.url ?? submission.url);
+
+    if (page.ok) {
+      const read = await readPage({ submission, page, ingest, now, deadline });
+      // `read.unread`, not `page.ok`: fetching the page only ever meant bytes arrived, and a
+      // sign-in wall or a consent page is a 200 with real text in it. What decides whether
+      // the address is still worth handing over is whether an advert came out the other end.
+      if (!read.unread) return read;
+    } else if (readable) {
+      // A refusal at an address this app chose, rather than one the user typed. Where the
+      // row says that is the end of the road, it is the answer and not a reason to look on.
+      const refused = refusedReason(readable, page.status);
+      if (refused) return { ok: false, reason: refused };
+    }
+
     // Either we could not fetch it, or what we fetched was not the advert. web_fetch reaches
     // some pages we cannot, and reads some we can fetch but cannot make sense of.
     return ingest(submission, { deadline });
@@ -85,7 +102,13 @@ async function readAdvert({ submission, ingest, fetchPage, now, deadline = Date.
   // yet be rescued by reading that address live.
   const result = await ingest(submission, { deadline });
   if (result.ok || !result.unread || !submission.url) return result;
-  return (await readFromPage({ submission, ingest, fetchPage, now, deadline })) ?? result;
+
+  // A rescue, and a rescue never speaks over the failure it came to rescue: when the live
+  // address will not open, the paste's own answer is the one the user needs to hear. So no
+  // verdict is reached here, and none can be – the refusal above is built in the branch
+  // entitled to it, which is the one where the address is all there ever was.
+  const page = await fetchPage(readableUrl(submission.url)?.url ?? submission.url);
+  return page.ok ? readPage({ submission, page, ingest, now, deadline }) : result;
 }
 
 function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fetchPage, now }) {

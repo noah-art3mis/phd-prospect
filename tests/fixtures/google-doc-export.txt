@@ -1,0 +1,102 @@
+﻿Recrutamento para um novo projecto
+Vamos iniciar um novo projeto 
+com a Fundação Rui Osório de Castro!
+Tens interesse em estar envolvido(a)?
+  
+
+
+
+
+
+Recrutamento para um novo projecto DSSG com um Beneficiário
+
+Antes de mais, queremos partilhar que todo o trabalho desenvolvido pela DSSG PT é feito a título voluntário e por isso não existe nenhuma remuneração associada às vagas apresentadas. No entanto, pretendemos que esta seja uma experiência enriquecedora para ti e faremos tudo ao nosso alcance para que assim seja.
+
+
+Procuramos voluntários entusiastas que acreditam no poder dos dados como força impulsionadora de transformação social positiva e que estejam dispostos a dedicar parte do seu tempo em prol da nossa missão.
+
+🧭 Quem é o Beneficiário?
+
+
+
+
+O Beneficiário é a Fundação Rui Osório de Castro (FROC) que tem como missão apoiar e proteger as crianças com cancro e seus familiares. A FROC concentra a sua actividade em duas grandes áreas: INFORMAR, esclarecendo os pais e as crianças sobre questões relacionadas com o cancro infantil e PROMOVER a INVESTIGAÇÃO contribuindo assim para o avanço da medicina nesta área. Para mais informações, ver aqui.
+
+
+🤕 Quais os seus desafios atuais?
+Problema: atualmente, a FROC utiliza diversos ficheiros dispersos para gerir informações sobre doadores, participantes em eventos, subscritores da newsletter, entre outros. Este sistema fragmentado obriga a um trabalho manual significativo para cruzar dados entre ficheiros, sumarizá-los e dificulta a obtenção de respostas a questões operacionais importantes.
+
+
+Objectivo geral: desenvolver e implementar uma base de dados centralizada que permita à FROC integrar e gerir de forma eficiente a informação proveniente das suas várias actividades, melhorando a comunicação, a análise de dados e a tomada de decisões estratégicas.
+
+
+📊 Que dados estão disponíveis? 
+
+
+Neste momento os dados estão dispersos em vários ficheiros excel e incluem:
+1. Donativos e respectiva informação;.
+2. Ficheiro de subscritores da newsletter (mailchimp);
+3. Inscrições e avaliação dos seminários / webinars.
+Outros possíveis dados disponíveis::
+* dados do site institucional e do portal PIPOP;
+* dados do youtube;
+* dados das compras em loja;
+
+
+🧐De quem estamos à procura?
+
+
+Estamos a recrutar 4-5 voluntários para este novo projecto, com os seguintes perfis:
+
+
+Perfil 1: Project Lead / Project Manager
+* Voluntário preferencialmente com experiência em liderar e gerir projetos, incluindo a orientar e apoiar equipas.
+* Alguém com conhecimento técnico alinhado com um dos perfis seguintes, para facilitar a orientação da equipa e permitir uma distribuição eficiente do esforço.
+* Capaz de compreender as necessidades do beneficiário e com espírito crítico para redefinir o scope do projeto, se necessário.
+
+
+Perfil 2: Data Engineer (2x)
+* Capacidade para entender as necessidades do beneficiário e da comunidade a que este pretende chegar.
+* Experiência em criação e manutenção de bases de dados, uso de APIs e transformação de dados.
+* Experiência de trabalhar em Excel ou outra ferramenta para utilizadores sem conhecimentos técnicos e fácil de manter.
+
+
+Perfil 3: Data Analyst (2x)
+* Capacidade para entender as necessidades do beneficiário e da comunidade a que este pretende chegar.
+* Interesse e experiência em explorar novas formas de apresentar os dados recolhidos, tornando as análises mais intuitivas e úteis.
+* Experiência em limpeza, processamento e visualização de dados.  
+
+
+Perfil 4: Outra/Candidatura Espontânea
+* Se achas que és a pessoa certa para trabalhar neste projecto mas o teu perfil não se encaixa em nenhum dos perfis acima.
+
+
+💻Formato & Compromisso
+
+
+* Sessões de trabalho colaborativas recorrentes.
+* Esclarecimento de dúvidas das partes interessadas no projeto.
+* Perceber a atividade do beneficiário e as necessidades da organização no processo de resolução do problema.
+* Perceber a qualidade e estrutura de dados na base da geração da solução.
+* Propor soluções de melhoria alinhadas com as necessidades do beneficiário.
+* Ter responsabilidade pelo cumprimento dos objetivos definidos em conjunto na colaboração com o beneficiário.
+* Garantir uma comunicação recorrente com o beneficiário para acompanhamento de expectativas, gestão de riscos e pontos de situação.
+
+
+📅Quais os prazos do projeto?
+* 5-6 meses: prevê-se o começo do projecto em Setembro de 2026.
+* Estimamos que os voluntários dediquem 3-4 horas semanais ao projecto.
+
+✍ Como te podes candidatar?
+* Submete a tua candidatura a partir deste formulário explicando porque estás interessado e como achas que podes ser uma mais valia para a equipa. 
+* O período de candidaturas vai estar aberto até 28 de Agosto.
+
+
+📍Onde vai decorrer?
+
+
+Para este projeto, não temos quaisquer restrições em relação à localização. O trabalho vai ser realizado remotamente, sendo que há a possibilidade de se reunir com o Beneficiário em pessoa na zona de Lisboa. Os voluntários deverão ser capazes de se comunicar em português. 
+
+
+🤔 Questões? 
+Se tiveres alguma questão que não esteja clara envia-nos uma mensagem por email para volunteers@dssg.pt.

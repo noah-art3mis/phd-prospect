@@ -224,3 +224,39 @@ test('a malformed redirect target is reported, not thrown', async () => {
   const result = await fetchPage('https://advert.example/phd', { fetch, resolve: resolves('8.8.8.8') });
   assert.equal(result.ok, false);
 });
+
+test('a page that answered with a status hands the status on, not only the sentence', async () => {
+  // Whether a refusal is worth trying somewhere else is the caller's decision, and 403 and
+  // 503 are different answers to it. Recovering the number by matching the prose is how the
+  // sentence stops being free to improve.
+  const { fetch } = stub({ status: 403 });
+  const result = await fetchPage('https://docs.google.com/document/d/abc/export?format=txt', {
+    fetch,
+    resolve: resolves('8.8.8.8'),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 403);
+  assert.match(result.reason, /403/);
+});
+
+test('what a body is turned into is decided by what the server said it is', async () => {
+  // The Google Doc export answers text/plain, and this is the one submission type the
+  // rewrite exists to serve. Run through the markup stripper, every run from a `<` to the
+  // next `>` goes as if it were a tag – so an eligibility bound takes the deadline three
+  // lines below it, and the record comes back looking merely incomplete.
+  const body = [
+    'Elegibilidade: idade < 30 anos.',
+    'O período de candidaturas vai estar aberto até 28 de Agosto.',
+    'Bolsa mensal > 1.200 EUR.',
+  ].join('\n\n');
+  const { fetch } = stub({ body, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+
+  const result = await fetchPage('https://docs.google.com/document/d/abc/export?format=txt', {
+    fetch,
+    resolve: resolves('8.8.8.8'),
+  });
+
+  assert.match(result.text, /28 de Agosto/, 'the deadline was stripped as if it were a tag');
+  assert.match(result.text, /idade < 30 anos/);
+});

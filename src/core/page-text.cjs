@@ -97,11 +97,36 @@ function decodeEntities(text) {
     .replace(/&(\w+);/g, (match, name) => ENTITIES[name.toLowerCase()] ?? match);
 }
 
+// Whitespace, and the cap that is the cost control. Shared, because how a body is turned
+// into text depends on what the body is; how much of it we are willing to pay for does not.
+//
+// A LinkedIn post is 170 KB of page for two paragraphs of advert, and every character of it
+// would otherwise be billed as input.
+function normalize(text, maxChars) {
+  const collapsed = text
+    // First, because everything below it is written in terms of `\n`. A CRLF body – which is
+    // what Google exports – walks straight through the blank-line collapse otherwise, since
+    // `\n{3,}` cannot match across a `\r`, and pays for the carriage returns as well.
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t\u00a0]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return collapsed.length > maxChars ? collapsed.slice(0, maxChars).trimEnd() : collapsed;
+}
+
+// A body that is already prose. Nothing is stripped and nothing is decoded, because there is
+// no markup here to strip: in an advert `<` is a bound and `&` is an ampersand somebody
+// typed. Run such a body through pageText and every stretch from a `<` to the next `>` goes
+// as if it were a tag – which is how "idade < 30 anos" takes the deadline three lines below
+// it, and leaves a record that looks merely incomplete.
+function plainText(body, { maxChars = 20_000 } = {}) {
+  return normalize(String(body ?? ''), maxChars);
+}
+
 // Markup to prose. Not a parser and not trying to be: what the model needs is the words, and
 // what it must not be charged for is the scripts, the styles, and the tag soup around them.
-//
-// The cap is the cost control. A LinkedIn post is 170 KB of page for two paragraphs of
-// advert, and every character of it would otherwise be billed as input.
 function pageText(html, { maxChars = 20_000 } = {}) {
   const stripped = String(html ?? '')
     .replace(/<!--[\s\S]*?-->/g, '')
@@ -112,13 +137,7 @@ function pageText(html, { maxChars = 20_000 } = {}) {
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, ' ');
 
-  const text = decodeEntities(stripped)
-    .replace(/[ \t ]+/g, ' ')
-    .replace(/ *\n */g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-
-  return text.length > maxChars ? text.slice(0, maxChars).trimEnd() : text;
+  return normalize(decodeEntities(stripped), maxChars);
 }
 
-module.exports = { isFetchableUrl, isPrivateAddress, isIpLiteral, pageText };
+module.exports = { isFetchableUrl, isPrivateAddress, isIpLiteral, pageText, plainText };

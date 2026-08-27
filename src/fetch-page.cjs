@@ -18,7 +18,7 @@
 
 const dns = require('node:dns/promises');
 
-const { isFetchableUrl, isPrivateAddress, isIpLiteral, pageText } = require('./core/page-text.cjs');
+const { isFetchableUrl, isPrivateAddress, isIpLiteral, pageText, plainText } = require('./core/page-text.cjs');
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_PAGE_BYTES = 5 * 1024 * 1024;
@@ -29,7 +29,10 @@ const MAX_REDIRECTS = 5;
 const BROWSER_UA =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-const failed = (reason) => ({ ok: false, reason, redirect: 'manual' });
+// One shape, whether or not there was a status. A caller deciding whether a refusal is worth
+// trying somewhere else needs the number, and recovering it by matching the prose is how the
+// sentence stops being free to improve.
+const failed = (reason, status) => ({ ok: false, reason, status, redirect: 'manual' });
 
 // Every address behind a hostname, not just the first: a name that answers with one public
 // and one private address would otherwise pass on a coin flip.
@@ -91,7 +94,7 @@ async function fetchPage(url, { fetch = globalThis.fetch, resolve = (h) => dns.l
       continue;
     }
 
-    if (!response.ok) return failed(`that page answered ${response.status}.`);
+    if (!response.ok) return failed(`that page answered ${response.status}.`, response.status);
 
     const type = response.headers.get('content-type') ?? '';
     if (type && !/html|text\/plain/i.test(type)) {
@@ -104,7 +107,11 @@ async function fetchPage(url, { fetch = globalThis.fetch, resolve = (h) => dns.l
     const body = await response.text();
     if (body.length > MAX_PAGE_BYTES) return failed('that page is too large to read.');
 
-    const text = pageText(body);
+    // What a body is turned into is decided by what the server said it is. The type is
+    // known ten lines up and used to be dropped after the check there, leaving the
+    // extraction to assume markup – which is wrong for every plain-text document, and this
+    // app now asks for documents as plain text on purpose.
+    const text = /text\/plain/i.test(type) ? plainText(body) : pageText(body);
     if (!text) return failed('that page had no readable text in it.');
     return { ok: true, text, url: response.url ?? target };
   }
