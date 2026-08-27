@@ -9,7 +9,8 @@
 // This narrows ADR-0007 rather than reversing it. Fetches the *model* chooses still happen
 // entirely on Anthropic's infrastructure, which is where a page saying "now fetch
 // http://169.254.169.254/" would be obeyed. What runs here is one fetch of one address the
-// operator typed, after the other fetcher already declined it.
+// operator typed, after the other fetcher failed to read it – whether it refused the address
+// or ran out of time trying. The narrowing is the address, not the reason we are here.
 //
 // The guard is in src/core/page-text.cjs, checked twice: once against the address as written,
 // and again against every IP this is about to connect to, since a public hostname is free to

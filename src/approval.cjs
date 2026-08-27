@@ -23,7 +23,7 @@ function createApproval({ store, telegram, zone, chatId, now = () => new Date() 
       // rather than reading it again.
       //
       // Unconfirmed only. A send fails slowly enough that the card can have arrived, been
-      // pressed, and been answered "Tracking:" before this runs - and deleting that record
+      // pressed, and been answered "Tracking:" before this runs – and deleting that record
       // would be the failure this whole path exists to avoid, told to the user as a success.
       store.deleteUnconfirmed(id);
       throw error;

@@ -145,7 +145,7 @@ function openStore(dbPath, { now = () => new Date().toISOString() } = {}) {
     remove: db.prepare('DELETE FROM opportunity WHERE id = ?'),
     // The `confirmed = 0` belongs in the statement, not in a check beside it. Whoever calls
     // this is undoing a row that was never presentable, and between their read and their
-    // write the user can have approved it - the window is however long a send takes to fail.
+    // write the user can have approved it – the window is however long a send takes to fail.
     removeUnconfirmed: db.prepare('DELETE FROM opportunity WHERE id = ? AND confirmed = 0'),
     setReminders: db.prepare('UPDATE opportunity SET reminders_sent = ?, updated_at = ? WHERE id = ?'),
     listConfirmed: db.prepare(`

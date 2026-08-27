@@ -41,9 +41,11 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;
 // there the whole time. Rather than tell the user to copy it out by hand, fetch it and hand
 // the text back through the same path a paste takes.
 //
-// Only after web_fetch has already refused, and only the address the user typed: fetches the
-// *model* chooses still happen on Anthropic's infrastructure, which is where a page saying
-// "now fetch the metadata service" would be obeyed. See src/fetch-page.cjs for the guard.
+// Only ever the address the user typed, and that is the half that carries the security
+// argument: fetches the *model* chooses still happen on Anthropic's infrastructure, which is
+// where a page saying "now fetch the metadata service" would be obeyed. What triggers this
+// is a failed read of any kind, not a refusal in particular – see the `unread` gate below.
+// The guard on the address itself is in src/fetch-page.cjs.
 async function retryFromPage({ submission, failure, ingest, fetchPage, now, deadline }) {
   const page = await fetchPage(submission.url);
   // The fallback failing is an implementation detail. What the user needs to hear is why
@@ -109,7 +111,7 @@ function createSubmissionHandler({ store, telegram, ingest, approval, chatId, fe
 
     // One clock for the submission, started before the first read and shared with the
     // second. Bounds live on the ingest rather than on the call, so the rescue used to begin
-    // with a full budget of its own - and the failure that reaches it is the one that had
+    // with a full budget of its own – and the failure that reaches it is the one that had
     // already spent a full budget getting there.
     //
     // The token ceiling is not shared, and is not bounded across the two reads. It lands

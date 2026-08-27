@@ -47,7 +47,7 @@ function createBot({
       case 'callback':
         // Both start now, neither waits on the other. Telegram wants the spinner stopped
         // within seconds, but sequencing the work behind that ack means a query id Telegram
-        // has already expired - it answers 400, which no retry can help - throws before the
+        // has already expired – it answers 400, which no retry can help – throws before the
         // approval is ever routed. pollUpdates has advanced its offset by then, so nothing
         // brings the press back: the user is told their button did nothing.
         detach(telegram.answerCallbackQuery(decision.callbackQueryId));

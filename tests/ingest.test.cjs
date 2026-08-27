@@ -732,7 +732,7 @@ test('a paste with no retrieval instant is a programming error, not a silent def
 
 test('a refused-fetch failure says the advert went unread, so a caller can fetch it', async () => {
   // The reason is prose for a person. A caller deciding whether to fetch the page itself
-  // needs the fact, not the sentence - matching on wording would break the moment the
+  // needs the fact, not the sentence – matching on wording would break the moment the
   // wording improved, and it has already changed twice.
   const result = await ingestWith(fakeAnthropic([fixture('fetch_blocked_linkedin')]))(SUBMISSION);
 

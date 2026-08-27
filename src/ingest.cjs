@@ -44,6 +44,11 @@ function isOverloaded(error) {
   return error?.status === 429 || error?.status === 529 || (error?.status >= 500 && error?.status < 600);
 }
 
+// `unread`, set on every failure below that leaves the advert unread, is the caller's cue to
+// go and fetch the page itself. It claims something narrow: no record was produced, and the
+// advert was never handed to the model as text. It does not claim the model saw nothing – on
+// the resume ceiling it may have read the page six times over and simply never finished.
+//
 // The clock is the only lever there is inside a single request, and it is a blunt one:
 // aborting stops the stream, not the billing for what was already generated. It bounds the
 // worst case rather than making it free.
@@ -239,10 +244,12 @@ function createIngest({
     if (!readEverything(candidate)) {
       // `unread` travels alongside the sentence: a caller that can fetch the page itself
       // needs the fact, and matching the prose would break every time it improved.
-      const refused = fetchErrors(lastResponse);
-      return refused.length > 0
-        ? { ok: false, reason: unreadableReason(lastResponse), unread: true }
-        : { ok: false, reason: unreadableReason(lastResponse) };
+      //
+      // Withheld when nothing was refused. Those fetches returned, so the model already had
+      // the bytes and read nothing in them – fetching the same page again would buy a second
+      // bill for the same silence. A refusal is the opposite case: nobody ever looked.
+      const reason = unreadableReason(lastResponse);
+      return fetchErrors(lastResponse).length > 0 ? { ok: false, reason, unread: true } : { ok: false, reason };
     }
 
     // Deterministic validation. Structured outputs guarantee the shape; this enforces the

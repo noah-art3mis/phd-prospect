@@ -205,8 +205,8 @@ test('plain text is routed to the text handler', async () => {
 
 test('a spinner that could not be stopped does not swallow the press', async () => {
   // The ack is a courtesy; the work the press implies is not. Sequenced behind an await,
-  // a callback query Telegram has already expired - it answers 400, which no retry can
-  // help - would throw before the approval was ever routed, and pollUpdates has advanced
+  // a callback query Telegram has already expired – it answers 400, which no retry can
+  // help – would throw before the approval was ever routed, and pollUpdates has advanced
   // its offset by then, so nothing brings the press back.
   const handled = [];
   const telegram = {

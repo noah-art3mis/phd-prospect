@@ -437,7 +437,7 @@ test('a failed ingest does not block the link from being tried again', async () 
 //
 // Live, 17 Aug: a LinkedIn advert burned the whole ten-minute budget and came back as
 // "that one took too long". The fallback that would have saved it was gated on the response
-// reporting a refused fetch - and a run the clock cut short has no response to report one.
+// reporting a refused fetch – and a run the clock cut short has no response to report one.
 // The three failures that cost the most were the three that skipped the rescue.
 
 test('an ingest that ran out of time is retried from the page the app fetches itself', async () => {
@@ -497,7 +497,7 @@ test('a failure the app cannot do anything about is reported without a second fe
 
 test('the rescue shares the submission budget instead of starting a new clock', async () => {
   // Bounds live on the ingest, not on the call, so a second ingest used to begin with a
-  // full ten minutes of its own - and the failure that reaches the rescue is exactly the
+  // full ten minutes of its own – and the failure that reaches the rescue is exactly the
   // one that already spent ten minutes getting there.
   const deadlines = [];
 

@@ -247,7 +247,7 @@ test('a server error at Telegram is retried', async () => {
 test('a send outlives a Telegram outage of two minutes', async () => {
   // Measured on the Render worker, 21-26 Aug: Telegram went unreachable for 77s, 85s and
   // 102s, several times a week. Against that, three attempts 1.5 seconds apart is not a
-  // retry policy - it is a coin flip, and the thing it loses is the approval card an ingest
+  // retry policy – it is a coin flip, and the thing it loses is the approval card an ingest
   // has just been billed for. The alert about the loss then goes the same way.
   const OUTAGE_MS = 120_000;
   let slept = 0;

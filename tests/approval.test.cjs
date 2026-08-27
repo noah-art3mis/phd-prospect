@@ -392,7 +392,7 @@ test('a card that was delivered and approved survives the send reporting failure
   // The send now waits out an outage, and an outage is long enough for the user to act. A
   // card can reach the phone and still fail here: Telegram delivered it and the reply was
   // lost. The press that follows confirms the row, and the retry that gives up afterwards
-  // must not take an approved record with it - the user has already been told it is tracked.
+  // must not take an approved record with it – the user has already been told it is tracked.
   let approve;
   const delivered = {
     async sendMessage() {
