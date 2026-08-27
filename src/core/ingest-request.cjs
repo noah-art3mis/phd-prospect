@@ -20,13 +20,15 @@ const { renderMessages } = require('./prompt.cjs');
 // do hold are the clock and the token ceiling in src/ingest.cjs.
 //
 // The fetch cap is what an iteration costs, not what a page costs, which is why it came
-// down. Counted across every trace on disk, no successful run has fetched more than seven
-// distinct pages and most managed on three or fewer – and the submitted advert is no longer
-// among them, since the app reads that one itself. What the cap clips now is the runaway:
-// the worst run on record spent eight fetches and 461,000 input tokens to report that it
-// could not read the page.
+// down. It is set from the traces on disk: the heaviest successful run fetched seven distinct
+// pages, and the submitted advert is no longer one of them because the app reads that itself,
+// so six leaves every recorded success intact. What it clips is the runaway – the worst run
+// on record spent every fetch it had and six figures of input tokens to report that it could
+// not read the page. Re-tuning this against fresh measurements is an open item in
+// docs/findings-live-ingest.md; the counts above are what justified the number, not a
+// standing summary of the corpus.
 const MAX_SEARCHES = 3;
-const MAX_FETCHES = 5;
+const MAX_FETCHES = 6;
 const MAX_CONTENT_TOKENS = 5000;
 
 const FINDING_FIELDS = [

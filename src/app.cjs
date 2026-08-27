@@ -60,7 +60,7 @@ async function readFromPage({ submission, ingest, fetchPage, now, deadline }) {
   // Read here, so the instant is ours to state. The model quotes the text and cannot know
   // when it was fetched; every excerpt from it is stamped with this.
   return ingest(
-    { kind: 'paste', url: submission.url, text: page.text, retrievedAt: now().toISOString() },
+    { kind: 'paste', url: submission.url, text: page.text, retrievedAt: now().toISOString(), readByApp: true },
     { deadline }
   );
 }
@@ -71,8 +71,12 @@ async function readFromPage({ submission, ingest, fetchPage, now, deadline }) {
 async function readAdvert({ submission, ingest, fetchPage, now, deadline = Date.now() + TIME_BUDGET_MS }) {
   if (submission.kind === 'url') {
     const read = await readFromPage({ submission, ingest, fetchPage, now, deadline });
-    if (read) return read;
-    // Ours could not fetch it. Hand the address over and let web_fetch try.
+    // `read.unread`, not `page.ok`: fetching the page only ever meant bytes arrived, and a
+    // sign-in wall or a consent page is a 200 with real text in it. What decides whether the
+    // address is still worth handing over is whether an advert came out the other end.
+    if (read && !read.unread) return read;
+    // Either we could not fetch it, or what we fetched was not the advert. web_fetch reaches
+    // some pages we cannot, and reads some we can fetch but cannot make sense of.
     return ingest(submission, { deadline });
   }
 

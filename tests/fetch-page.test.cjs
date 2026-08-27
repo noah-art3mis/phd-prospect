@@ -1,4 +1,4 @@
-// Contract for the fallback fetch – the one place this app connects to an address a person
+// Contract for the app's own fetch – the one place this app connects to an address a person
 // gave it. Everything here runs against a stub fetch; nothing reaches the network.
 
 const test = require('node:test');

@@ -2,7 +2,7 @@
 //
 // Evidence carries a retrieval instant, and for a page the model fetched itself that instant
 // is its own to report. Pasted text has no fetch behind it: the app either read the page on
-// the model's behalf, after web_fetch refused the address, or the user sent the text in.
+// the model's behalf, which is now how every submitted link is read, or the user sent it in.
 // Either way the clock belongs to the shell, and asking the model for the number invites it
 // to invent one. Live it declined to – it wrote "unknown (pasted text, no fetch)", which is
 // the honest answer and which validate rejects, discarding a complete record over the one

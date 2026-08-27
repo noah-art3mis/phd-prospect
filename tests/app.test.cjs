@@ -296,7 +296,7 @@ test('pasting the same link-less advert twice does not pay for it twice', async 
   });
 });
 
-// --- the fallback fetch -----------------------------------------------------------------
+// --- reading the page ourselves -----------------------------------------------------------
 //
 // Live: Anthropic's web_fetch answered `url_not_allowed` for a LinkedIn post that plain curl
 // with a browser user-agent fetched at 200 with 174 KB. The refusal was the tool declining
@@ -317,10 +317,13 @@ test('a page web_fetch always refuses is read by the app, and the model is told 
     assert.deepEqual(fetched, ['https://www.linkedin.com/posts/x/'], 'the page was not fetched');
     assert.equal(anthropic.requests.length, 1, 'the model was asked to fetch it as well');
 
-    // The text goes up, with the address named as one not to go back to.
-    const retry = JSON.stringify(anthropic.requests[0].messages);
-    assert.match(retry, /creativity support/);
-    assert.match(retry, /could not be fetched/i);
+    // The text goes up, described as what it is. It used to be announced as something the
+    // user had pasted because the address could not be fetched – a failure that had not
+    // happened, about a paste nobody had made, on every submission.
+    const sent = JSON.stringify(anthropic.requests[0].messages);
+    assert.match(sent, /creativity support/);
+    assert.match(sent, /this app fetched and read for you/i);
+    assert.doesNotMatch(sent, /the user pasted/i);
 
     // And it ends where any successful ingest ends: a card to approve.
     assert.match(telegram.sent.at(-1).text, /PhD in Trustworthy Artificial Intelligence/);
@@ -570,4 +573,32 @@ test('a page the app cannot fetch is still handed to the model, which reaches so
     assert.match(sent, /uni\.example\/phd/, 'the model was not given the address to try');
     assert.match(telegram.sent.at(-1).text, /PhD in Trustworthy Artificial Intelligence/);
   }, { fetchPage: page });
+});
+
+test('a page that answered 200 with something that is not the advert still reaches the model', async () => {
+  // `page.ok` only ever meant bytes arrived. A sign-in wall, a consent page or a JS shell is
+  // a 200 with real text in it, so our own fetch "succeeds" and the model reads a page that
+  // says nothing. Before this, the address was never offered to web_fetch at all and the
+  // user got "I could not read anything from that page" - the message this whole path
+  // exists to stop sending.
+  const seen = [];
+
+  const handle = createSubmissionHandler({
+    store: { findByUrl: () => null },
+    telegram: { async sendMessage() {} },
+    ingest: async (submission) => {
+      seen.push(submission.kind);
+      if (submission.kind === 'url') return { ok: true, candidate: { title: 'Read from the live page' } };
+      // Our sign-in wall: well-formed, and empty of advert.
+      return { ok: false, unread: true, reason: 'I could not read anything from that page.' };
+    },
+    approval: { present: async () => {} },
+    chatId: ME,
+    fetchPage: async (url) => ({ ok: true, text: 'Sign in to view this post. Join now.', url }),
+    now: () => new Date('2026-08-27T12:00:00Z'),
+  });
+
+  await handle({ kind: 'url', url: 'https://www.linkedin.com/posts/x/' });
+
+  assert.deepEqual(seen, ['paste', 'url'], 'the model was never given the address to try');
 });
