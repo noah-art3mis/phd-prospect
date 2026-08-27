@@ -130,3 +130,45 @@ test('the bounds are the ones stated, not whatever the runtime defaults to', asy
   assert.equal(FETCH_TIMEOUT_MS, 15_000);
   assert.equal(MAX_PAGE_BYTES, 5 * 1024 * 1024);
 });
+
+// --- the guard, at the edge it actually defends --------------------------------------------
+
+test('a hostname that will not resolve is refused, not fetched', async () => {
+  // The failure this closes: `dns.lookup` throws on a bracketed literal, and answering
+  // "could not resolve, so it must be fine" meant anything the resolver choked on was
+  // fetched unchecked. That is how a mapped loopback address reached a live server.
+  const { fetch, calls } = stub();
+  const result = await fetchPage('https://uni.example/phd', {
+    fetch,
+    resolve: async () => { throw Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' }); },
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(calls, [], 'a request went out for an address nothing had checked');
+});
+
+test('a loopback address written as a mapped IPv6 literal never reaches fetch', async () => {
+  const { fetch, calls } = stub();
+  const result = await fetchPage('http://[::ffff:127.0.0.1]:8731/', { fetch, resolve: resolves('8.8.8.8') });
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /will not fetch/i);
+  assert.deepEqual(calls, [], 'the request went out anyway');
+});
+
+test('a redirect into a private range is refused on the hop, not on the first address', async () => {
+  // The operator never types the odd address. An advert page we do not control answers 302.
+  let hop = 0;
+  const fetch = async (target) => {
+    hop += 1;
+    if (hop === 1) {
+      return { ok: false, status: 302, url: target, headers: { get: (n) => (n.toLowerCase() === 'location' ? 'http://[::ffff:169.254.169.254]/latest/meta-data/' : null) }, text: async () => '' };
+    }
+    throw new Error('the second hop was attempted');
+  };
+
+  const result = await fetchPage('https://advert.example/phd', { fetch, resolve: resolves('8.8.8.8') });
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /will not fetch/i);
+  assert.equal(hop, 1, 'the redirect target was fetched');
+});

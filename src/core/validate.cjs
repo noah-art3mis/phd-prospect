@@ -24,9 +24,10 @@ function isEmptyValue(value) {
   return value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
 }
 
-// The app never resolves or connects to a user-submitted URL – the model's server-side
-// web_fetch does (ADR-0007) – so there is no SSRF surface here to defend and no private
-// address checks are needed. A URL only has to be a web link.
+// Nothing here is ever fetched: these are addresses being written into a record, read later
+// by a person. The one address the app does connect to is guarded where that happens, in
+// src/core/page-text.cjs, and duplicating the block list here would give the same fact two
+// owners that can disagree. A URL only has to be a web link.
 function isHttpUrl(value) {
   return /^https?:\/\/\S+$/i.test(String(value == null ? '' : value).trim());
 }

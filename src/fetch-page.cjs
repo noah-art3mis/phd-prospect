@@ -18,7 +18,7 @@
 
 const dns = require('node:dns/promises');
 
-const { isFetchableUrl, isPrivateAddress, pageText } = require('./core/page-text.cjs');
+const { isFetchableUrl, isPrivateAddress, isIpLiteral, pageText } = require('./core/page-text.cjs');
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_PAGE_BYTES = 5 * 1024 * 1024;
@@ -35,12 +35,19 @@ const failed = (reason) => ({ ok: false, reason, redirect: 'manual' });
 // and one private address would otherwise pass on a coin flip.
 async function addressesAreSafe(hostname, resolve) {
   if (isPrivateAddress(hostname)) return false;
+  // A literal has already been judged, and asking the resolver about one throws – which is
+  // how the fail-open branch below used to wave through `[::ffff:7f00:1]` without anything
+  // ever classifying it.
+  if (isIpLiteral(hostname)) return true;
+
   let addresses;
   try {
     addresses = await resolve(hostname);
   } catch {
-    // Unresolvable is the fetch's problem to report, not a reason to call it unsafe.
-    return true;
+    // Refusing is the only safe answer. Reading "I could not resolve it" as "then it is
+    // fine" hands a free pass to everything the resolver chokes on, and the resolver chokes
+    // on more than anyone enumerating cases expects.
+    return false;
   }
   return addresses.every((address) => !isPrivateAddress(address.address ?? address));
 }
