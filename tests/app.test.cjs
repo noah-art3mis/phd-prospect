@@ -607,8 +607,8 @@ test('a page that answered 200 with something that is not the advert still reach
 //
 // Live, 27 Aug: record #10 – the DSSG call, one day from closing – was tracked with no
 // deadline. Its address returns 169 characters of Google's own menu bar; the document is
-// drawn by script we do not run. The same id asked for as plain text returns 5,204
-// characters, including the line the record was missing.
+// drawn by script we do not run. The same id asked for as plain text returns some five
+// thousand, including the line the record was missing.
 
 test('a Google Doc is read at its text address, and filed under the one the user sent', async () => {
   const fetched = [];

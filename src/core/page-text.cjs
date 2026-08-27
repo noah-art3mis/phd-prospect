@@ -104,6 +104,10 @@ function decodeEntities(text) {
 // would otherwise be billed as input.
 function normalize(text, maxChars) {
   const collapsed = text
+    // First, because everything below it is written in terms of `\n`. A CRLF body – which is
+    // what Google exports – walks straight through the blank-line collapse otherwise, since
+    // `\n{3,}` cannot match across a `\r`, and pays for the carriage returns as well.
+    .replace(/\r\n?/g, '\n')
     .replace(/[ \t\u00a0]+/g, ' ')
     .replace(/ *\n */g, '\n')
     .replace(/\n{3,}/g, '\n\n')

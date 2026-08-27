@@ -6,7 +6,7 @@
 //   Call para novo Projeto DSSG - Google Docs | Tab | Compartilhar | Fazer login | Arquivo…
 //
 // The document is drawn by script we do not run. Asked for as plain text, the same id
-// returns 5,204 characters including the line the record was missing – "O período de
+// returns some five thousand characters including the line the record was missing – "O período de
 // candidaturas vai estar aberto até 28 de Agosto." Both figures were measured against the
 // live document with the app's own fetchPage.
 

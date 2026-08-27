@@ -230,3 +230,13 @@ test('prose is capped too, because a document is billed by the token', () => {
   assert.ok(text.length <= 1000, `got ${text.length}`);
   assert.ok(text.length > 900, `the cap took the document with it: ${text.length}`);
 });
+
+test('carriage returns do not survive, and do not stop blank lines collapsing', () => {
+  // The Google Docs export is CRLF, and `\n{3,}` cannot match across a `\r\n` – so runs of
+  // blank lines walk straight through the collapse that exists to stop layout becoming
+  // tokens, and the carriage returns themselves are billed as well.
+  const text = plainText(DOC_EXPORT);
+
+  assert.doesNotMatch(text, /\r/, 'carriage returns reached the model');
+  assert.doesNotMatch(text, /\n{3,}/, 'a run of blank lines survived the collapse');
+});

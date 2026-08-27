@@ -36,6 +36,21 @@ const DIGEST_WEEKDAY = 0; // Sunday
 // stated here so the failure names a number rather than surfacing as a request error.
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
+// The page, handed to the model as text.
+//
+// Filed as a paste carrying the address the user sent, never the one that was fetched: the
+// two differ whenever the table chose a different address, and a record filed under ours
+// would key a row nothing later looks up.
+//
+// Read by the app, so the instant is ours to state. The model quotes the text and cannot
+// know when it was fetched; every excerpt from it is stamped with this.
+function readPage({ submission, page, ingest, now, deadline }) {
+  return ingest(
+    { kind: 'paste', url: submission.url, text: page.text, retrievedAt: now().toISOString(), readByApp: true },
+    { deadline }
+  );
+}
+
 // Our address, our fetch.
 //
 // The submitted page is read here rather than by web_fetch, and that is a cost decision as
@@ -53,21 +68,6 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;
 // page saying "now fetch the metadata service" would be obeyed. What runs here is one fetch
 // of one address the operator typed. The guard is in src/core/page-text.cjs, checked against
 // the address as written and again against every IP it resolves to.
-// The page, handed to the model as text.
-//
-// Filed as a paste carrying the address the user sent, never the one that was fetched: the
-// two differ whenever the table chose a different address, and a record filed under ours
-// would key a row nothing later looks up.
-//
-// Read by the app, so the instant is ours to state. The model quotes the text and cannot
-// know when it was fetched; every excerpt from it is stamped with this.
-function readPage({ submission, page, ingest, now, deadline }) {
-  return ingest(
-    { kind: 'paste', url: submission.url, text: page.text, retrievedAt: now().toISOString(), readByApp: true },
-    { deadline }
-  );
-}
-
 // One read of an advert. Exported because tools/ingest-url.cjs is the shakedown path and has
 // to exercise what the bot exercises; it used to call `ingest` directly, which left the whole
 // of this invisible to the tool people reach for when a page will not read.

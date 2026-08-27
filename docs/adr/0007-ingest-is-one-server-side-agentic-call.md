@@ -46,7 +46,7 @@ That is a narrower thing than ADR-0004's fetch service, which was rejected for p
 
 ## Amendment, 2026-08-27: the address read is not always the address submitted
 
-Some pages are a program rather than a document. A Google Doc serves its own menu bar and draws the document with script, so what our fetcher reads is 169 characters of interface; the same document asked for as plain text is 5,204 characters of advert, deadline included. Record #10 was tracked with no deadline for exactly this reason, one day before it closed.
+Some pages are a program rather than a document. A Google Doc serves its own menu bar and draws the document with script, so what our fetcher reads is 169 characters of interface; the same document asked for as plain text is some five thousand characters of advert, deadline included. Record #10 was tracked with no deadline for exactly this reason, one day before it closed.
 
 So the app now rewrites a submitted address to the address its text lives at, from a fixed table in `src/core/readable-url.cjs`. The record is still filed and cited under what the user sent.
 
