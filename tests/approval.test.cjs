@@ -387,3 +387,34 @@ test('a card that could not be sent leaves no row behind', async () => {
     { telegram: dead }
   );
 });
+
+test('a card that was delivered and approved survives the send reporting failure', async () => {
+  // The send now waits out an outage, and an outage is long enough for the user to act. A
+  // card can reach the phone and still fail here: Telegram delivered it and the reply was
+  // lost. The press that follows confirms the row, and the retry that gives up afterwards
+  // must not take an approved record with it - the user has already been told it is tracked.
+  let approve;
+  const delivered = {
+    async sendMessage() {
+      if (approve) { approve(); approve = null; }
+      await new Promise((resolve) => setImmediate(resolve));
+      throw new Error('Telegram sendMessage failed: The operation was aborted due to timeout');
+    },
+    async clearButtons() {},
+    async answerCallbackQuery() {},
+  };
+
+  await withApproval(
+    async ({ store, approval }) => {
+      approve = () => store.confirmOpportunity(store.findByUrl(CANDIDATE.source_url).id);
+
+      await assert.rejects(() => approval.present(CANDIDATE), /aborted due to timeout/);
+
+      const kept = store.findByUrl(CANDIDATE.source_url);
+      assert.notEqual(kept, null, 'an approved record was deleted by the send that failed after it');
+      assert.equal(kept.confirmed, true);
+      assert.equal(store.countConfirmed(), 1);
+    },
+    { telegram: delivered }
+  );
+});

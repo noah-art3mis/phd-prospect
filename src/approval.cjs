@@ -20,8 +20,12 @@ function createApproval({ store, telegram, zone, chatId, now = () => new Date() 
       // The row exists only to back a card somebody can press. Leaving it when the card
       // never arrived is worse than losing the ingest: the advert then reads as waiting for
       // an approval there is nothing anywhere to give, and resubmitting the link says so
-      // rather than reading it again. Undo the row and let the failure be reported.
-      store.deleteOpportunity(id);
+      // rather than reading it again.
+      //
+      // Unconfirmed only. A send fails slowly enough that the card can have arrived, been
+      // pressed, and been answered "Tracking:" before this runs - and deleting that record
+      // would be the failure this whole path exists to avoid, told to the user as a success.
+      store.deleteUnconfirmed(id);
       throw error;
     }
     return id;
