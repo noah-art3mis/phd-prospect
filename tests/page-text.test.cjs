@@ -105,3 +105,78 @@ test('the text is capped, because a page is billed by the token', () => {
   const text = pageText(huge, { maxChars: 1000 });
   assert.ok(text.length <= 1000, `got ${text.length}`);
 });
+
+// --- the address itself, not how it was written -------------------------------------------
+//
+// Reproduced against fetchPage as shipped: `http://[::ffff:127.0.0.1]:8731/` returned the
+// body of a local server while `http://127.0.0.1:8731/` was refused. The URL parser
+// normalises that hostname to `[::ffff:7f00:1]` – loopback in hex – and a predicate looking
+// for dotted quads walks straight past it. One address, several spellings, and the guard
+// only ever knew one of them.
+
+test('a private address is refused however the URL parser spells it', () => {
+  const shouldRefuse = [
+    // Loopback, wearing every hat the parser hands out.
+    '127.0.0.1',
+    '::1',
+    '::ffff:127.0.0.1',
+    '::ffff:7f00:1',
+    '[::ffff:7f00:1]',
+    // The metadata service, which hands out the instance's credentials.
+    '169.254.169.254',
+    '::ffff:169.254.169.254',
+    '::ffff:a9fe:a9fe',
+    // Link-local is fe80::/10 – it does not stop at fe80.
+    'fe80::1',
+    'fe9f::1',
+    'febf::1',
+    // The parser's other way of handing you an IPv4 address: `::127.0.0.1` arrives as
+    // `[::7f00:1]`. Deprecated and unroutable, which is not the same as classified.
+    '::127.0.0.1',
+    '::7f00:1',
+    '::169.254.169.254',
+    '::a9fe:a9fe',
+    // Multicast, in both families rather than only the one the old predicates knew.
+    'ff02::1',
+    // RFC1918, unique-local, carrier-grade NAT, multicast, reserved, broadcast.
+    '10.0.0.1',
+    '172.16.0.1',
+    '172.31.255.254',
+    '192.168.1.1',
+    'fd00::1',
+    'fc00::1',
+    '100.64.0.1',
+    '224.0.0.1',
+    '240.0.0.1',
+    '255.255.255.255',
+    '0.0.0.0',
+    'localhost',
+    // A fully-qualified name for the same thing. Resolution catches it, but the synchronous
+    // half of the guard is exported and called on its own.
+    'localhost.',
+  ];
+
+  for (const address of shouldRefuse) {
+    assert.equal(isPrivateAddress(address), true, `${address} was treated as safe to connect to`);
+  }
+});
+
+test('an ordinary public address is still fetchable, in either family', () => {
+  for (const address of ['8.8.8.8', '93.184.216.34', '2606:2800:220:1:248:1893:25c8:1946', '172.32.0.1', '100.63.255.255']) {
+    assert.equal(isPrivateAddress(address), false, `${address} was refused`);
+  }
+});
+
+test('a hostname is not an address, so it is left for the resolver to answer', () => {
+  // The literal check cannot decide a name; every address behind it is checked after lookup.
+  for (const host of ['uni.example', 'www.linkedin.com', 'not-an-ip']) {
+    assert.equal(isPrivateAddress(host), false);
+  }
+});
+
+test('a mapped-address URL is refused by the same check the fetcher runs first', () => {
+  assert.equal(isFetchableUrl('http://[::ffff:127.0.0.1]:8731/'), false);
+  assert.equal(isFetchableUrl('http://[::ffff:169.254.169.254]/latest/meta-data/'), false);
+  assert.equal(isFetchableUrl('http://[fe9f::1]/'), false);
+  assert.equal(isFetchableUrl('http://100.64.0.1/'), false);
+});

@@ -105,7 +105,7 @@ One caveat worth knowing: `retrieved_at` is written by the model and has been ob
 
 ## Research behavior
 
-One agentic call does the whole job (ADR-0007). The model's own server-side `web_search` and `web_fetch` read the page, extract the record, and fill gaps; the app never resolves a user-submitted URL itself, so there is no SSRF surface to defend.
+One agentic call does the whole job (ADR-0007). The model's own server-side `web_search` and `web_fetch` read the page, extract the record, and fill gaps. The app resolves exactly one address itself — the one the operator typed, checked against a block list before the request and again on every redirect hop — and never one the model chose.
 
 Rules, stated in `prompts/ingest.prompt`:
 
