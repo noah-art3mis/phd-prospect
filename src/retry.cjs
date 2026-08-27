@@ -14,9 +14,20 @@
 const ATTEMPTS = 3;
 const BASE_DELAY_MS = 500;
 
+// Doubling without a ceiling spends most of a long outage asleep after the service has
+// already come back. pollUpdates has capped its own backoff at a minute since the beginning;
+// this is the same ceiling, available to callers that wait long enough to need one.
+const MAX_DELAY_MS = 60_000;
+
 async function withRetry(
   operation,
-  { isTransient, attempts = ATTEMPTS, baseDelayMs = BASE_DELAY_MS, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}
+  {
+    isTransient,
+    attempts = ATTEMPTS,
+    baseDelayMs = BASE_DELAY_MS,
+    maxDelayMs = MAX_DELAY_MS,
+    sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
+  } = {}
 ) {
   for (let attempt = 1; ; attempt += 1) {
     try {
@@ -24,9 +35,9 @@ async function withRetry(
     } catch (error) {
       // No wait after the final attempt: nobody is going to use the time.
       if (attempt >= attempts || !isTransient(error)) throw error;
-      await sleep(baseDelayMs * 2 ** (attempt - 1));
+      await sleep(Math.min(baseDelayMs * 2 ** (attempt - 1), maxDelayMs));
     }
   }
 }
 
-module.exports = { withRetry, ATTEMPTS, BASE_DELAY_MS };
+module.exports = { withRetry, ATTEMPTS, BASE_DELAY_MS, MAX_DELAY_MS };

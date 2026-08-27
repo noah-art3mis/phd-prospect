@@ -58,10 +58,10 @@ function fakeTelegram() {
   };
 }
 
-async function withApproval(run) {
+async function withApproval(run, { telegram: given } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prospect-approval-'));
   const store = openStore(path.join(dir, 'prospect.db'));
-  const telegram = fakeTelegram();
+  const telegram = given ?? fakeTelegram();
   const approval = createApproval({ store, telegram, zone: ZONE, chatId: CHAT });
   try {
     return await run({ store, telegram, approval });
@@ -364,4 +364,26 @@ test('a record with no source page says so rather than showing its internal key'
 
   assert.match(card, /pasted text/i);
   assert.ok(!card.includes('0f1e2d3c4b5a6978'), 'the internal key was shown to the user');
+});
+
+test('a card that could not be sent leaves no row behind', async () => {
+  // The row exists only to back a card somebody can press. Leaving it when the card never
+  // arrived is worse than losing the ingest: findByUrl then reports the advert as waiting
+  // for an approval there is nothing anywhere to give, and resubmitting the link says so
+  // instead of reading it again. The advert is stuck for good.
+  const dead = {
+    async sendMessage() {
+      throw new Error('Telegram sendMessage failed: Bad Gateway');
+    },
+    async clearButtons() {},
+    async answerCallbackQuery() {},
+  };
+
+  await withApproval(
+    async ({ store, approval }) => {
+      await assert.rejects(() => approval.present(CANDIDATE), /Bad Gateway/);
+      assert.equal(store.findByUrl(CANDIDATE.source_url), null, 'the advert cannot be sent again');
+    },
+    { telegram: dead }
+  );
 });

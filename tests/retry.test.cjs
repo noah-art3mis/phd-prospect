@@ -104,3 +104,21 @@ test('the error is what decides, so a caller can read its status or its message'
   );
   assert.deepEqual(seen, [529]);
 });
+
+test('waits stop growing at the cap, so a long outage is not one enormous sleep', async () => {
+  // Doubling without a ceiling turns a two-minute outage into a wait measured in minutes,
+  // most of it spent after the service came back. The polling loop already caps its backoff
+  // at a minute for exactly this reason; a send needs the same ceiling to sit under.
+  const waits = [];
+  await assert.rejects(
+    withRetry(async () => { throw new Error('fetch failed'); }, {
+      isTransient: () => true,
+      attempts: 7,
+      baseDelayMs: 100,
+      maxDelayMs: 400,
+      sleep: async (ms) => waits.push(ms),
+    })
+  );
+
+  assert.deepEqual(waits, [100, 200, 400, 400, 400, 400]);
+});

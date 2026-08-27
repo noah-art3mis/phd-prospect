@@ -14,7 +14,16 @@ const { approvalCard, approvalButtons, parseEdit } = require('./core/card.cjs');
 function createApproval({ store, telegram, zone, chatId, now = () => new Date() }) {
   async function present(candidate) {
     const id = store.insertCandidate(candidate);
-    await sendCard(id);
+    try {
+      await sendCard(id);
+    } catch (error) {
+      // The row exists only to back a card somebody can press. Leaving it when the card
+      // never arrived is worse than losing the ingest: the advert then reads as waiting for
+      // an approval there is nothing anywhere to give, and resubmitting the link says so
+      // rather than reading it again. Undo the row and let the failure be reported.
+      store.deleteOpportunity(id);
+      throw error;
+    }
     return id;
   }
 

@@ -13,6 +13,18 @@ const { withRetry } = require('./retry.cjs');
 const TELEGRAM_API = 'https://api.telegram.org';
 const MAX_MESSAGE_LENGTH = 4096;
 
+// Measured on the Render worker over five days: Telegram went unreachable for 77, 85 and 102
+// seconds, several times a week. The shared default - three attempts 1.5 seconds apart - was
+// never going to survive one of those, and what it discarded was the approval card an ingest
+// had just been billed for, followed by the alert saying so.
+//
+// Nine attempts backing off from a second and capped at half a minute wait a little over two
+// minutes in total, which clears the longest outage measured with room over it. The reads
+// already behaved this way; this is the writes catching up.
+const SEND_ATTEMPTS = 9;
+const SEND_BASE_DELAY_MS = 1000;
+const SEND_MAX_DELAY_MS = 30_000;
+
 // Worth retrying: the connection failed, or Telegram had a bad minute. Not worth retrying:
 // Telegram understood and said no. "Bot was blocked by the user" answers the same way every
 // time, and waiting between identical refusals only delays whatever is queued behind it.
@@ -25,7 +37,13 @@ function createTelegram({ token, fetch = globalThis.fetch, apiBase = TELEGRAM_AP
   // retried since the beginning - while a failed send simply threw, which is how an approval
   // card that cost a model call to produce was lost to one bad moment on the network.
   async function call(method, body, { timeoutMs = 90000 } = {}) {
-    return withRetry(() => attempt(method, body, timeoutMs), { isTransient: isTransientSendFailure, sleep });
+    return withRetry(() => attempt(method, body, timeoutMs), {
+      isTransient: isTransientSendFailure,
+      attempts: SEND_ATTEMPTS,
+      baseDelayMs: SEND_BASE_DELAY_MS,
+      maxDelayMs: SEND_MAX_DELAY_MS,
+      sleep,
+    });
   }
 
   async function attempt(method, body, timeoutMs) {
@@ -167,4 +185,4 @@ async function pollUpdates(
   }
 }
 
-module.exports = { createTelegram, pollUpdates, MAX_MESSAGE_LENGTH };
+module.exports = { createTelegram, pollUpdates, MAX_MESSAGE_LENGTH, SEND_ATTEMPTS, SEND_BASE_DELAY_MS, SEND_MAX_DELAY_MS };

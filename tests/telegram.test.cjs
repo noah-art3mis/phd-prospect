@@ -243,3 +243,23 @@ test('a server error at Telegram is retried', async () => {
   await telegram.sendMessage(42, 'hello');
   assert.equal(calls, 2);
 });
+
+test('a send outlives a Telegram outage of two minutes', async () => {
+  // Measured on the Render worker, 21-26 Aug: Telegram went unreachable for 77s, 85s and
+  // 102s, several times a week. Against that, three attempts 1.5 seconds apart is not a
+  // retry policy - it is a coin flip, and the thing it loses is the approval card an ingest
+  // has just been billed for. The alert about the loss then goes the same way.
+  const OUTAGE_MS = 120_000;
+  let slept = 0;
+  let calls = 0;
+  const fetch = async () => {
+    calls += 1;
+    if (slept < OUTAGE_MS) throw new TypeError('fetch failed');
+    return { ok: true, status: 200, json: async () => ({ ok: true, result: { message_id: 1 } }) };
+  };
+  const telegram = createTelegram({ token: 'T', fetch, sleep: async (ms) => { slept += ms; } });
+
+  await telegram.sendMessage(42, 'the card');
+  assert.ok(slept >= OUTAGE_MS, `gave up after ${slept}ms of a ${OUTAGE_MS}ms outage`);
+  assert.ok(calls > 3, `only ${calls} attempts were made`);
+});
