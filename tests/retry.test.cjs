@@ -122,3 +122,26 @@ test('waits stop growing at the cap, so a long outage is not one enormous sleep'
 
   assert.deepEqual(waits, [100, 200, 400, 400, 400, 400]);
 });
+
+test('retrying stops when the budget is spent, whatever attempts are left', async () => {
+  // Attempts alone do not bound the wall clock: each one also carries its own request
+  // timeout, so how long a caller may block is the product of two numbers chosen in
+  // different files. The budget is the number somebody actually chose.
+  const waits = [];
+  let clock = 0;
+
+  await assert.rejects(
+    withRetry(async () => { throw new Error('fetch failed'); }, {
+      isTransient: () => true,
+      attempts: 50,
+      baseDelayMs: 1000,
+      maxDelayMs: 1000,
+      budgetMs: 3500,
+      now: () => clock,
+      sleep: async (ms) => { waits.push(ms); clock += ms; },
+    })
+  );
+
+  // The fourth wait would land past the budget, so it is never begun.
+  assert.deepEqual(waits, [1000, 1000, 1000]);
+});
