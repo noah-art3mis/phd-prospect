@@ -49,7 +49,10 @@ async function addressesAreSafe(hostname, resolve) {
     // on more than anyone enumerating cases expects.
     return false;
   }
-  return addresses.every((address) => !isPrivateAddress(address.address ?? address));
+  // Something has to have been judged. `[].every(...)` is `true`, which would let a name
+  // that resolved to nothing through on the strength of having no addresses to object to –
+  // the same shape as the catch above, and the reason that one is now a refusal.
+  return addresses.length > 0 && addresses.every((address) => !isPrivateAddress(address.address ?? address));
 }
 
 async function fetchPage(url, { fetch = globalThis.fetch, resolve = (h) => dns.lookup(h, { all: true }) } = {}) {
@@ -77,7 +80,14 @@ async function fetchPage(url, { fetch = globalThis.fetch, resolve = (h) => dns.l
 
     const location = response.headers.get('location');
     if (location && response.status >= 300 && response.status < 400) {
-      target = new URL(location, target).toString();
+      try {
+        target = new URL(location, target).toString();
+      } catch {
+        // The contract here is an answer, not an exception: this runs unawaited behind a
+        // Telegram acknowledgement, and a caller with no try around it is the one who finds
+        // out. A Location we cannot parse is a page we cannot follow.
+        return failed('that page redirected somewhere I could not read.');
+      }
       continue;
     }
 

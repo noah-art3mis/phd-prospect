@@ -172,3 +172,55 @@ test('a redirect into a private range is refused on the hop, not on the first ad
   assert.match(result.reason, /will not fetch/i);
   assert.equal(hop, 1, 'the redirect target was fetched');
 });
+
+test('a hostname that resolves to nothing at all is refused', async () => {
+  // The same shape as the fail-open catch this guard replaced: `[].every(safe)` is `true`,
+  // so an empty answer reads as "every address is fine" and the connection goes ahead
+  // having classified nothing.
+  const { fetch, calls } = stub();
+  const result = await fetchPage('https://uni.example/phd', { fetch, resolve: async () => [] });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(calls, [], 'a request went out for a name nothing had been judged for');
+});
+
+test('a name answering with one public and one private address is refused', async () => {
+  const { fetch, calls } = stub();
+  const result = await fetchPage('https://uni.example/phd', {
+    fetch,
+    resolve: async () => [{ address: '8.8.8.8' }, { address: '169.254.169.254' }],
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(calls, [], 'the public answer was enough to let it through');
+});
+
+test('a public IPv6 literal is still fetchable, which is what the literal short-circuit is for', async () => {
+  // Load-bearing coupling, and the reason the two halves of this guard ship together: the
+  // real `dns.lookup` throws ENOTFOUND on a bracketed literal, so once an unresolvable name
+  // became a refusal, every bracketed public address would have become one too. The stub
+  // throws the way the resolver does rather than being the resolver – this file reaches no
+  // network, and a test that did would fail on a train.
+  const { fetch } = stub();
+  const result = await fetchPage('http://[2001:4860:4860::8888]/phd', {
+    fetch,
+    resolve: async () => { throw Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' }); },
+  });
+
+  assert.equal(result.ok, true, 'a public address was refused because the resolver cannot parse a literal');
+});
+
+test('a malformed redirect target is reported, not thrown', async () => {
+  // fetchPage's contract is that it answers {ok:false}; an exception escaping it lands in a
+  // caller with no try around it.
+  const fetch = async (target) => ({
+    ok: false,
+    status: 302,
+    url: target,
+    headers: { get: (n) => (n.toLowerCase() === 'location' ? 'http://[bad' : null) },
+    text: async () => '',
+  });
+
+  const result = await fetchPage('https://advert.example/phd', { fetch, resolve: resolves('8.8.8.8') });
+  assert.equal(result.ok, false);
+});

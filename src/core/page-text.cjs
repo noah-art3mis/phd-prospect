@@ -22,8 +22,9 @@ const net = require('node:net');
 // the dotted form was refused and the hex form returned the body.
 //
 // net.BlockList compares parsed addresses and maps IPv4-in-IPv6 back to IPv4 before it does,
-// so one entry covers every spelling of the range. The list is the whole defence, which is
-// why it is stated once, here, and tested directly.
+// so one entry covers every spelling of the range it holds. Names are a different question
+// and this cannot answer it: `localhost` is gated here as a convenience, but for any other
+// name the real answer comes from resolving it and judging what comes back.
 function blockedRanges() {
   const blocked = new net.BlockList();
 
@@ -39,19 +40,23 @@ function blockedRanges() {
   blocked.addSubnet('224.0.0.0', 4, 'ipv4'); // multicast
   blocked.addSubnet('240.0.0.0', 4, 'ipv4'); // reserved, and 255.255.255.255 with it
 
-  blocked.addAddress('::', 'ipv6');
-  blocked.addAddress('::1', 'ipv6');
+  // ::/96 is the unspecified address, loopback, and IPv4-*compatible* IPv6 in one entry.
+  // That last is the parser's other way of handing you an IPv4 address: `[::127.0.0.1]`
+  // arrives as `[::7f00:1]`. Deprecated and unroutable, which is not the same as classified.
+  blocked.addSubnet('::', 96, 'ipv6');
   blocked.addSubnet('fc00::', 7, 'ipv6'); // unique-local
   blocked.addSubnet('fe80::', 10, 'ipv6'); // link-local – the range runs to febf, not fe80
+  blocked.addSubnet('ff00::', 8, 'ipv6'); // multicast, as 224/4 is in the other family
 
   return blocked;
 }
 
 const BLOCKED = blockedRanges();
 
-// Brackets are the URL parser's, not the address's.
+// Brackets are the URL parser's, not the address's; the trailing dot is the DNS root, and
+// `localhost.` is the same host as `localhost`.
 function bare(address) {
-  return String(address ?? '').trim().toLowerCase().replace(/^\[|\]$/g, '');
+  return String(address ?? '').trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
 }
 
 // Whether this is an address at all, rather than a name for one. A name cannot be judged

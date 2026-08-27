@@ -130,6 +130,14 @@ test('a private address is refused however the URL parser spells it', () => {
     'fe80::1',
     'fe9f::1',
     'febf::1',
+    // The parser's other way of handing you an IPv4 address: `::127.0.0.1` arrives as
+    // `[::7f00:1]`. Deprecated and unroutable, which is not the same as classified.
+    '::127.0.0.1',
+    '::7f00:1',
+    '::169.254.169.254',
+    '::a9fe:a9fe',
+    // Multicast, in both families rather than only the one the old predicates knew.
+    'ff02::1',
     // RFC1918, unique-local, carrier-grade NAT, multicast, reserved, broadcast.
     '10.0.0.1',
     '172.16.0.1',
@@ -143,6 +151,9 @@ test('a private address is refused however the URL parser spells it', () => {
     '255.255.255.255',
     '0.0.0.0',
     'localhost',
+    // A fully-qualified name for the same thing. Resolution catches it, but the synchronous
+    // half of the guard is exported and called on its own.
+    'localhost.',
   ];
 
   for (const address of shouldRefuse) {
