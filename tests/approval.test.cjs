@@ -208,14 +208,21 @@ test('a correction naming an unknown field says what can be corrected', async ()
   });
 });
 
-test('a correction to a record that is already approved is refused', async () => {
+test('correcting a tracked record changes the field and nothing else about it', async () => {
+  // It used to be refused outright. What still must not happen is a correction quietly
+  // undoing the approval, or reaching a field nobody offered to correct.
   await withApproval(async ({ store, telegram, approval }) => {
     const id = await approval.present(CANDIDATE);
     await approval.handleCallback({ action: 'approve', opportunityId: id, chatId: CHAT, messageId: 1 });
-    await approval.handleText({ text: `${id} title = sneaky` });
 
-    assert.equal(store.getOpportunity(id).title, 'PhD in Trustworthy AI');
-    assert.match(telegram.sent.at(-1).text, /already approved/i);
+    await approval.handleText({ text: `${id} title = A clearer title` });
+    assert.equal(store.getOpportunity(id).title, 'A clearer title');
+    assert.equal(store.getOpportunity(id).confirmed, true);
+    assert.equal(store.countConfirmed(), 1);
+
+    await approval.handleText({ text: `${id} confirmed = 0` });
+    assert.equal(store.getOpportunity(id).confirmed, true, 'a correction reached past the editable fields');
+    assert.match(telegram.sent.at(-1).text, /I can only correct/i);
   });
 });
 
@@ -417,4 +424,37 @@ test('a card that was delivered and approved survives the send reporting failure
     },
     { telegram: delivered }
   );
+});
+
+test('a tracked record can still be corrected, because approval is not a claim of correctness', async () => {
+  // Live: two tracked opportunities were stored with no deadline and had one - the nearer
+  // was the next day. The correction path refused them ("edit it in the web view"), there is
+  // no web view, and rejecting deletes the row. Nothing could put the deadline in.
+  await withApproval(async ({ store, telegram, approval }) => {
+    const id = await approval.present(CANDIDATE);
+    await approval.handleCallback({ action: 'approve', opportunityId: id, chatId: CHAT, messageId: 11 });
+    const before = telegram.sent.length;
+
+    const handled = await approval.handleText({ text: `${id} deadline = 2026-08-28` });
+
+    assert.equal(handled, true);
+    assert.equal(store.getOpportunity(id).deadline_at, '2026-08-29T05:59:00.000Z');
+    assert.equal(store.getOpportunity(id).confirmed, true, 'correcting a record un-tracked it');
+    assert.ok(telegram.sent.length > before, 'the corrected card was never sent back');
+    assert.match(telegram.sent.at(-1).text, /28 August 2026/);
+  });
+});
+
+test('a corrected deadline is one the reminder sweep can still act on', async () => {
+  // The record was silent because it had no deadline. It must not stay silent because the
+  // reminders it never sent look spent.
+  await withApproval(async ({ store, approval }) => {
+    const id = await approval.present({ ...CANDIDATE, deadline_at: null });
+    await approval.handleCallback({ action: 'approve', opportunityId: id, chatId: CHAT, messageId: 11 });
+    store.recordRemindersSent(id, [30, 7, 1]);
+
+    await approval.handleText({ text: `${id} deadline = 2026-08-28` });
+
+    assert.deepEqual(store.getOpportunity(id).reminders_sent, []);
+  });
 });

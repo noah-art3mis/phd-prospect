@@ -370,3 +370,31 @@ test('a database with the old non-unique index gains the constraint on open', ()
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('writing a deadline forgets the reminders that were sent about the old one', () => {
+  // reminders_sent describes the deadline currently on the row. Left behind when the date
+  // moves, it silences the new one: a record whose 7-day reminder already fired is treated
+  // as having nothing tighter left to say, whatever date it now carries. Live, the records
+  // this matters for are the ones stored with no deadline at all – they have nothing sent,
+  // and the fix must not depend on that staying true.
+  withStore((store) => {
+    const id = store.insertCandidate(CANDIDATE);
+    store.confirmOpportunity(id);
+    store.recordRemindersSent(id, [30, 7]);
+    assert.deepEqual(store.getOpportunity(id).reminders_sent, [30, 7]);
+
+    store.updateOpportunity(id, { deadline_at: '2026-09-04T21:59:00.000Z' });
+    assert.deepEqual(store.getOpportunity(id).reminders_sent, [], 'the old sends still silence the new date');
+  });
+});
+
+test('an edit that leaves the deadline alone leaves its reminders alone', () => {
+  withStore((store) => {
+    const id = store.insertCandidate(CANDIDATE);
+    store.recordRemindersSent(id, [30]);
+    store.updateOpportunity(id, { title: 'A better title' });
+
+    assert.deepEqual(store.getOpportunity(id).reminders_sent, [30]);
+    assert.equal(store.getOpportunity(id).title, 'A better title');
+  });
+});

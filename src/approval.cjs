@@ -71,6 +71,12 @@ function createApproval({ store, telegram, zone, chatId, now = () => new Date() 
   // A correction, sent as `<id> <field> = <value>`. It names the row it applies to, so there
   // is no pending-edit state to keep and a restart between the card and the correction
   // loses nothing.
+  //
+  // Tracked records included. Approving one says it is worth following, not that it is
+  // finished and correct – and a deadline that only turns up later is the ordinary case
+  // rather than the exception. This used to refuse them and point at a web view that does
+  // not exist, which left a wrong field fixable by nothing at all: rejecting deletes the row
+  // and keeps no history, and resubmitting the link is answered "Already tracking that one".
   async function handleText({ text }) {
     const edit = parseEdit(text, { zone });
     if (!edit) return false;
@@ -78,10 +84,6 @@ function createApproval({ store, telegram, zone, chatId, now = () => new Date() 
     const opportunity = store.getOpportunity(edit.opportunityId);
     if (!opportunity) {
       await telegram.sendMessage(chatId, `There is no record ${edit.opportunityId}.`);
-      return true;
-    }
-    if (opportunity.confirmed) {
-      await telegram.sendMessage(chatId, 'That record is already approved; edit it in the web view.');
       return true;
     }
     if (edit.error) {
