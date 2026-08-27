@@ -535,7 +535,7 @@ test('the rescue shares the submission budget instead of starting a new clock', 
 //
 // The submitted page is read here rather than by web_fetch. A page the model fetches arrives
 // mid-conversation and is re-sent on every iteration after it, and the server-side loop bills
-// the whole conversation each time - one live rescue ran seven iterations at ~25k tokens
+// the whole conversation each time – one live rescue ran seven iterations at ~25k tokens
 // apiece. Reading it here puts the advert in the opening turn instead, and spends no round
 // trip to get it. What the model chooses for itself still runs on Anthropic's side, which is
 // the half of ADR-0007 that carries the security argument.
@@ -579,7 +579,7 @@ test('a page that answered 200 with something that is not the advert still reach
   // `page.ok` only ever meant bytes arrived. A sign-in wall, a consent page or a JS shell is
   // a 200 with real text in it, so our own fetch "succeeds" and the model reads a page that
   // says nothing. Before this, the address was never offered to web_fetch at all and the
-  // user got "I could not read anything from that page" - the message this whole path
+  // user got "I could not read anything from that page" – the message this whole path
   // exists to stop sending.
   const seen = [];
 

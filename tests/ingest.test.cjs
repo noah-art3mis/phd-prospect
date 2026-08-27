@@ -882,8 +882,8 @@ test('an ingest honours a deadline the caller had already started', async () => 
 test('a record with nothing in it says the advert went unread, whoever fetched the page', async () => {
   // The source yielded no advert. Which fetcher produced it does not change that, and the
   // caller has one thing left to try: the live address. Withholding the flag when no fetch
-  // was refused meant the commonest case - we handed over text that turned out to be a
-  // sign-in wall - looked like a failure nobody could act on.
+  // was refused meant the commonest case – we handed over text that turned out to be a
+  // sign-in wall – looked like a failure nobody could act on.
   const result = await ingestWith(fakeAnthropic([fixture('unreadable_page')]))(SUBMISSION);
 
   assert.equal(result.ok, false);
