@@ -29,7 +29,10 @@ const MAX_REDIRECTS = 5;
 const BROWSER_UA =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-const failed = (reason) => ({ ok: false, reason, redirect: 'manual' });
+// `status` only when there was one. A caller deciding whether a refusal is worth trying
+// somewhere else needs the number, and recovering it by matching the prose is how the
+// sentence stops being free to improve.
+const failed = (reason, status) => ({ ok: false, reason, redirect: 'manual', ...(status ? { status } : {}) });
 
 // Every address behind a hostname, not just the first: a name that answers with one public
 // and one private address would otherwise pass on a coin flip.
@@ -91,7 +94,7 @@ async function fetchPage(url, { fetch = globalThis.fetch, resolve = (h) => dns.l
       continue;
     }
 
-    if (!response.ok) return failed(`that page answered ${response.status}.`);
+    if (!response.ok) return failed(`that page answered ${response.status}.`, response.status);
 
     const type = response.headers.get('content-type') ?? '';
     if (type && !/html|text\/plain/i.test(type)) {

@@ -42,4 +42,14 @@ That is a narrower thing than ADR-0004's fetch service, which was rejected for p
 
 - The `unread` marker on ingest failures, and the fallback it gates, now apply only to pasted text carrying the address it came from. A URL submission is read by the app first, so there is nothing left to rescue it with.
 - Research bounds are 3 searches and 5 fetches. The fetch cap came down from 8 because the submitted advert no longer spends one, and because the cap bounds iterations rather than pages – the worst run on record spent eight fetches and 461,000 input tokens to report that it could not read the page.
-- Pages our fetcher cannot reach but `web_fetch` can are still reachable: the address is handed over when our own fetch fails.
+- Pages our fetcher cannot reach but `web_fetch` can are still reachable: the address is handed over when our own fetch fails – except where the app chose the address itself, for which see the amendment below.
+
+## Amendment, 2026-08-27: the address read is not always the address submitted
+
+Some pages are a program rather than a document. A Google Doc serves its own menu bar and draws the document with script, so what our fetcher reads is 169 characters of interface; the same document asked for as plain text is 5,204 characters of advert, deadline included. Record #10 was tracked with no deadline for exactly this reason, one day before it closed.
+
+So the app now rewrites a submitted address to the address its text lives at, from a fixed table in `src/core/readable-url.cjs`. The record is still filed and cited under what the user sent.
+
+This does not widen the SSRF surface argued about above. The rewritten address is a pure function of an address the operator typed, decided before any model has read anything, and it goes through the same guard on the same hops. What the model chooses is still fetched on Anthropic's infrastructure. What is new is only that the operator's address and the address we connect to may differ, and both are ours to know in advance.
+
+It does add one exception to the fallback. When the app picked the address, a refusal there is final and `web_fetch` is not offered it: the page the user sent is the interface, and web_fetch runs no more script than we do, so the handover would be paid for to learn what the status code already said. A status that might not last (a 5xx, a 429) is not treated as a refusal.

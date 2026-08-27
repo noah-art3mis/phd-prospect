@@ -602,3 +602,91 @@ test('a page that answered 200 with something that is not the advert still reach
 
   assert.deepEqual(seen, ['paste', 'url'], 'the model was never given the address to try');
 });
+
+// --- the page is the interface, not the document -------------------------------------------
+//
+// Live, 27 Aug: record #10 – the DSSG call, one day from closing – was tracked with no
+// deadline. Its address returns 169 characters of Google's own menu bar; the document is
+// drawn by script we do not run. The same id asked for as plain text returns 5,204
+// characters, including the line the record was missing.
+
+test('a Google Doc is read at its text address, and filed under the one the user sent', async () => {
+  const fetched = [];
+  const page = async (url) => {
+    fetched.push(url);
+    return { ok: true, text: 'O período de candidaturas vai estar aberto até 28 de Agosto.', url };
+  };
+  const id = '1Pt3UEeXt3gVmZ5-IElB0mL1EnjE2ZiiMbIKS87EqMww';
+  const link = `https://docs.google.com/document/d/${id}/edit`;
+
+  await withApp([fixture('complete')], async ({ store, telegram, app, anthropic }) => {
+    await app.bot.handleUpdate(linkFrom(ME, link));
+    await app.bot.settle();
+
+    assert.deepEqual(fetched, [`https://docs.google.com/document/d/${id}/export?format=txt`]);
+
+    // The export address is ours, not the user's. Citing it would put an address in the
+    // evidence that nobody sent and nobody will recognise.
+    const sent = JSON.stringify(anthropic.requests[0].messages);
+    assert.match(sent, /candidaturas/, 'the document text never reached the model');
+    assert.match(sent, /\/edit/, 'the model was told to cite an address the user never sent');
+    assert.doesNotMatch(sent, /export/);
+
+    const cardId = Number(telegram.sent.at(-1).options.replyMarkup.inline_keyboard[0][0].callback_data.split(':')[1]);
+    await app.bot.handleUpdate(press('approve', cardId));
+    await app.bot.settle();
+
+    assert.equal(store.listConfirmed()[0].source_url, link, 'sending the link again would not be recognised');
+  }, { fetchPage: page });
+});
+
+test('a Google Doc that will not open is reported, not handed to a model that cannot open it either', async () => {
+  // The document's own page *is* the interface, so there is nothing for web_fetch to reach
+  // that we could not - and it runs no more script than we do. Falling through would buy a
+  // model call to be told what the status code already said.
+  const seen = [];
+
+  const handle = createSubmissionHandler({
+    store: { findByUrl: () => null },
+    telegram: { async sendMessage() {} },
+    ingest: async (submission) => {
+      seen.push(submission.kind);
+      return { ok: false, unread: true, reason: 'I could not read anything from that page.' };
+    },
+    approval: { present: async () => assert.fail('nothing should have been presented') },
+    chatId: ME,
+    fetchPage: async () => ({ ok: false, status: 403, reason: 'that page answered 403.' }),
+    now: () => new Date('2026-08-27T12:00:00Z'),
+  });
+
+  await assert.rejects(
+    () => handle({ kind: 'url', url: 'https://docs.google.com/document/d/abc/edit' }),
+    /Google Doc/,
+    'the failure named neither the document nor what to do about it'
+  );
+  assert.deepEqual(seen, [], 'a model call was paid for on a document nothing can read');
+});
+
+test('a page we did not choose the address of still falls through to the model', async () => {
+  // The short circuit above is about an address the app picked. An ordinary advert that
+  // answers 403 may still be one web_fetch reaches, and that fallback is the reason this
+  // whole path exists.
+  const seen = [];
+
+  const handle = createSubmissionHandler({
+    store: { findByUrl: () => null },
+    telegram: { async sendMessage() {} },
+    ingest: async (submission) => {
+      seen.push(submission.kind);
+      return { ok: true, candidate: { title: 'Read by the model instead' } };
+    },
+    approval: { present: async () => {} },
+    chatId: ME,
+    fetchPage: async () => ({ ok: false, status: 403, reason: 'that page answered 403.' }),
+    now: () => new Date('2026-08-27T12:00:00Z'),
+  });
+
+  await handle({ kind: 'url', url: 'https://www.linkedin.com/posts/x/' });
+
+  assert.deepEqual(seen, ['url'], 'the address was never offered to the model');
+});

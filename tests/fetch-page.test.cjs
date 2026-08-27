@@ -224,3 +224,18 @@ test('a malformed redirect target is reported, not thrown', async () => {
   const result = await fetchPage('https://advert.example/phd', { fetch, resolve: resolves('8.8.8.8') });
   assert.equal(result.ok, false);
 });
+
+test('a page that answered with a status hands the status on, not only the sentence', async () => {
+  // Whether a refusal is worth trying somewhere else is the caller's decision, and 403 and
+  // 503 are different answers to it. Recovering the number by matching the prose is how the
+  // sentence stops being free to improve.
+  const { fetch } = stub({ status: 403 });
+  const result = await fetchPage('https://docs.google.com/document/d/abc/export?format=txt', {
+    fetch,
+    resolve: resolves('8.8.8.8'),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 403);
+  assert.match(result.reason, /403/);
+});

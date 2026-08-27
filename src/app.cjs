@@ -22,6 +22,7 @@ const { runBackup } = require('./jobs/backup.cjs');
 const { runWeeklyDigest } = require('./jobs/digest.cjs');
 const { createTraceWriter } = require('./trace.cjs');
 const { fetchPage: fetchPageDefault } = require('./fetch-page.cjs');
+const { readableUrl, refusedReason } = require('./core/readable-url.cjs');
 
 const INGEST_PROMPT = path.join(__dirname, '..', 'prompts', 'ingest.prompt');
 
@@ -53,10 +54,20 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;
 // of one address the operator typed. The guard is in src/core/page-text.cjs, checked against
 // the address as written and again against every IP it resolves to.
 async function readFromPage({ submission, ingest, fetchPage, now, deadline }) {
-  const page = await fetchPage(submission.url);
-  // Not the end of the road: web_fetch reaches some pages this cannot, so a caller is left
-  // free to hand the address to the model instead.
-  if (!page.ok) return null;
+  // Where the advert's text is, which is not always where the user found it. A Google Doc
+  // serves its menu bar and draws the document with script nothing here runs; the same
+  // document asked for as plain text is the whole of it. The table is in core/readable-url.
+  const readable = readableUrl(submission.url);
+  const page = await fetchPage(readable?.url ?? submission.url);
+  if (!page.ok) {
+    // A refusal from an address this app chose is the answer, not a reason to keep looking:
+    // there is nowhere further to try, and the fallback would be paid for to learn nothing.
+    const refused = readable && refusedReason(readable, page.status);
+    if (refused) return { ok: false, reason: refused };
+    // Otherwise not the end of the road: web_fetch reaches some pages this cannot, so a
+    // caller is left free to hand the address to the model instead.
+    return null;
+  }
   // Read here, so the instant is ours to state. The model quotes the text and cannot know
   // when it was fetched; every excerpt from it is stamped with this.
   return ingest(
